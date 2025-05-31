@@ -155,11 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailVerified: credential.user.emailVerified,
         createdAt: Timestamp.fromDate(userDoc.createdAt),
         lastLoginAt: Timestamp.fromDate(userDoc.lastLoginAt),
-        lastUpdatedAt: Timestamp.fromDate(userDoc.lastUpdatedAt),
-        stats: {
-          ...userDoc.stats,
-          lastSessionDate: userDoc.stats.lastSessionDate ? Timestamp.fromDate(userDoc.stats.lastSessionDate) : null
-        }
+        lastUpdatedAt: Timestamp.fromDate(userDoc.lastUpdatedAt)
       };
       
       await setDoc(doc(db, 'users', credential.user.uid), firestoreDoc);
@@ -202,11 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           emailVerified: credential.user.emailVerified,
           createdAt: Timestamp.fromDate(newUserDoc.createdAt),
           lastLoginAt: Timestamp.fromDate(newUserDoc.lastLoginAt),
-          lastUpdatedAt: Timestamp.fromDate(newUserDoc.lastUpdatedAt),
-          stats: {
-            ...newUserDoc.stats,
-            lastSessionDate: newUserDoc.stats.lastSessionDate ? Timestamp.fromDate(newUserDoc.stats.lastSessionDate) : null
-          }
+          lastUpdatedAt: Timestamp.fromDate(newUserDoc.lastUpdatedAt)
         };
         
         await setDoc(doc(db, 'users', credential.user.uid), firestoreDoc);

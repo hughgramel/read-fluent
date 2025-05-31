@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "age-of-focus"
-  }
+    "default": "readfluent-a5caf",
+    "read-fluent": "readfluent-a5caf"
+  },
+  "targets": {},
+  "etags": {}
 }

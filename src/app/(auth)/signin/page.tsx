@@ -148,7 +148,14 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 [font-family:var(--font-mplus-rounded)]">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4 [font-family:var(--font-mplus-rounded)]">
+      {/* Go Back Button */}
+      <div className="absolute top-5 left-5">
+        <Link href="/" className="inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-[#67b9e7] transition-colors">
+          ← Go Back
+        </Link>
+      </div>
+
       {/* Corner Link to Sign Up */}
       <div className="absolute top-5 right-5">
         <Link href="/signup" className="text-sm font-semibold text-gray-600 hover:text-[#67b9e7] transition-colors">
@@ -238,7 +245,7 @@ export default function SignInPage() {
 
         {/* Terms Text */}
         <div className="text-center text-xs text-gray-500 mt-6">
-          By signing in to Age of Focus, you agree to our <Link href="/terms" className="font-medium hover:underline">Terms</Link> and <Link href="/privacy" className="font-medium hover:underline">Privacy Policy</Link>.
+          By signing in to readFluent, you agree to our <Link href="/terms" className="font-medium hover:underline">Terms</Link> and <Link href="/privacy" className="font-medium hover:underline">Privacy Policy</Link>.
         </div>
       </div>
     </div>

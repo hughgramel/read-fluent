@@ -1,32 +1,21 @@
 export type AccountType = 'free' | 'premium' | 'enterprise';
 
-export type FocusSessionDuration = 25 | 30 | 45 | 60;
-
 export interface UserPreferences {
-  // Focus session preferences
-  defaultSessionDuration: FocusSessionDuration;
-  enableSoundEffects: boolean;
-  enableNotifications: boolean;
-  
-  // Game preferences
-  autoSaveEnabled: boolean;
   darkMode: boolean;
-  showTutorialTips: boolean;
 }
 
 export interface UserStats {
-  totalFocusSessions: number;
-  totalFocusMinutes: number;
-  longestStreak: number;
-  currentStreak: number;
-  lastSessionDate: Date | null;
+  totalWordsRead: number;
+  totalSentencesRead: number;
+  totalCharactersRead: number;
+  totalTimeSpentReading: number;
+  lastReadingDate: Date | null;
 }
 
 export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
-  timezone: string;
-  country: string | null;
+  language: string;
 }
 
 export interface User {
@@ -66,8 +55,7 @@ export function createNewUserDocument(
     profile: {
       displayName,
       photoURL,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      country: null,
+      language: 'en',
     },
     subscriptionStatus: null,
     subscriptionEndDate: null,

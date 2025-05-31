@@ -1,8 +1,8 @@
-# Age of Focus Codebase Rules
+# readFluent Codebase Rules
 
 ## Project Structure
 ```
-age-of-focus/
+read-fluent/
 ├── src/
 │   ├── app/                    # Next.js app directory
 │   │   ├── (auth)/            # Authentication routes

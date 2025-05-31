@@ -48,8 +48,8 @@ const mplusRounded = M_PLUS_Rounded_1c({
 });
 
 export const metadata: Metadata = {
-  title: "Age of Focus",
-  description: "Shape your nation's destiny through focused productivity",
+  title: "readFluent",
+  description: "Learn a new language by reading the books you love",
 };
 
 export default function RootLayout({

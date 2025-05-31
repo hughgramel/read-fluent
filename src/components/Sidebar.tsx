@@ -6,9 +6,7 @@ import { usePathname } from 'next/navigation';
 // Sidebar Navigation Items
 const navigation = [
   { name: 'Home', href: '/dashboard', icon: '🏠' },
-  { name: 'Alliances', href: '/alliances', icon: '🤝' },
   { name: 'Profile', href: '/profile', icon: '👤' },
-  { name: 'Tutorial', href: '/tutorial', icon: '📖' },
   { name: 'About', href: '/about', icon: 'ℹ️' },
   // Add other authenticated links here if needed
 ];
@@ -22,9 +20,7 @@ export default function Sidebar() {
       <div className="mb-10 px-2">
         <Link href="/dashboard" className="font-bold text-[#0B1423] hover:text-[#162033] transition-colors duration-200 whitespace-nowrap [font-family:var(--font-mplus-rounded)] flex flex-row items-baseline justify-center">
           {/* Adjusted sizes and spacing */}
-          <span className="text-2xl">Age</span>
-          <span className="text-xl mx-1">of</span>
-          <span className="text-2xl">Focus</span>
+          <span className="text-2xl">ReadFluent</span>
         </Link>
       </div>
 

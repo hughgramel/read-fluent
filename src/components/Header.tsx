@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   { name: 'Home', href: '/dashboard', icon: '🏠' },
-  { name: 'Alliances', href: '/alliances', icon: '📚' },
   { name: 'Profile', href: '/profile', icon: '👤' },
 ];
 
@@ -103,7 +102,7 @@ export default function Header() {
       <header className="bg-white border-b border-gray-200 sm:hidden z-50 relative">
         <div className="flex items-center justify-center h-16 px-4">
           <Link href="/dashboard" className="font-bold text-[#0B1423] [font-family:var(--font-mplus-rounded)] flex items-baseline">
-            <span className="text-3xl">FluentReader</span>
+            <span className="text-3xl">readFluent</span>
           </Link>
         </div>
       </header>
