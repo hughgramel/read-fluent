@@ -1,0 +1,180 @@
+# Age of Focus Codebase Rules
+
+## Project Structure
+```
+age-of-focus/
+├── src/
+│   ├── app/                    # Next.js app directory
+│   │   ├── (auth)/            # Authentication routes
+│   │   ├── (authenticated)/   # Protected routes
+│   │   └── (game)/            # Game-related routes
+│   ├── components/            # React components
+│   ├── contexts/              # React contexts
+│   ├── data/                  # Static data and constants
+│   ├── hooks/                 # Custom React hooks
+│   ├── lib/                   # Utility functions
+│   ├── pages/                 # Legacy pages (to be migrated)
+│   ├── services/              # Service layer
+│   └── types/                 # TypeScript type definitions
+├── public/                    # Static assets
+└── plans/                    # Project planning docs
+```
+
+## Core Components
+
+### Focus Session System
+- `FocusNowButton.tsx`: Entry point for starting focus sessions
+- `FocusNowModal.tsx`: Modal for configuring focus sessions
+- `FocusTimer.tsx`: Core timer component with session management
+- `TimerDisplay.tsx`: UI component for displaying timer
+
+### Game Components
+- `GameView.tsx`: Main game view component
+- `MapCanvas.tsx`: SVG map rendering component
+- `MapView.tsx`: Map interaction and state management
+
+### Authentication
+- `AuthContext.tsx`: Authentication state management
+- `ProtectedRoute.tsx`: Route protection wrapper
+- `authService.ts`: Authentication service layer
+
+### Session Management
+- `sessionService.ts`: Session CRUD operations
+- `Session` type: Core session data structure
+- Key fields:
+  - `selected_actions`: Array of action types
+  - `session_state`: 'focus' | 'break' | 'complete'
+  - `total_minutes_done`: Completed minutes
+  - `planned_minutes`: Target duration
+
+## Data Flow
+
+### Focus Session Flow
+1. User clicks `FocusNowButton`
+2. `FocusNowModal` opens for configuration
+3. User selects duration and actions
+4. `FocusTimer` component manages session
+5. On completion:
+   - Session marked as complete
+   - Actions executed
+   - Stats updated
+
+### Action System
+- Actions defined in `data/actions.ts`
+- Types: 'build' | 'train' | 'research' | 'auto'
+- Actions executed on session completion
+- Action points generated based on session duration
+
+## State Management
+
+### Contexts
+- `AuthContext`: User authentication state
+- `GameContext`: Game state and actions
+- `UserContext`: User preferences and data
+
+### Services
+- `sessionService.ts`: Session CRUD
+- `gameService.ts`: Game state management
+- `userService.ts`: User data management
+- `authService.ts`: Authentication operations
+
+## Type Definitions
+
+### Session
+```typescript
+interface Session {
+  id: string;
+  user_id: string;
+  session_state: 'focus' | 'break' | 'complete';
+  selected_actions: ActionType[];
+  total_minutes_done: number;
+  planned_minutes: number;
+  // ... other fields
+}
+```
+
+### Action
+```typescript
+interface Action {
+  id: ActionType;
+  name: string;
+  description: string;
+  execute: (isFullyCompleted: boolean) => void;
+}
+```
+
+## Firebase Integration
+
+### Collections
+- `sessions`: User focus sessions
+- `users`: User profiles and preferences
+- `games`: Saved game states
+
+### Security Rules
+- Authentication required for most operations
+- Users can only access their own data
+- Session data protected by user_id
+
+## CSS Classes
+
+### Timer Components
+- `.timer-page`: Main timer container
+- `.timer-display`: Timer countdown display
+- `.timer-controls`: Control buttons container
+- `.timer-progress`: Progress bar container
+
+### Modal Components
+- `.modal-overlay`: Modal background
+- `.modal-content`: Modal container
+- `.modal-header`: Modal title section
+- `.modal-body`: Modal content section
+
+## Error Handling
+
+### Session Errors
+- Invalid session state transitions
+- Missing required fields
+- Database operation failures
+
+### Action Errors
+- Invalid action types
+- Failed action execution
+- Missing action handlers
+
+## Testing Guidelines
+
+### Component Testing
+- Test timer accuracy
+- Verify session state transitions
+- Check action execution
+- Validate user interactions
+
+### Integration Testing
+- Session creation flow
+- Action execution flow
+- Data persistence
+- Error handling
+
+## Performance Considerations
+
+### Timer Optimization
+- Use requestAnimationFrame for smooth updates
+- Debounce state updates
+- Memoize expensive calculations
+
+### Data Management
+- Batch Firebase updates
+- Cache frequently accessed data
+- Optimize re-renders
+
+## Accessibility
+
+### Keyboard Navigation
+- Focus trap in modals
+- Keyboard shortcuts for timer
+- ARIA labels for controls
+
+### Screen Reader Support
+- Timer announcements
+- Status updates
+- Error messages 
