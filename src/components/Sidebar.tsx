@@ -15,7 +15,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 h-screen fixed left-0 top-0 bg-white border-r border-gray-200 flex flex-col px-4 py-6 [font-family:var(--font-mplus-rounded)] z-40">
+    <aside className="hidden sm:flex w-64 h-screen fixed left-0 top-0 bg-white border-r border-gray-200 flex-col px-4 py-6 [font-family:var(--font-mplus-rounded)] z-40">
       {/* Logo/Title - Updated to Row */} 
       <div className="mb-10 px-2">
         <Link href="/dashboard" className="font-bold text-[#0B1423] hover:text-[#162033] transition-colors duration-200 whitespace-nowrap [font-family:var(--font-mplus-rounded)] flex flex-row items-baseline justify-center">

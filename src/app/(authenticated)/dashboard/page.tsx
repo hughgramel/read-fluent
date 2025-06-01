@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook } from '@/services/epubService';
+import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata } from '@/services/epubService';
 import { useAuth } from '@/hooks/useAuth';
 
 // Types
@@ -25,6 +25,7 @@ interface Book {
   dateAdded: string;
   storagePath?: string;
   downloadURL?: string;
+  completed?: boolean;
 }
 
 interface ReadingProgress {
@@ -36,6 +37,7 @@ interface ReadingProgress {
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { user } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
@@ -97,6 +99,7 @@ export default function Dashboard() {
         dateAdded: meta.dateAdded,
         storagePath: meta.storagePath,
         downloadURL: meta.downloadURL,
+        completed: meta.completed || false,
       })));
     });
   }, [user]);
@@ -171,7 +174,7 @@ export default function Dashboard() {
           const sectionDoc = parser.parseFromString(sectionHtml, 'text/html');
           const textContent = sectionDoc.body?.textContent || '';
           const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length;
-          const sectionTitle = sectionDoc.querySelector('title')?.textContent || sectionDoc.querySelector('h1, h2, h3')?.textContent || `Chapter ${sections.length + 1}`;
+          const sectionTitle = sectionDoc.querySelector('title')?.textContent || sectionDoc.querySelector('h1, h2, h3')?.textContent || `${sections.length + 1}`;
           if (itemId) {
             sections.push({
               title: sectionTitle.trim(),
@@ -218,6 +221,7 @@ export default function Dashboard() {
           dateAdded: newBook.dateAdded,
           storagePath,
           downloadURL,
+          completed: false,
         }
       ]);
       setIsUploading(false);
@@ -304,6 +308,7 @@ export default function Dashboard() {
         dateAdded: meta.dateAdded,
         storagePath: meta.storagePath,
         downloadURL: meta.downloadURL,
+        completed: meta.completed || false,
       })));
     });
   };
@@ -335,29 +340,38 @@ export default function Dashboard() {
     router.push('/');
   };
 
+  // Toggle Completed handler
+  const toggleCompleted = async (book: Book) => {
+    if (!user?.uid) return;
+    const newCompleted = !book.completed;
+    await updateBookMetadata(user.uid, book.id, { completed: newCompleted });
+    // Update local state
+    setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, completed: newCompleted } : b));
+  };
+
   // Helper: Determine book status
-  function getBookStatus(book: Book): 'currentlyReading' | 'notStarted' | 'completed' {
+  function getBookStatus(book: Book): 'active' | 'notStarted' | 'completed' {
+    if (book.completed) return 'completed';
     const savedProgress = localStorage.getItem('epub-reader-progress');
     if (savedProgress) {
       const allProgress: ReadingProgress[] = JSON.parse(savedProgress);
       const bookProgress = allProgress.find((p) => p.bookId === book.id);
       if (bookProgress) {
-        if (bookProgress.currentSection === 0) return 'currentlyReading';
-        if (bookProgress.currentSection >= book.sections.length - 1) return 'completed';
-        return 'currentlyReading';
+        // Any progress, even at last section, is 'active' unless completed flag is set
+        return 'active';
       }
     }
     return 'notStarted';
   }
 
   // Group books
-  const currentlyReading = books.filter((b) => getBookStatus(b) === 'currentlyReading');
+  const activeBooks = books.filter((b) => getBookStatus(b) === 'active');
   const notStarted = books.filter((b) => getBookStatus(b) === 'notStarted');
   const completed = books.filter((b) => getBookStatus(b) === 'completed');
 
   // Book Card
   function BookCard({ book }: { book: Book }) {
-    return (
+  return (
       <div className="bg-white rounded-xl border-2 border-gray-300 shadow-[0_4px_0px_#d1d5db] hover:shadow-[0_8px_0px_#d1d5db] transition-shadow flex flex-col [font-family:var(--font-mplus-rounded)] w-full max-w-sm mx-auto aspect-[1/0.7]">
         <div className="p-2 flex-1 flex flex-col justify-between gap-0.5">
           <button
@@ -374,7 +388,7 @@ export default function Dashboard() {
             <span className="text-purple-500">3.5% Tracking</span>
             <span className="text-red-500">1.8% Unknown</span>
           </div>
-          <div className="flex gap-4 mt-0 px-2 pb-4">
+          <div className="flex gap-2 mt-0 px-2 pb-4">
             <button
               onClick={() => openBook(book)}
               className="flex-1 inline-flex items-center justify-center rounded-lg bg-green-500 px-0 py-2 text-base font-semibold text-white border-2 border-green-700 shadow-[0_4px_0_#166534] hover:bg-green-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_0_#166534] transition-all min-w-0"
@@ -386,6 +400,12 @@ export default function Dashboard() {
               className="flex-1 inline-flex items-center justify-center rounded-lg bg-white px-0 py-2 text-base font-semibold text-[#0B1423] border-2 border-gray-300 shadow-[0_4px_0px_#d1d5db] hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px_#d1d5db] transition-all min-w-0"
             >
               Data
+            </button>
+            <button
+              onClick={() => toggleCompleted(book)}
+              className={`flex-1 inline-flex items-center justify-center rounded-lg px-0 py-2 text-base font-semibold border-2 border-gray-300 shadow-[0_4px_0px_#d1d5db] transition-all min-w-0 ${book.completed ? 'bg-gray-200 hover:bg-gray-300 text-[#0B1423]' : 'bg-yellow-200 hover:bg-yellow-300 text-[#0B1423]'}`}
+            >
+              {book.completed ? 'Uncomplete' : 'Complete'}
             </button>
           </div>
         </div>
@@ -507,7 +527,7 @@ export default function Dashboard() {
             </button>
             <div className="text-center">
               <span className="text-gray-600 font-medium">
-                Chapter {currentSection + 1} of {currentBook.sections.length}
+                {currentSection + 1} of {currentBook.sections.length}
               </span>
               <div className="text-sm text-gray-500 mt-1">
                 {currentBook.sections[currentSection].title}
@@ -556,8 +576,8 @@ export default function Dashboard() {
             {error}
           </div>
         )}
-        {/* Currently Reading */}
-        <SectionRow title="Currently Reading" books={currentlyReading} />
+        {/* Active */}
+        <SectionRow title="Active" books={activeBooks} />
         {/* Not Started */}
         <SectionRow title="Not Started" books={notStarted} />
         {/* Completed */}

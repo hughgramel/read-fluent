@@ -2,6 +2,9 @@ export type AccountType = 'free' | 'premium' | 'enterprise';
 
 export interface UserPreferences {
   darkMode: boolean;
+  readerFont?: string; // e.g. 'serif', 'sans', 'merriweather', etc.
+  readerWidth?: number; // e.g. 600, 700, 900 (pixels)
+  readerFontSize?: number; // e.g. 18 (pixels)
 }
 
 export interface UserStats {

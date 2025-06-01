@@ -57,6 +57,12 @@ export class UserService {
     });
   }
 
+  static async getUserPreferences(uid: string): Promise<UserPreferences | null> {
+    const userDoc = doc(db, this.COLLECTION, uid);
+    const snap = await getDoc(userDoc);
+    return snap.exists() ? (snap.data().preferences as UserPreferences) : null;
+  }
+
   static async updateLastLogin(uid: string): Promise<void> {
     const userDoc = doc(db, this.COLLECTION, uid);
     await updateDoc(userDoc, {

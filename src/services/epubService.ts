@@ -17,6 +17,7 @@ export interface BookMetadata {
   downloadURL: string;
   dateAdded: string;
   currentSection?: number; // Optional, for reading progress
+  completed?: boolean; // Optional, for completed status
 }
 
 export async function uploadEpub(userId: string, file: File, metadata: any) {
