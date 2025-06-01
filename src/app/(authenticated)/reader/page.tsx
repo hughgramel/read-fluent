@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getBooks, getBookJson, updateBookMetadata } from '@/services/epubService';
+import { useAuth } from '@/hooks/useAuth';
 
 // Types
 interface BookSection {
@@ -33,37 +35,73 @@ export default function ReaderPage() {
   const searchParams = useSearchParams();
   const bookId = searchParams ? searchParams.get('book') : null;
   const sectionParam = searchParams ? searchParams.get('section') : null;
+  const { user } = useAuth();
   const [book, setBook] = useState<Book | null>(null);
   const [currentSection, setCurrentSection] = useState(0);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string>('');
 
-  // Load book from localStorage
+  // Load book from Firebase Storage
   useEffect(() => {
-    if (!bookId) return;
-    const savedBooks = localStorage.getItem('epub-reader-books');
-    if (savedBooks) {
-      const parsedBooks: Book[] = JSON.parse(savedBooks);
-      const foundBook = parsedBooks.find((b) => b.id === bookId);
-      if (foundBook) {
-        setBook(foundBook);
-        let sectionNum = 0;
-        if (sectionParam && !isNaN(Number(sectionParam))) {
-          sectionNum = Math.max(0, Math.min(Number(sectionParam), foundBook.sections.length - 1));
-        } else {
-          // Resume from progress if available
-          const savedProgress = localStorage.getItem('epub-reader-progress');
-          if (savedProgress) {
-            const allProgress: ReadingProgress[] = JSON.parse(savedProgress);
-            const bookProgress = allProgress.find((p) => p.bookId === foundBook.id);
-            if (bookProgress) sectionNum = bookProgress.currentSection;
+    if (!user?.uid || !bookId) return;
+    console.log('Current userId (reader):', user.uid);
+    getBooks(user.uid).then(async (metadatas) => {
+      const meta = metadatas.find((m) => m.bookId === bookId);
+      console.log('Found meta:', meta);
+      if (meta) {
+        const localKey = `epub-book-${meta.bookId}`;
+        let bookObj = null;
+        const cached = localStorage.getItem(localKey);
+        console.log('Reader: localStorage key', localKey, 'cached:', cached);
+        if (cached) {
+          try {
+            bookObj = JSON.parse(cached);
+            console.log('Reader: loaded from localStorage:', bookObj);
+          } catch { bookObj = null; }
+        }
+        if (!bookObj && meta.downloadURL) {
+          try {
+            console.log('Reader: fetching from storage:', meta.downloadURL);
+            bookObj = await getBookJson(meta.downloadURL);
+            console.log('Reader: fetched from storage:', bookObj);
+            if (bookObj && bookObj.sections && Array.isArray(bookObj.sections)) {
+              localStorage.setItem(localKey, JSON.stringify(bookObj));
+              console.log('Reader: saved to localStorage:', localKey);
+            } else {
+              setError('Book data from storage is invalid.');
+              setBook(null);
+              return;
+            }
+          } catch (e) {
+            setError('Failed to load book from storage.');
+            setBook(null);
+            console.error('Reader: failed to fetch book JSON:', e);
+            return;
           }
         }
-        setCurrentSection(sectionNum);
+        if (bookObj && bookObj.sections && Array.isArray(bookObj.sections)) {
+          const book = { ...bookObj, ...meta, id: meta.bookId };
+          console.log('Fetched book in reader:', { id: book.id, title: book.title });
+          setBook(book);
+          let sectionNum = 0;
+          if (typeof (meta as any).currentSection === 'number') {
+            sectionNum = (meta as any).currentSection;
+          } else if (sectionParam && !isNaN(Number(sectionParam))) {
+            sectionNum = Math.max(0, Math.min(Number(sectionParam), bookObj.sections.length - 1));
+          }
+          setCurrentSection(sectionNum);
+        } else {
+          setError('Book could not be loaded.');
+          setBook(null);
+        }
+      } else {
+        setError('Book not found.');
+        setBook(null);
       }
-    }
-  }, [bookId, sectionParam]);
+    });
+  }, [user, bookId, sectionParam]);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -93,25 +131,6 @@ export default function ReaderPage() {
 
   useEffect(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, [currentSection]);
 
-  // Save reading progress whenever section changes
-  useEffect(() => {
-    if (book) {
-      const progress: ReadingProgress = {
-        bookId: book.id,
-        currentSection: currentSection,
-        lastRead: new Date().toISOString()
-      };
-      const savedProgress = localStorage.getItem('epub-reader-progress');
-      let allProgress: ReadingProgress[] = [];
-      if (savedProgress) {
-        allProgress = JSON.parse(savedProgress);
-        allProgress = allProgress.filter((p) => p.bookId !== book.id);
-      }
-      allProgress.push(progress);
-      localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
-    }
-  }, [book, currentSection]);
-
   const nextSection = (fromAutoScroll = false) => {
     if (book && currentSection < book.sections.length - 1) {
       const newSection = currentSection + 1;
@@ -134,6 +153,36 @@ export default function ReaderPage() {
   const backToLibrary = () => {
     router.push('/dashboard');
   };
+
+  // Save reading progress to Firestore metadata and localStorage
+  useEffect(() => {
+    if (book && user?.uid) {
+      // Save to localStorage
+      const progress: ReadingProgress = {
+        bookId: book.id,
+        currentSection: currentSection,
+        lastRead: new Date().toISOString()
+      };
+      const savedProgress = localStorage.getItem('epub-reader-progress');
+      let allProgress: ReadingProgress[] = [];
+      if (savedProgress) {
+        allProgress = JSON.parse(savedProgress);
+        allProgress = allProgress.filter(p => p.bookId !== book.id);
+      }
+      allProgress.push(progress);
+      localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
+      // Save to Firestore metadata
+      updateBookMetadata(user.uid, book.id, { currentSection });
+    }
+  }, [book, currentSection, user]);
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
+        {error}
+      </div>
+    );
+  }
 
   if (!book) {
     return (

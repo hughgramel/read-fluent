@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook } from '@/services/epubService';
+import { useAuth } from '@/hooks/useAuth';
 
 // Types
 interface BookSection {
@@ -21,6 +23,8 @@ interface Book {
   totalWords: number;
   fileName: string;
   dateAdded: string;
+  storagePath?: string;
+  downloadURL?: string;
 }
 
 interface ReadingProgress {
@@ -32,6 +36,7 @@ interface ReadingProgress {
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [currentSection, setCurrentSection] = useState(0);
@@ -71,31 +76,30 @@ export default function Dashboard() {
 
   useEffect(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, [currentSection]);
 
-  // Load books and handle URL-based navigation
+  // Load books metadata from Firestore/Storage (not full content)
   useEffect(() => {
-    const savedBooks = localStorage.getItem('epub-reader-books');
-    if (savedBooks) {
-      const parsedBooks = JSON.parse(savedBooks);
-      setBooks(parsedBooks);
-      // Check URL parameters for book and section
-      const bookId = searchParams ? searchParams.get('book') : null;
-      const section = searchParams ? searchParams.get('section') : null;
-      if (bookId && typeof bookId === 'string') {
-        const book = parsedBooks.find((b: Book) => b.id === bookId);
-        if (book) {
-          setCurrentBook(book);
-          setView('reader');
-          if (section && typeof section === 'string') {
-            const sectionNum = parseInt(section);
-            if (!isNaN(sectionNum) && sectionNum >= 0 && sectionNum < book.sections.length) {
-              setCurrentSection(sectionNum);
-            }
-          }
-        }
+    if (!user?.uid) return;
+    console.log('Current userId:', user.uid);
+    getBooks(user.uid).then((metadatas) => {
+      if (!metadatas || metadatas.length === 0) {
+        setBooks([]);
+        return;
       }
-    }
-    console.log('Main page localStorage:', {...localStorage});
-  }, [searchParams]);
+      // Only set metadata, not full book content
+      setBooks(metadatas.map(meta => ({
+        id: meta.bookId,
+        title: meta.title,
+        author: meta.author,
+        description: '', // No description in metadata
+        sections: [], // Not loaded yet
+        totalWords: meta.totalWords,
+        fileName: meta.fileName,
+        dateAdded: meta.dateAdded,
+        storagePath: meta.storagePath,
+        downloadURL: meta.downloadURL,
+      })));
+    });
+  }, [user]);
 
   // Save books to localStorage whenever books change
   useEffect(() => {
@@ -130,7 +134,9 @@ export default function Dashboard() {
     }
   };
 
+  // Upload EPUB and store in Storage/Firestore
   const processEpubFile = async (file: File) => {
+    if (!user?.uid) return;
     setIsUploading(true);
     setError('');
     try {
@@ -177,8 +183,9 @@ export default function Dashboard() {
           }
         }
       }
+      const bookId = Date.now().toString();
       const newBook: Book = {
-        id: Date.now().toString(),
+        id: bookId,
         title,
         author,
         description,
@@ -187,16 +194,74 @@ export default function Dashboard() {
         fileName: file.name,
         dateAdded: new Date().toISOString()
       };
-      setBooks(prev => [newBook, ...prev]);
+      const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook);
+      const savedMeta = await saveBookMetadata(user.uid, bookId, {
+        title: newBook.title,
+        author: newBook.author,
+        fileName: newBook.fileName,
+        totalWords: newBook.totalWords,
+        storagePath,
+        downloadURL,
+        currentSection: 0, // Start at section 0
+      });
+      // Add the new book metadata to the shelf immediately
+      setBooks(prevBooks => [
+        ...prevBooks,
+        {
+          id: bookId,
+          title: newBook.title,
+          author: newBook.author,
+          description: '',
+          sections: [],
+          totalWords: newBook.totalWords,
+          fileName: newBook.fileName,
+          dateAdded: newBook.dateAdded,
+          storagePath,
+          downloadURL,
+        }
+      ]);
+      setIsUploading(false);
     } catch (error) {
       console.error('Error processing EPUB:', error);
       setError(`Error processing EPUB: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
       setIsUploading(false);
     }
   };
 
-  const openBook = (book: Book) => {
+  // On 'Read', fetch book JSON if not in localStorage, then navigate
+  const openBook = async (book: Book) => {
+    const localKey = `epub-book-${book.id}`;
+    let bookObj = null;
+    const cached = localStorage.getItem(localKey);
+    if (cached) {
+      try {
+        bookObj = JSON.parse(cached);
+        console.log('Loaded book from localStorage:', localKey, bookObj);
+      } catch { bookObj = null; }
+    }
+    if (!bookObj && book.downloadURL) {
+      try {
+        console.log('Fetching book from storage:', book.downloadURL);
+        const fetched = await getBookJson(book.downloadURL);
+        console.log('Fetched book JSON:', fetched);
+        if (fetched && fetched.sections && Array.isArray(fetched.sections)) {
+          bookObj = fetched;
+          localStorage.setItem(localKey, JSON.stringify(bookObj));
+          console.log('Saved book to localStorage:', localKey);
+        } else {
+          setError('Book data from storage is invalid.');
+          return;
+        }
+      } catch (e) {
+        setError('Failed to load book from storage.');
+        console.error('Failed to fetch book JSON:', e);
+        return;
+      }
+    }
+    if (!bookObj) {
+      setError('Book could not be loaded.');
+      return;
+    }
     // Check for saved progress
     const savedProgress = localStorage.getItem('epub-reader-progress');
     let startSection = 0;
@@ -210,8 +275,37 @@ export default function Dashboard() {
     router.push(`/reader?book=${book.id}&section=${startSection}`);
   };
 
-  const deleteBook = (bookId: string) => {
-    setBooks(prev => prev.filter(book => book.id !== bookId));
+  const deleteBookHandler = async (bookId: string, storagePath?: string) => {
+    if (!user?.uid || !storagePath) return;
+    // Remove from localStorage
+    localStorage.removeItem(`epub-book-${bookId}`);
+    // Remove reading progress for this book
+    const savedProgress = localStorage.getItem('epub-reader-progress');
+    if (savedProgress) {
+      let allProgress: ReadingProgress[] = JSON.parse(savedProgress);
+      allProgress = allProgress.filter(p => p.bookId !== bookId);
+      localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
+    }
+    await deleteBook(bookId, storagePath);
+    // Refetch metadata and update dashboard
+    getBooks(user.uid).then((metadatas) => {
+      if (!metadatas || metadatas.length === 0) {
+        setBooks([]);
+        return;
+      }
+      setBooks(metadatas.map(meta => ({
+        id: meta.bookId,
+        title: meta.title,
+        author: meta.author,
+        description: '',
+        sections: [],
+        totalWords: meta.totalWords,
+        fileName: meta.fileName,
+        dateAdded: meta.dateAdded,
+        storagePath: meta.storagePath,
+        downloadURL: meta.downloadURL,
+      })));
+    });
   };
 
   const nextSection = (fromAutoScroll = false) => {
@@ -267,7 +361,7 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl border-2 border-gray-300 shadow-[0_4px_0px_#d1d5db] hover:shadow-[0_8px_0px_#d1d5db] transition-shadow flex flex-col [font-family:var(--font-mplus-rounded)] w-full max-w-sm mx-auto aspect-[1/0.7]">
         <div className="p-2 flex-1 flex flex-col justify-between gap-0.5">
           <button
-            onClick={() => deleteBook(book.id)}
+            onClick={() => deleteBookHandler(book.id, book.storagePath)}
             className="text-gray-400 hover:text-red-500 text-lg self-end mb-0"
           >
             ×
