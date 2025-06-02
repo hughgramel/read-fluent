@@ -6,6 +6,7 @@ export interface UserPreferences {
   readerWidth?: number; // e.g. 600, 700, 900 (pixels)
   readerFontSize?: number; // e.g. 18 (pixels)
   language?: string;
+  nativeLanguage?: string; // user's native language
   // Add more preferences as needed
 }
 

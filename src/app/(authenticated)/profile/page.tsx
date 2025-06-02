@@ -37,6 +37,12 @@ export default function ProfilePage() {
   const [language, setLanguage] = useState<string | null>(null);
   const [languageLoaded, setLanguageLoaded] = useState(false);
   const [stats, setStats] = useState({ booksCompleted: 0, wordsRead: 0, wordsKnown: 0 });
+  const [nativeLanguage, setNativeLanguage] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('reader-native-language') || 'en';
+    }
+    return 'en';
+  });
 
   const handleLogout = async () => {
     try {
@@ -102,6 +108,132 @@ export default function ProfilePage() {
                   style={{ minWidth: 160 }}
                 >
                   {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                </select>
+              )}
+            </div>
+            <div className="mb-4 flex items-center gap-4">
+              <label className="font-semibold text-[#0B1423]">Native Language:</label>
+              {!languageLoaded ? (
+                <span className="text-gray-400">Loading...</span>
+              ) : (
+                <select
+                  className="rounded-lg border-2 border-gray-300 px-3 py-1 text-base font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                  value={nativeLanguage}
+                  onChange={async (e) => {
+                    setNativeLanguage(e.target.value);
+                    localStorage.setItem('reader-native-language', e.target.value);
+                    if (user) await UserService.updateUserPreferences(user.uid, { nativeLanguage: e.target.value });
+                  }}
+                  style={{ minWidth: 160 }}
+                >
+                  <option value="en">English</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="it">Italian</option>
+                  <option value="pt">Portuguese</option>
+                  <option value="ru">Russian</option>
+                  <option value="zh">Chinese</option>
+                  <option value="ja">Japanese</option>
+                  <option value="ko">Korean</option>
+                  <option value="ar">Arabic</option>
+                  <option value="hi">Hindi</option>
+                  <option value="tr">Turkish</option>
+                  <option value="pl">Polish</option>
+                  <option value="nl">Dutch</option>
+                  <option value="sv">Swedish</option>
+                  <option value="fi">Finnish</option>
+                  <option value="no">Norwegian</option>
+                  <option value="da">Danish</option>
+                  <option value="el">Greek</option>
+                  <option value="he">Hebrew</option>
+                  <option value="cs">Czech</option>
+                  <option value="hu">Hungarian</option>
+                  <option value="ro">Romanian</option>
+                  <option value="bg">Bulgarian</option>
+                  <option value="uk">Ukrainian</option>
+                  <option value="id">Indonesian</option>
+                  <option value="vi">Vietnamese</option>
+                  <option value="th">Thai</option>
+                  <option value="ms">Malay</option>
+                  <option value="fa">Persian</option>
+                  <option value="ur">Urdu</option>
+                  <option value="bn">Bengali</option>
+                  <option value="ta">Tamil</option>
+                  <option value="te">Telugu</option>
+                  <option value="ml">Malayalam</option>
+                  <option value="mr">Marathi</option>
+                  <option value="gu">Gujarati</option>
+                  <option value="pa">Punjabi</option>
+                  <option value="kn">Kannada</option>
+                  <option value="or">Odia</option>
+                  <option value="as">Assamese</option>
+                  <option value="my">Burmese</option>
+                  <option value="km">Khmer</option>
+                  <option value="lo">Lao</option>
+                  <option value="si">Sinhala</option>
+                  <option value="am">Amharic</option>
+                  <option value="sw">Swahili</option>
+                  <option value="zu">Zulu</option>
+                  <option value="xh">Xhosa</option>
+                  <option value="st">Sesotho</option>
+                  <option value="tn">Tswana</option>
+                  <option value="ts">Tsonga</option>
+                  <option value="ss">Swati</option>
+                  <option value="ve">Venda</option>
+                  <option value="nr">Ndebele</option>
+                  <option value="rw">Kinyarwanda</option>
+                  <option value="so">Somali</option>
+                  <option value="om">Oromo</option>
+                  <option value="ti">Tigrinya</option>
+                  <option value="aa">Afar</option>
+                  <option value="ff">Fulah</option>
+                  <option value="ha">Hausa</option>
+                  <option value="ig">Igbo</option>
+                  <option value="yo">Yoruba</option>
+                  <option value="sn">Shona</option>
+                  <option value="ny">Nyanja</option>
+                  <option value="mg">Malagasy</option>
+                  <option value="rn">Kirundi</option>
+                  <option value="sg">Sango</option>
+                  <option value="ln">Lingala</option>
+                  <option value="kg">Kongo</option>
+                  <option value="lu">Luba-Katanga</option>
+                  <option value="ba">Bashkir</option>
+                  <option value="tt">Tatar</option>
+                  <option value="cv">Chuvash</option>
+                  <option value="udm">Udmurt</option>
+                  <option value="sah">Sakha</option>
+                  <option value="ce">Chechen</option>
+                  <option value="os">Ossetian</option>
+                  <option value="av">Avaric</option>
+                  <option value="kv">Komi</option>
+                  <option value="cu">Old Church Slavonic</option>
+                  <option value="tk">Turkmen</option>
+                  <option value="ky">Kyrgyz</option>
+                  <option value="kk">Kazakh</option>
+                  <option value="uz">Uzbek</option>
+                  <option value="tg">Tajik</option>
+                  <option value="ps">Pashto</option>
+                  <option value="pa">Punjabi</option>
+                  <option value="sd">Sindhi</option>
+                  <option value="ur">Urdu</option>
+                  <option value="ne">Nepali</option>
+                  <option value="si">Sinhala</option>
+                  <option value="my">Burmese</option>
+                  <option value="km">Khmer</option>
+                  <option value="lo">Lao</option>
+                  <option value="th">Thai</option>
+                  <option value="vi">Vietnamese</option>
+                  <option value="id">Indonesian</option>
+                  <option value="ms">Malay</option>
+                  <option value="jv">Javanese</option>
+                  <option value="su">Sundanese</option>
+                  <option value="tl">Tagalog</option>
+                  <option value="ceb">Cebuano</option>
+                  <option value="ilo">Iloko</option>
+                  <option value="war">Waray-Waray</option>
+                  <option value="pam">Pampanga</option>
                 </select>
               )}
             </div>

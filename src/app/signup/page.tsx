@@ -228,7 +228,7 @@ export default function SignUpPage() {
 
         {/* Terms Text */}
         <div className="text-center text-xs text-gray-500 mt-6">
-          By signing up for readFluent, you agree to our <Link href="/terms" className="font-medium hover:underline">Terms</Link> and <Link href="/privacy" className="font-medium hover:underline">Privacy Policy</Link>.
+          By signing up for LingoMine, you agree to our <Link href="/terms" className="font-medium hover:underline">Terms</Link> and <Link href="/privacy" className="font-medium hover:underline">Privacy Policy</Link>.
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "readfluent-a5caf",
-    "read-fluent": "readfluent-a5caf"
+    "default": "LingoMine-a5caf",
+    "lingo-mine": "LingoMine-a5caf"
   },
   "targets": {},
   "etags": {}

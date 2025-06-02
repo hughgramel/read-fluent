@@ -30,7 +30,7 @@ export default function AboutPage() {
         <div className="w-full">
           <div className="mb-6">
             <h1 className="text-3xl sm:text-4xl font-bold text-[#0B1423]">
-              About readFluent
+              About LingoMine
             </h1>
           </div>
           
