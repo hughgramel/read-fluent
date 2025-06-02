@@ -72,10 +72,10 @@ export default function SignInPage() {
     displayName: '',
   });
 
-  // Redirect to dashboard if already authenticated
+  // Redirect to library if already authenticated
   useEffect(() => {
     if (user) {
-      router.push('/dashboard');
+      router.push('/library');
     }
   }, [user, router]);
 
@@ -100,7 +100,7 @@ export default function SignInPage() {
         }
         await signUp(form.email, form.password, form.displayName);
       }
-      router.push('/dashboard');
+      router.push('/library');
     } catch (err) {
       console.error('Authentication error:', err);
       if (err instanceof FirebaseError) {
@@ -124,7 +124,7 @@ export default function SignInPage() {
 
     try {
       await signInWithGoogle();
-      router.push('/dashboard');
+      router.push('/library');
     } catch (err) {
       console.error('Google sign-in error:', err);
       if (err instanceof FirebaseError) {

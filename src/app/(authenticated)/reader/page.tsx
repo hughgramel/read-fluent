@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getBooks, getBookJson, updateBookMetadata } from '@/services/epubService';
 import { useAuth } from '@/hooks/useAuth';
 import { UserService } from '@/services/userService';
+import { WordService, WordType, Word } from '@/services/wordService';
+import DOMPurify from 'dompurify';
+import { createPortal } from 'react-dom';
 
 // Types
 interface BookSection {
@@ -50,6 +53,25 @@ export default function ReaderPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [userWords, setUserWords] = useState<Word[]>([]);
+  const [wordStatusMap, setWordStatusMap] = useState<{ [word: string]: WordType }>({});
+  const [popup, setPopup] = useState<{ word: string; x: number; y: number; status: WordType } | null>(null);
+  const [hoveredWord, setHoveredWord] = useState<string | null>(null);
+  const [nativeLanguage, setNativeLanguage] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('reader-native-language') || 'en';
+    }
+    return 'en';
+  });
+  const [defPopup, setDefPopup] = useState<{
+    word: string;
+    anchor: { x: number; y: number } | null;
+    loading: boolean;
+    data: any;
+    error: string | null;
+  } | null>(null);
+  const defPopupTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [shiftedWord, setShiftedWord] = useState<string | null>(null);
 
   // Load book from Firebase Storage
   useEffect(() => {
@@ -115,9 +137,12 @@ export default function ReaderPage() {
   useEffect(() => {
     let scrollInterval: NodeJS.Timeout;
     if (isAutoScrolling && contentRef.current) {
-      const baseSpeed = 30;
+      // New calculation: always a visible speed, 0.5x = 0.375*baseSpeed
+      const baseSpeed = 40; // px/sec, can be tuned
       const interval = 16;
-      const pixelsPerInterval = (baseSpeed * scrollSpeed * interval) / 1000;
+      // pixelsPerInterval = baseSpeed * (0.25 + scrollSpeed * 0.25)
+      // 0.5x = 0.375*baseSpeed, 1x = 0.5*baseSpeed, 2x = baseSpeed, 5x = 1.5*baseSpeed
+      const pixelsPerInterval = (baseSpeed * (0.25 + scrollSpeed * 0.25) * interval) / 1000;
       const smoothScroll = () => {
         if (contentRef.current) {
           const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
@@ -159,7 +184,7 @@ export default function ReaderPage() {
   };
 
   const backToLibrary = () => {
-    router.push('/dashboard');
+    router.push('/library');
   };
 
   // Save reading progress to Firestore metadata and localStorage
@@ -227,6 +252,287 @@ export default function ReaderPage() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Fetch user words on mount
+  useEffect(() => {
+    if (user?.uid) {
+      WordService.getWords(user.uid).then(words => {
+        setUserWords(words);
+        const map: { [word: string]: WordType } = {};
+        words.forEach(w => { map[w.word.toLowerCase()] = w.type; });
+        setWordStatusMap(map);
+      });
+    }
+  }, [user]);
+
+  // Helper: tokenize paragraph into words and punctuation (Unicode-aware, don't split on accented letters)
+  function tokenize(text: string) {
+    if (!text) return [];
+    // Split on spaces and keep punctuation as separate tokens, but keep all Unicode letters together
+    // This regex matches words (including Unicode letters, apostrophes, hyphens), or punctuation/space
+    return Array.from(text.matchAll(/([\p{L}\p{M}\d'-]+|[.,!?;:"()\[\]{}…—–\s]+)/gu)).map(m => m[0]);
+  }
+
+  // Helper: get next status (unknown -> known -> tracking -> ignored -> unknown)
+  function nextStatus(current: WordType | undefined): WordType {
+    if (!current) return 'known'; // unknown -> known
+    if (current === 'known') return 'tracking';
+    if (current === 'tracking') return 'ignored';
+    if (current === 'ignored') return 'known'; // ignored -> unknown (which is not in the map, so nextStatus returns 'known')
+    return 'known';
+  }
+
+  // Helper: get popup color
+  function getPopupColor(status: WordType | undefined) {
+    if (status === 'known') return '#16a34a'; // green
+    if (status === 'tracking') return '#a78bfa'; // purple
+    if (status === 'ignored') return '#222'; // black
+    return '#f87171'; // red (unknown)
+  }
+
+  // Helper: get underline style
+  function getUnderline(type: WordType | undefined, hovered: boolean) {
+    if (type === 'tracking') return '2px solid #a78bfa'; // purple
+    if (!type) return '2px solid #f87171'; // red (unknown)
+    if (type === 'known') return hovered ? '2px solid #16a34a' : 'none';
+    if (type === 'ignored') return hovered ? '2px solid #222' : 'none';
+    return 'none';
+  }
+
+  // Use localStorage/cache for word map
+  useEffect(() => {
+    if (user?.uid) {
+      const cacheKey = `epub-wordmap-${user.uid}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const map = JSON.parse(cached);
+          setWordStatusMap(map);
+        } catch {}
+      } else {
+        WordService.getWords(user.uid).then(words => {
+          const map: { [word: string]: WordType } = {};
+          words.forEach(w => { map[w.word.toLowerCase()] = w.type; });
+          setWordStatusMap(map);
+          localStorage.setItem(cacheKey, JSON.stringify(map));
+        });
+      }
+    }
+  }, [user]);
+
+  // Update cache when wordStatusMap changes
+  useEffect(() => {
+    if (user?.uid) {
+      const cacheKey = `epub-wordmap-${user.uid}`;
+      localStorage.setItem(cacheKey, JSON.stringify(wordStatusMap));
+    }
+  }, [wordStatusMap, user]);
+
+  // Handle word click
+  const handleWordClick = async (word: string, event: React.MouseEvent<HTMLSpanElement, MouseEvent>, key: string) => {
+    if (!user?.uid) return;
+    const lower = word.toLowerCase();
+    const current = wordStatusMap[lower];
+    const next = nextStatus(current);
+    // Update backend
+    await WordService.addWord(user.uid, lower, next);
+    // Update local state
+    setWordStatusMap(prev => ({ ...prev, [lower]: next }));
+    // Show popup above only this word span
+    setPopup({ word: key, x: 0, y: 0, status: next });
+    setTimeout(() => setPopup(null), 1200);
+  };
+
+  // Listen for Shift key globally and toggle definition popup for hovered word
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift' && hoveredWord) {
+        setShiftedWord(hoveredWord);
+        const el = document.querySelector(`[data-word-key='${hoveredWord}']`);
+        if (el) {
+          const rect = (el as HTMLElement).getBoundingClientRect();
+          showDefinitionPopup((el as HTMLElement).innerText, { x: rect.left + rect.width / 2, y: rect.top });
+        }
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setShiftedWord(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [hoveredWord]);
+
+  // Helper to fetch Wiktionary definitions, and if any definition is a reference to another word, fetch that too (recursively, no duplicates, and only merge real definitions)
+  async function fetchWiktionaryDefinition(word: string, lang: string, seen: Set<string> = new Set()) {
+    try {
+      if (seen.has(word.toLowerCase())) return null; // prevent infinite loop
+      seen.add(word.toLowerCase());
+      const url = `https://${lang}.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('No definition found');
+      const data = await res.json();
+      // Find all referenced words in all definitions
+      let referencedWords: string[] = [];
+      Object.values(data).forEach((entries: any) => {
+        entries.forEach((entry: any) => {
+          if (entry.definitions && entry.definitions.length > 0) {
+            entry.definitions.forEach((def: any) => {
+              // Look for 'of <i>word</i>' or 'of <a ...>word</a>'
+              const matches = [
+                ...def.definition.matchAll(/of <i>([\wáéíóúüñç]+)<\/i>/gi),
+                ...def.definition.matchAll(/of <a [^>]+>([\wáéíóúüñç]+)<\/a>/gi)
+              ];
+              matches.forEach(match => {
+                if (match[1]) referencedWords.push(match[1]);
+              });
+            });
+          }
+        });
+      });
+      // Fetch referenced definitions and merge, but only add real definitions (not just more references)
+      let referencedDefs: any[] = [];
+      for (const refWord of referencedWords) {
+        const refData = await fetchWiktionaryDefinition(refWord, lang, seen);
+        if (refData) referencedDefs.push(refData);
+      }
+      // Merge referenced definitions into the main data, but only if they have at least one non-reference definition
+      if (referencedDefs.length > 0) {
+        referencedDefs.forEach(refData => {
+          Object.entries(refData).forEach(([langKey, entries]: any) => {
+            if (!data[langKey]) data[langKey] = [];
+            // Only add entries that have at least one definition not matching the reference pattern
+            const realEntries = entries.filter((entry: any) =>
+              entry.definitions && entry.definitions.some((def: any) =>
+                !/of <i>[\wáéíóúüñç]+<\/i>|of <a [^>]+>[\wáéíóúüñç]+<\/a>/i.test(def.definition)
+              )
+            );
+            data[langKey] = data[langKey].concat(realEntries);
+          });
+        });
+      }
+      return data;
+    } catch (e: any) {
+      return { error: e.message || 'No definition found' };
+    }
+  }
+
+  // Handler to show definition popup
+  const showDefinitionPopup = async (word: string, anchor: { x: number; y: number }) => {
+    setDefPopup({ word, anchor, loading: true, data: null, error: null });
+    const data = await fetchWiktionaryDefinition(word, nativeLanguage);
+    setDefPopup(prev => prev && prev.word === word ? { ...prev, loading: false, data, error: data.error || null } : prev);
+  };
+
+  // Handler to hide definition popup
+  const hideDefinitionPopup = () => {
+    setDefPopup(null);
+    if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current);
+  };
+
+  // Restore 1/2/3/4 shortcuts for word status toggling
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if (!hoveredWord || !user?.uid) return;
+      const [pIdx, i] = hoveredWord.split('-');
+      let wordToken = '';
+      const section = book?.sections?.[currentSection];
+      if (section) {
+        outer: for (const [paraIdx, paragraph] of section.content.split('\n\n').entries()) {
+          if (String(paraIdx) === pIdx) {
+            for (const [tokIdx, token] of tokenize(paragraph).entries()) {
+              if (String(tokIdx) === i) {
+                wordToken = token;
+                break outer;
+              }
+            }
+          }
+        }
+      }
+      if (!wordToken) return;
+      const lower = wordToken.toLowerCase();
+      let newStatus: WordType | undefined;
+      if (e.key === '1') newStatus = undefined; // unknown
+      if (e.key === '2') newStatus = 'tracking';
+      if (e.key === '3') newStatus = 'known';
+      if (e.key === '4') newStatus = 'ignored';
+      if (newStatus === undefined && e.key === '1') {
+        await WordService.addWord(user.uid, lower, 'tracking');
+        setWordStatusMap(prev => {
+          const copy = { ...prev };
+          delete copy[lower];
+          return copy;
+        });
+        // No popup
+        return;
+      }
+      if (newStatus) {
+        await WordService.addWord(user.uid, lower, newStatus);
+        setWordStatusMap(prev => ({ ...prev, [lower]: newStatus }));
+        // No popup
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hoveredWord, user, book, currentSection]);
+
+  // Remove shadow from definition popup, limit definitions to 5, and close on outside click, esc, or hover another word
+  useEffect(() => {
+    if (!defPopup) return;
+    const handleClick = (e: MouseEvent) => {
+      const popup = document.getElementById('definition-popup');
+      if (popup && !popup.contains(e.target as Node)) {
+        hideDefinitionPopup();
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') hideDefinitionPopup();
+    };
+    window.addEventListener('mousedown', handleClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [defPopup]);
+  useEffect(() => {
+    if (defPopup && hoveredWord && defPopup.word !== (tokenize(section.content.split('\n\n')[parseInt(defPopup.word.split('-')[0])]).find((t, idx) => String(idx) === defPopup.word.split('-')[1]) || '')) {
+      hideDefinitionPopup();
+    }
+  }, [hoveredWord]);
+
+  // Memoize tokenized section content for smoother rendering
+  const tokenizedSections = useMemo(() =>
+    book?.sections.map(section => section.content.split('\n\n').map(tokenize)) || [],
+    [book]
+  );
+  const currentTokenizedSection = tokenizedSections[currentSection] || [];
+
+  // Throttle setHoveredWord to avoid rapid state updates
+  const throttledSetHoveredWord = useCallback(
+    (() => {
+      let last = 0;
+      let timeout: NodeJS.Timeout | null = null;
+      return (key: string | null) => {
+        const now = Date.now();
+        if (timeout) clearTimeout(timeout);
+        if (!key) {
+          setHoveredWord(null);
+          return;
+        }
+        if (now - last > 40) {
+          setHoveredWord(key);
+          last = now;
+        } else {
+          timeout = setTimeout(() => setHoveredWord(key), 40);
+        }
+      };
+    })(),
+    []
+  );
 
   if (error) {
     return (
@@ -553,12 +859,85 @@ export default function ReaderPage() {
           <div className="bg-white rounded-lg border-2 border-[#d1d5db] shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'var(--font-mplus-rounded)', fontSize: '1.1rem', maxWidth: isMobile ? '100vw' : readerWidth, margin: '0 auto', width: '100%', padding: isMobile ? '1.5rem 0.5rem' : undefined }}>
             <div
               ref={contentRef}
-              className="prose prose-lg max-w-none text-gray-800 leading-relaxed overflow-y-auto scroll-smooth"
+              className="prose prose-lg max-w-none text-gray-800 leading-relaxed overflow-y-auto scroll-smooth relative"
               style={{ scrollBehavior: 'smooth', fontFamily: readerFont, fontSize: readerFontSize, margin: '0 auto', height: 'calc(100vh - 260px)' }}
             >
-              {section.content.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="mb-6 text-lg">
-                  {paragraph}
+              {section.content.split('\n\n').map((paragraph, pIdx) => (
+                <p key={pIdx} className="mb-6 text-lg">
+                  {currentTokenizedSection[pIdx]?.map((token, i) => {
+                    if (/^[\p{L}\p{M}\d'-]+$/u.test(token)) {
+                      const lower = token.toLowerCase();
+                      const type = wordStatusMap[lower];
+                      const showPopup = popup && popup.word === `${pIdx}-${i}`;
+                      const isHovered = hoveredWord === `${pIdx}-${i}`;
+                      return (
+                        <span
+                          key={`${pIdx}-${i}`}
+                          data-word-key={`${pIdx}-${i}`}
+                          onClick={e => handleWordClick(token, e, `${pIdx}-${i}`)}
+                          onMouseEnter={e => {
+                            throttledSetHoveredWord(`${pIdx}-${i}`);
+                          }}
+                          onMouseLeave={() => {
+                            throttledSetHoveredWord(null);
+                            if (!defPopup?.anchor) hideDefinitionPopup();
+                          }}
+                          onMouseDown={e => {
+                            defPopupTimeout.current = setTimeout(() => {
+                              const rect = (e.target as HTMLElement).getBoundingClientRect();
+                              showDefinitionPopup(token, { x: rect.left + rect.width / 2, y: rect.top });
+                            }, 120);
+                          }}
+                          onMouseUp={() => {
+                            if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current);
+                          }}
+                          onTouchStart={e => {
+                            defPopupTimeout.current = setTimeout(() => {
+                              const rect = (e.target as HTMLElement).getBoundingClientRect();
+                              showDefinitionPopup(token, { x: rect.left + rect.width / 2, y: rect.top });
+                            }, 120);
+                          }}
+                          onTouchEnd={() => {
+                            if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current);
+                          }}
+                          style={{
+                            borderBottom: getUnderline(type, isHovered),
+                            cursor: 'pointer',
+                            transition: 'border-color 0.2s',
+                            position: 'relative',
+                            padding: '0 2px',
+                            userSelect: 'text',
+                          }}
+                        >
+                          {token}
+                          {showPopup && (
+                            <span
+                              style={{
+                                position: 'absolute',
+                                left: '50%',
+                                top: '-2.2em',
+                                transform: 'translateX(-50%)',
+                                zIndex: 100,
+                                background: '#fff',
+                                borderRadius: '0.5em',
+                                border: `2px solid ${getPopupColor(popup.status)}`,
+                                color: getPopupColor(popup.status),
+                                fontWeight: 600,
+                                fontSize: '1em',
+                                padding: '0.1em 0.6em',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                                pointerEvents: 'none',
+                              }}
+                            >
+                              {popup.status}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    } else {
+                      return <span key={`${pIdx}-sep-${i}`}>{token}</span>;
+                    }
+                  })}
                 </p>
               ))}
               <div style={{ height: '200px' }} />
@@ -615,12 +994,210 @@ export default function ReaderPage() {
                 className="w-full accent-blue-600"
               />
             </div>
+            <div className="mb-6">
+              <label className="block font-semibold mb-2 text-black">Native Language</label>
+              <select
+                value={nativeLanguage}
+                onChange={e => {
+                  setNativeLanguage(e.target.value);
+                  localStorage.setItem('reader-native-language', e.target.value);
+                }}
+                className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-[#4792ba] focus:ring-2 focus:ring-[#a8dcfd] outline-none transition-all text-black"
+              >
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="it">Italian</option>
+                <option value="pt">Portuguese</option>
+                <option value="ru">Russian</option>
+                <option value="zh">Chinese</option>
+                <option value="ja">Japanese</option>
+                <option value="ko">Korean</option>
+                <option value="ar">Arabic</option>
+                <option value="hi">Hindi</option>
+                <option value="tr">Turkish</option>
+                <option value="pl">Polish</option>
+                <option value="nl">Dutch</option>
+                <option value="sv">Swedish</option>
+                <option value="fi">Finnish</option>
+                <option value="no">Norwegian</option>
+                <option value="da">Danish</option>
+                <option value="el">Greek</option>
+                <option value="he">Hebrew</option>
+                <option value="cs">Czech</option>
+                <option value="hu">Hungarian</option>
+                <option value="ro">Romanian</option>
+                <option value="bg">Bulgarian</option>
+                <option value="uk">Ukrainian</option>
+                <option value="id">Indonesian</option>
+                <option value="vi">Vietnamese</option>
+                <option value="th">Thai</option>
+                <option value="ms">Malay</option>
+                <option value="fa">Persian</option>
+                <option value="ur">Urdu</option>
+                <option value="bn">Bengali</option>
+                <option value="ta">Tamil</option>
+                <option value="te">Telugu</option>
+                <option value="ml">Malayalam</option>
+                <option value="mr">Marathi</option>
+                <option value="gu">Gujarati</option>
+                <option value="pa">Punjabi</option>
+                <option value="kn">Kannada</option>
+                <option value="or">Odia</option>
+                <option value="as">Assamese</option>
+                <option value="my">Burmese</option>
+                <option value="km">Khmer</option>
+                <option value="lo">Lao</option>
+                <option value="si">Sinhala</option>
+                <option value="am">Amharic</option>
+                <option value="sw">Swahili</option>
+                <option value="zu">Zulu</option>
+                <option value="xh">Xhosa</option>
+                <option value="st">Sesotho</option>
+                <option value="tn">Tswana</option>
+                <option value="ts">Tsonga</option>
+                <option value="ss">Swati</option>
+                <option value="ve">Venda</option>
+                <option value="nr">Ndebele</option>
+                <option value="rw">Kinyarwanda</option>
+                <option value="so">Somali</option>
+                <option value="om">Oromo</option>
+                <option value="ti">Tigrinya</option>
+                <option value="aa">Afar</option>
+                <option value="ff">Fulah</option>
+                <option value="ha">Hausa</option>
+                <option value="ig">Igbo</option>
+                <option value="yo">Yoruba</option>
+                <option value="sn">Shona</option>
+                <option value="ny">Nyanja</option>
+                <option value="mg">Malagasy</option>
+                <option value="rn">Kirundi</option>
+                <option value="sg">Sango</option>
+                <option value="ln">Lingala</option>
+                <option value="kg">Kongo</option>
+                <option value="lu">Luba-Katanga</option>
+                <option value="ba">Bashkir</option>
+                <option value="tt">Tatar</option>
+                <option value="cv">Chuvash</option>
+                <option value="udm">Udmurt</option>
+                <option value="sah">Sakha</option>
+                <option value="ce">Chechen</option>
+                <option value="os">Ossetian</option>
+                <option value="av">Avaric</option>
+                <option value="kv">Komi</option>
+                <option value="cu">Old Church Slavonic</option>
+                <option value="tk">Turkmen</option>
+                <option value="ky">Kyrgyz</option>
+                <option value="kk">Kazakh</option>
+                <option value="uz">Uzbek</option>
+                <option value="tg">Tajik</option>
+                <option value="ps">Pashto</option>
+                <option value="pa">Punjabi</option>
+                <option value="sd">Sindhi</option>
+                <option value="ur">Urdu</option>
+                <option value="ne">Nepali</option>
+                <option value="si">Sinhala</option>
+                <option value="my">Burmese</option>
+                <option value="km">Khmer</option>
+                <option value="lo">Lao</option>
+                <option value="th">Thai</option>
+                <option value="vi">Vietnamese</option>
+                <option value="id">Indonesian</option>
+                <option value="ms">Malay</option>
+                <option value="jv">Javanese</option>
+                <option value="su">Sundanese</option>
+                <option value="tl">Tagalog</option>
+                <option value="ceb">Cebuano</option>
+                <option value="ilo">Iloko</option>
+                <option value="war">Waray-Waray</option>
+                <option value="pam">Pampanga</option>
+              </select>
+            </div>
             {/* Single example text, black color, all settings applied */}
             <div className="mt-4 p-2 border rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
               Example: El rápido zorro marrón salta sobre el perro perezoso.
             </div>
           </div>
         </div>
+      )}
+      {defPopup && defPopup.anchor && (
+        (() => {
+          let left = defPopup.anchor.x;
+          let top = defPopup.anchor.y - 12;
+          let transform = 'translate(-50%, -100%)';
+          const popupWidth = 340;
+          const popupHeight = 400;
+          const margin = 8;
+          if (isMobile) {
+            // Clamp left/right
+            left = Math.max(margin + popupWidth / 2, Math.min(window.innerWidth - margin - popupWidth / 2, left));
+            // If too close to top, show below the word
+            if (top - popupHeight < 0) {
+              top = defPopup.anchor.y + 24;
+              transform = 'translate(-50%, 0)';
+            }
+          }
+          return (
+            <div
+              id="definition-popup"
+              style={{
+                position: 'fixed',
+                left,
+                top,
+                transform,
+                zIndex: 200,
+                background: '#fff',
+                borderRadius: '1em',
+                border: '2px solid #d1d5db',
+                minWidth: 260,
+                maxWidth: 340,
+                padding: '1.2em 1.2em 1em 1.2em',
+                fontFamily: 'var(--font-mplus-rounded)',
+                color: '#0B1423',
+                pointerEvents: 'auto',
+                maxHeight: 400,
+                overflowY: 'auto',
+              }}
+              onMouseLeave={hideDefinitionPopup}
+            >
+              <button
+                onClick={hideDefinitionPopup}
+                style={{ position: 'absolute', top: 8, right: 12, background: 'none', border: 'none', fontSize: 22, color: '#bbb', cursor: 'pointer' }}
+                aria-label="Close"
+              >×</button>
+              <div className="font-bold text-xl mb-2">{defPopup.word}</div>
+              {defPopup.loading && <div className="text-gray-400">Loading...</div>}
+              {defPopup.error && <div className="text-red-500">{defPopup.error}</div>}
+              {defPopup.data && !defPopup.error && (
+                <>
+                  {Object.entries(defPopup.data).map(([lang, entries]: any, idx) => (
+                    <div key={lang + idx}>
+                      {entries.map((entry: any, j: number) => (
+                        <div key={j} className="mb-3">
+                          <div className="text-xs font-bold text-purple-400 mb-1">{entry.partOfSpeech}</div>
+                          {entry.inflections && (
+                            <div className="mb-1 text-xs text-gray-500 flex flex-wrap gap-2">
+                              {entry.inflections.map((inf: any, k: number) => (
+                                <span key={k} className="bg-purple-100 text-purple-700 rounded px-2 py-0.5 text-xs font-semibold">{inf}</span>
+                              ))}
+                            </div>
+                          )}
+                          <div className="text-base font-semibold mb-1">Definitions</div>
+                          <ul className="list-disc pl-5">
+                            {entry.definitions && entry.definitions.slice(0, 5).map((d: any, k: number) => (
+                              <li key={k} className="mb-1 text-base" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(d.definition) }} />
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          );
+        })()
       )}
     </div>
   );

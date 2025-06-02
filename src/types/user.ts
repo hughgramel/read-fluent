@@ -5,6 +5,8 @@ export interface UserPreferences {
   readerFont?: string; // e.g. 'serif', 'sans', 'merriweather', etc.
   readerWidth?: number; // e.g. 600, 700, 900 (pixels)
   readerFontSize?: number; // e.g. 18 (pixels)
+  language?: string;
+  // Add more preferences as needed
 }
 
 export interface UserStats {

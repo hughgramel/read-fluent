@@ -6,7 +6,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
-  { name: 'Home', href: '/dashboard', icon: '🏠' },
+  { name: 'Library', href: '/library', icon: '📚' },
+  { name: 'Saved', href: '/saved', icon: '💾' },
+  { name: 'Words', href: '/words', icon: '🔤' },
   { name: 'Profile', href: '/profile', icon: '👤' },
 ];
 
@@ -33,7 +35,7 @@ export default function Header() {
           <div className="flex items-center justify-center h-16 sm:h-16 lg:h-20 flex-nowrap">
             {/* Logo (Left) */}
             <div className="flex-shrink-0 mr-4 lg:mr-8 absolute left-4 sm:left-6 lg:left-12">
-              <Link href="/dashboard" className="font-bold text-[#0B1423] hover:text-[#162033] transition-colors duration-200 whitespace-nowrap [font-family:var(--font-mplus-rounded)] flex items-baseline">
+              <Link href="/library" className="font-bold text-[#0B1423] hover:text-[#162033] transition-colors duration-200 whitespace-nowrap [font-family:var(--font-mplus-rounded)] flex items-baseline">
                 <span className="text-4xl sm:text-5xl">readFluent</span>
               </Link>
             </div>
@@ -101,7 +103,7 @@ export default function Header() {
       {/* Mobile Top Bar with title only */}
       <header className="bg-white border-b border-gray-200 sm:hidden z-50 relative">
         <div className="flex items-center justify-center h-16 px-4">
-          <Link href="/dashboard" className="font-bold text-[#0B1423] [font-family:var(--font-mplus-rounded)] flex items-baseline">
+          <Link href="/library" className="font-bold text-[#0B1423] [font-family:var(--font-mplus-rounded)] flex items-baseline">
             <span className="text-3xl">readFluent</span>
           </Link>
         </div>

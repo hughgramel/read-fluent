@@ -60,7 +60,7 @@ export default function SignUpPage() {
 
   useEffect(() => {
     if (user) {
-      router.push('/dashboard');
+      router.push('/library');
     }
   }, [user, router]);
 
@@ -81,7 +81,7 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       await signUp(form.email, form.password, form.displayName);
-      router.push('/dashboard'); // Redirect after successful signup
+      router.push('/library'); // Redirect after successful signup
     } catch (err) {
       if (err instanceof FirebaseError) {
         setError(getErrorMessage(err));
@@ -100,7 +100,7 @@ export default function SignUpPage() {
     setLoadingGoogle(true);
     try {
       await signInWithGoogle();
-      router.push('/dashboard');
+      router.push('/library');
     } catch (err) {
       if (err instanceof FirebaseError) {
         setError(getErrorMessage(err));
