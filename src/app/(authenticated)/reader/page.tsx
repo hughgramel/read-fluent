@@ -659,6 +659,7 @@ export default function ReaderPage() {
 
         const now = new Date().toISOString();
         const key = `comprehension-${book?.id || 'unknown'}-${currentSection}`;
+        
         const data = {
             book: book?.id,
             section: currentSection,
