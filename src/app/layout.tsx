@@ -48,7 +48,7 @@ const mplusRounded = M_PLUS_Rounded_1c({
 });
 
 export const metadata: Metadata = {
-  title: "LingoMine",
+  title: "readfluent",
   description: "Learn a new language by reading the books you love",
 };
 

@@ -21,7 +21,7 @@ export default function Sidebar() {
       {/* Logo/Title - Updated to Row */} 
       <div className="mb-10 px-2">
         <Link href="/library" className="font-bold text-[#0B1423] hover:text-[#162033] transition-colors duration-200 whitespace-nowrap [font-family:var(--font-mplus-rounded)] flex flex-row items-baseline justify-center">
-          <span className="text-2xl">LingoMine</span>
+          <span className="text-2xl">readfluent</span>
         </Link>
       </div>
 

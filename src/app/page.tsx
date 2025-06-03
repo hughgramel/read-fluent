@@ -48,8 +48,8 @@ interface FAQItem {
 const fakeFAQs: FAQItem[] = [
   {
     id: 1,
-    question: "What makes LingoMine unique?",
-    answer: "LingoMine combines the proven Pomodoro focus technique with engaging nation-building gameplay. Instead of just watching a timer, you actively earn resources and make progress in a game world with each completed focus session."
+    question: "What makes readfluent unique?",
+    answer: "readfluent combines the proven Pomodoro focus technique with engaging nation-building gameplay. Instead of just watching a timer, you actively earn resources and make progress in a game world with each completed focus session."
   },
   {
     id: 2,
@@ -64,7 +64,7 @@ const fakeFAQs: FAQItem[] = [
   {
     id: 4,
     question: "How much does it cost?",
-    answer: "LingoMine is currently free to use during its development phase. We may introduce optional premium features in the future, but the core focus timer and gameplay loop will remain accessible."
+    answer: "readfluent is currently free to use during its development phase. We may introduce optional premium features in the future, but the core focus timer and gameplay loop will remain accessible."
   },
   {
     id: 5,
@@ -109,7 +109,7 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-7xl flex items-center justify-between w-full">
           <Link href="/" className="flex items-center justify-center" prefetch={false}>
             {/* Adjusted size */}
-            <span className="text-2xl font-bold text-[#0B1423] [font-family:var(--font-mplus-rounded)]">LingoMine</span>
+            <span className="text-2xl font-bold text-[#0B1423] [font-family:var(--font-mplus-rounded)]">readfluent</span>
           </Link>
           <nav className="flex items-center gap-5 sm:gap-8">
             <Link href="/signin" className="text-base font-medium text-[#0B1423]/80 hover:text-[#0B1423] transition-colors" prefetch={false}>
@@ -373,7 +373,7 @@ export default function LandingPage() {
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t border-gray-200 bg-gray-50">
         <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row justify-between items-center w-full">
           <p className="text-xs text-gray-500">
-            &copy; {new Date().getFullYear()} LingoMine. All rights reserved.
+            &copy; {new Date().getFullYear()} readfluent. All rights reserved.
           </p>
           <nav className="flex gap-4 sm:gap-6 mt-2 sm:mt-0">
             <Link href="/terms" className="text-xs hover:underline underline-offset-4 text-gray-600" prefetch={false}>

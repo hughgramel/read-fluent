@@ -37,7 +37,7 @@ export default function HowToPlayPage() {
           <section className="mb-8">
             <div className="bg-white rounded-lg p-6 border-2 border-gray-300 shadow-[0_4px_0px] shadow-gray-300">
               <p className="text-[#0B1423] text-lg">
-                Welcome to LingoMine! This guide will help you get started with the game. 
+                Welcome to readfluent! This guide will help you get started with the game. 
               </p>
               {/* Add more content here */}
             </div>

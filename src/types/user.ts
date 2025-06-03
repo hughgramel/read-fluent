@@ -8,6 +8,7 @@ export interface UserPreferences {
   language?: string;
   nativeLanguage?: string; // user's native language
   // Add more preferences as needed
+  disableWordUnderlines?: boolean; // disables word underlines and popups
 }
 
 export interface UserStats {

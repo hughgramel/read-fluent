@@ -1,8 +1,8 @@
-# LingoMine Codebase Rules
+# readfluent Codebase Rules
 
 ## Project Structure
 ```
-lingo-mine/
+readfluent/
 ├── src/
 │   ├── app/                    # Next.js app directory
 │   │   ├── (auth)/            # Authentication routes

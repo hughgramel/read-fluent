@@ -36,7 +36,7 @@ export default function Header() {
             {/* Logo (Left) */}
             <div className="flex-shrink-0 mr-4 lg:mr-8 absolute left-4 sm:left-6 lg:left-12">
               <Link href="/library" className="font-bold text-[#0B1423] hover:text-[#162033] transition-colors duration-200 whitespace-nowrap [font-family:var(--font-mplus-rounded)] flex items-baseline">
-                <span className="text-4xl sm:text-5xl">LingoMine</span>
+                <span className="text-4xl sm:text-5xl">readfluent</span>
               </Link>
             </div>
 
@@ -104,7 +104,7 @@ export default function Header() {
       <header className="bg-white border-b border-gray-200 sm:hidden z-50 relative">
         <div className="flex items-center justify-center h-16 px-4">
           <Link href="/library" className="font-bold text-[#0B1423] [font-family:var(--font-mplus-rounded)] flex items-baseline">
-            <span className="text-3xl">LingoMine</span>
+            <span className="text-3xl">readfluent</span>
           </Link>
         </div>
       </header>

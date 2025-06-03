@@ -72,6 +72,10 @@ export default function ReaderPage() {
   } | null>(null);
   const defPopupTimeout = useRef<NodeJS.Timeout | null>(null);
   const [shiftedWord, setShiftedWord] = useState<string | null>(null);
+  const [showEntireBook, setShowEntireBook] = useState(false);
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [visibleSection, setVisibleSection] = useState<number>(0);
+  const [disableWordUnderlines, setDisableWordUnderlines] = useState<boolean>(false);
 
   // Load book from Firebase Storage
   useEffect(() => {
@@ -217,15 +221,16 @@ export default function ReaderPage() {
           setReaderFont(prefs.readerFont || 'serif');
           setReaderWidth(prefs.readerWidth || 700);
           setReaderFontSize(prefs.readerFontSize || 18);
+          setDisableWordUnderlines(!!prefs.disableWordUnderlines);
         }
       });
     }
   }, [user]);
 
   // Save preferences when changed
-  const savePreferences = async (font: string, width: number, fontSize: number) => {
+  const savePreferences = async (font: string, width: number, fontSize: number, disableUnderlines = disableWordUnderlines) => {
     if (user?.uid) {
-      await UserService.updateUserPreferences(user.uid, { readerFont: font, readerWidth: width, readerFontSize: fontSize });
+      await UserService.updateUserPreferences(user.uid, { readerFont: font, readerWidth: width, readerFontSize: fontSize, disableWordUnderlines: disableUnderlines });
     }
   };
 
@@ -534,6 +539,142 @@ export default function ReaderPage() {
     []
   );
 
+  // Scroll handler for entire book mode
+  useEffect(() => {
+    if (!showEntireBook || !book) return;
+    const handleScroll = () => {
+      if (!sectionRefs.current.length) return;
+      const headerHeight = isMobile ? 56 : 64;
+      const scrollY = window.scrollY;
+      let current = 0;
+      for (let i = 0; i < sectionRefs.current.length; i++) {
+        const ref = sectionRefs.current[i];
+        if (ref) {
+          const top = ref.getBoundingClientRect().top + scrollY;
+          if (scrollY + headerHeight >= top) {
+            current = i;
+          } else {
+            break;
+          }
+        }
+      }
+      setVisibleSection(current);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [showEntireBook, book, isMobile]);
+
+  // Helper to scroll to a section anchor in entire book mode
+  const scrollToSection = (idx: number) => {
+    const ref = sectionRefs.current[idx];
+    if (ref) {
+      const headerHeight = isMobile ? 56 : 64;
+      const top = ref.getBoundingClientRect().top + window.scrollY - headerHeight - 8; // 8px extra margin
+      window.scrollTo({
+        top,
+        behavior: 'smooth',
+      });
+      setVisibleSection(idx);
+    }
+  };
+
+  // Add scrapeComprehension handler
+  const handleScrapeComprehension = () => {
+    let retryCount = 0;
+    const maxRetries = 10; // 30 seconds / 3 seconds = 10 retries
+    const retryDelay = 3000; // 3 seconds
+
+    const attemptScrape = () => {
+        // Find all elements that might have shadow roots
+        const potentialHosts = document.querySelectorAll('*');
+        let shadowRoots = [];
+
+        // Collect all shadow roots that contain our target elements
+        for (let element of potentialHosts) {
+            if (element.shadowRoot) {
+                const targets = element.shadowRoot.querySelectorAll('.ComprehensionStatsChart__infoItem');
+                if (targets.length > 0) {
+                    shadowRoots.push(element.shadowRoot);
+                }
+            }
+        }
+
+        const infoItems = Array.from(document.querySelectorAll('#MigakuShadowDom'));
+        console.log(infoItems);
+        const result: any = { known: 0, unknown: 0, ignored: 0 };
+        let hasUndefinedValues = false;
+
+        // Process each shadow root found
+        shadowRoots.forEach((shadowRoot) => {
+            const infoItems = shadowRoot.querySelectorAll('.ComprehensionStatsChart__infoItem');
+            
+            infoItems.forEach((infoItem, itemIndex) => {
+                // Find all elements with -emphasis class within this infoItem
+                const emphasisElements = infoItem.querySelectorAll('.UiTypo.UiTypo__caption.-emphasis');
+                
+                if (emphasisElements.length > 0) {
+                    // Get the last element
+                    const lastElement = emphasisElements[emphasisElements.length - 1];
+                    const textContent = lastElement?.textContent?.trim() || '';
+                    
+                    // Extract number from text like "40 words", "1428 words", etc.
+                    const numberMatch = textContent.match(/(\d+)/);
+                    
+                    if (numberMatch) {
+                        const number = parseInt(numberMatch[1], 10);
+                        
+                        // Try to determine the category from the label
+                        const labelElement = infoItem.querySelector('.ComprehensionStatsChart__infoItem__label p');
+                        const category = labelElement ? labelElement?.textContent?.trim().toLowerCase() : `item${itemIndex + 1}`;
+                        
+                        result[category as keyof typeof result] = number;
+                    } else {
+                        // No number found, mark as having undefined values
+                        hasUndefinedValues = true;
+                    }
+                } else {
+                    // No emphasis elements found, mark as having undefined values
+                    hasUndefinedValues = true;
+                }
+            });
+        });
+
+        // Check if any of the expected values are undefined or 0 (assuming 0 means not found)
+        const hasValidData = result.known !== undefined && result.unknown !== undefined && result.ignored !== undefined &&
+                           (result.known > 0 || result.unknown > 0 || result.ignored > 0);
+
+        if (!hasValidData && retryCount < maxRetries) {
+            retryCount++;
+            console.log(`Attempt ${retryCount} failed, retrying in 3 seconds...`);
+            setTimeout(attemptScrape, retryDelay);
+            return;
+        }
+
+        if (!hasValidData && retryCount >= maxRetries) {
+            console.log('Max retries reached, proceeding with current data');
+        }
+
+        console.log(result);
+
+        const now = new Date().toISOString();
+        const key = `comprehension-${book?.id || 'unknown'}-${currentSection}`;
+        const data = {
+            book: book?.id,
+            section: currentSection,
+            known_words: result.known || 0,
+            unknown_words: result.unknown || 0,
+            ignored_words: result.ignored || 0,
+            date: now,
+        };
+        localStorage.setItem(key, JSON.stringify(data));
+        console.log('Scraped comprehension:', data);
+    };
+
+    // Start the first attempt
+    attemptScrape();
+};
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
@@ -645,6 +786,16 @@ export default function ReaderPage() {
               </div>
               {/* Right: Controls, now to the left of the dropdown icon */}
               <div className="flex items-center gap-1 h-full pr-10"> {/* pr-10 to make space for dropdown icon */}
+                {!showEntireBook && (
+                  <button
+                    onClick={handleScrapeComprehension}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-purple-700 bg-purple-100 text-purple-700 shadow-[0_4px_0_#a78bfa] hover:bg-purple-200 transition-all w-8 h-8 p-0 text-base mr-2"
+                    style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
+                    title="Scrape Comprehension Stats"
+                  >
+                    Scrape
+                  </button>
+                )}
                 <button
                   onClick={() => setIsAutoScrolling(!isAutoScrolling)}
                   className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-green-700 bg-green-500 text-white shadow-[0_4px_0_#166534] hover:bg-green-600 transition-all ${isAutoScrolling ? 'opacity-80' : ''} w-8 h-8 p-0 text-base`}
@@ -712,12 +863,23 @@ export default function ReaderPage() {
                     </svg>
                   </button>
                 )}
+
+                {/* Show entire book in one page, hide on mobile, show on desktop */}
+                {!isMobile && (
+                  <button
+                    onClick={() => setShowEntireBook(v => !v)}
+                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-blue-400 bg-white text-blue-700 hover:bg-blue-50 transition-all ml-2 ${showEntireBook ? 'bg-blue-100 border-blue-700' : ''}`}
+                    title="Show entire book in one page"
+                  >
+                    {showEntireBook ? 'Single Page' : 'Show Entire Book'}
+                  </button>
+                )}
               </div>
               {/* Section navigation (centered) */}
               <div className="flex items-center gap-4 mx-auto" style={{ position: 'relative', left: 0, right: 0 }}>
                 <button
-                  onClick={() => prevSection()}
-                  disabled={currentSection === 0}
+                  onClick={() => showEntireBook ? scrollToSection(Math.max(visibleSection - 1, 0)) : prevSection()}
+                  disabled={showEntireBook ? visibleSection === 0 : currentSection === 0}
                   className={`flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-[#4792ba] bg-[#67b9e7] text-white shadow-[0_4px_0_#4792ba] hover:bg-[#4792ba] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-5 py-3 text-lg'}`}
                   style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
                 >
@@ -725,10 +887,12 @@ export default function ReaderPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <span className={`text-[#0B1423] font-bold ${isMobile ? 'text-sm' : 'text-xl'}`} style={{ minWidth: isMobile ? '48px' : '140px', textAlign: 'center' }}>{section.title}</span>
+                <span className={`text-[#0B1423] font-bold ${isMobile ? 'text-sm' : 'text-xl'}`} style={{ minWidth: isMobile ? '48px' : '140px', textAlign: 'center' }}>
+                  {showEntireBook ? book.sections[visibleSection]?.title : section.title}
+                </span>
                 <button
-                  onClick={() => nextSection()}
-                  disabled={currentSection === (book.sections.length || 0) - 1}
+                  onClick={() => showEntireBook ? scrollToSection(Math.min(visibleSection + 1, book.sections.length - 1)) : nextSection()}
+                  disabled={showEntireBook ? visibleSection === book.sections.length - 1 : currentSection === (book.sections.length || 0) - 1}
                   className={`flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-[#4792ba] bg-[#67b9e7] text-white shadow-[0_4px_0_#4792ba] hover:bg-[#4792ba] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-5 py-3 text-lg'}`}
                   style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
                 >
@@ -739,7 +903,18 @@ export default function ReaderPage() {
               </div>
               {/* Right controls (move left, not fully flush right) */}
               <div className="absolute right-32 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {/* Auto-scroll */}
+                {/* Scrape Comprehension button (desktop only, not in showEntireBook mode) */}
+                {!showEntireBook && (
+                  <button
+                    onClick={handleScrapeComprehension}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-purple-700 bg-purple-100 text-purple-700 shadow-[0_4px_0_#a78bfa] hover:bg-purple-200 transition-all px-4 py-3 text-lg mr-2"
+                    style={{ minWidth: 32, minHeight: 32 }}
+                    title="Scrape Comprehension Stats"
+                  >
+                    Scrape
+                  </button>
+                )}
+                {/* Auto-scroll/play button ... */}
                 <button
                   onClick={() => setIsAutoScrolling(!isAutoScrolling)}
                   className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-green-700 bg-green-500 text-white shadow-[0_4px_0_#166534] hover:bg-green-600 transition-all ${isAutoScrolling ? 'opacity-80' : ''} ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-4 py-3 text-lg'}`}
@@ -792,7 +967,7 @@ export default function ReaderPage() {
                   title="Toggle Fullscreen"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M4 4h6M4 4v6M20 20h-6M20 20v-6M4 20v-6M4 20h6M20 4h-6M20 4v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M4 4h6M4 4v6M20 20h-6M20 20v-6M4 20v-6M4 20h6M20 4h-6M20 4v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>)}
                 {/* Settings: cog on desktop, emoji on mobile */}
@@ -803,6 +978,7 @@ export default function ReaderPage() {
                 >
                     {isMobile ? '⚙️' : 'Settings'}
                 </button>
+                
               </div>
             </div>
           )}
@@ -862,84 +1038,64 @@ export default function ReaderPage() {
               className="prose prose-lg max-w-none text-gray-800 leading-relaxed overflow-y-auto scroll-smooth relative"
               style={{ scrollBehavior: 'smooth', fontFamily: readerFont, fontSize: readerFontSize, margin: '0 auto', height: 'calc(100vh - 260px)' }}
             >
-              {section.content.split('\n\n').map((paragraph, pIdx) => (
-                <p key={pIdx} className="mb-6 text-lg">
-                  {currentTokenizedSection[pIdx]?.map((token, i) => {
-                    if (/^[\p{L}\p{M}\d'-]+$/u.test(token)) {
-                      const lower = token.toLowerCase();
-                      const type = wordStatusMap[lower];
-                      const showPopup = popup && popup.word === `${pIdx}-${i}`;
-                      const isHovered = hoveredWord === `${pIdx}-${i}`;
-                      return (
-                        <span
-                          key={`${pIdx}-${i}`}
-                          data-word-key={`${pIdx}-${i}`}
-                          onClick={e => handleWordClick(token, e, `${pIdx}-${i}`)}
-                          onMouseEnter={e => {
-                            throttledSetHoveredWord(`${pIdx}-${i}`);
-                          }}
-                          onMouseLeave={() => {
-                            throttledSetHoveredWord(null);
-                            if (!defPopup?.anchor) hideDefinitionPopup();
-                          }}
-                          onMouseDown={e => {
-                            defPopupTimeout.current = setTimeout(() => {
-                              const rect = (e.target as HTMLElement).getBoundingClientRect();
-                              showDefinitionPopup(token, { x: rect.left + rect.width / 2, y: rect.top });
-                            }, 120);
-                          }}
-                          onMouseUp={() => {
-                            if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current);
-                          }}
-                          onTouchStart={e => {
-                            defPopupTimeout.current = setTimeout(() => {
-                              const rect = (e.target as HTMLElement).getBoundingClientRect();
-                              showDefinitionPopup(token, { x: rect.left + rect.width / 2, y: rect.top });
-                            }, 120);
-                          }}
-                          onTouchEnd={() => {
-                            if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current);
-                          }}
-                          style={{
-                            borderBottom: getUnderline(type, isHovered),
-                            cursor: 'pointer',
-                            transition: 'border-color 0.2s',
-                            position: 'relative',
-                            padding: '0 2px',
-                            userSelect: 'text',
-                          }}
-                        >
-                          {token}
-                          {showPopup && (
-                            <span
-                              style={{
-                                position: 'absolute',
-                                left: '50%',
-                                top: '-2.2em',
-                                transform: 'translateX(-50%)',
-                                zIndex: 100,
-                                background: '#fff',
-                                borderRadius: '0.5em',
-                                border: `2px solid ${getPopupColor(popup.status)}`,
-                                color: getPopupColor(popup.status),
-                                fontWeight: 600,
-                                fontSize: '1em',
-                                padding: '0.1em 0.6em',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                                pointerEvents: 'none',
-                              }}
-                            >
-                              {popup.status}
-                            </span>
-                          )}
-                        </span>
-                      );
-                    } else {
-                      return <span key={`${pIdx}-sep-${i}`}>{token}</span>;
-                    }
-                  })}
-                </p>
-              ))}
+              {showEntireBook ? (
+                book.sections.map((sec, secIdx) => (
+                  <div key={sec.id || secIdx} ref={el => { sectionRefs.current[secIdx] = el; }} id={`section-${secIdx}`} className="mb-12 pt-20">
+                    <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">{sec.title}</h2>
+                    {sec.content.split('\n\n').map((paragraph, pIdx) => (
+                      <p key={pIdx} className="mb-6 text-lg">
+                        {tokenize(paragraph).map((token, i) => {
+                          if (/^[\p{L}\p{M}\d'-]+$/u.test(token)) {
+                            // In entire book mode, just render plain text (no underline, no events)
+                            return (
+                              <span key={`${secIdx}-${pIdx}-${i}`}>{token}</span>
+                            );
+                          } else {
+                            return <span key={`${secIdx}-${pIdx}-sep-${i}`}>{token}</span>;
+                          }
+                        })}
+                      </p>
+                    ))}
+                  </div>
+                ))
+              ) : (
+                section.content.split('\n\n').map((paragraph, pIdx) => (
+                  <p key={pIdx} className="mb-6 text-lg">
+                    {currentTokenizedSection[pIdx]?.map((token, i) => {
+                      if (/^[\p{L}\p{M}\d'-]+$/u.test(token)) {
+                        if (disableWordUnderlines) {
+                          return <span key={`${pIdx}-${i}`}>{token}</span>;
+                        }
+                        const lower = token.toLowerCase();
+                        const type = wordStatusMap[lower];
+                        const showPopup = popup && popup.word === `${pIdx}-${i}`;
+                        const isHovered = hoveredWord === `${pIdx}-${i}`;
+                        return (
+                          <span
+                            key={`${pIdx}-${i}`}
+                            data-word-key={`${pIdx}-${i}`}
+                            onClick={e => handleWordClick(token, e, `${pIdx}-${i}`)}
+                            onMouseEnter={e => { throttledSetHoveredWord(`${pIdx}-${i}`); }}
+                            onMouseLeave={() => { throttledSetHoveredWord(null); if (!defPopup?.anchor) hideDefinitionPopup(); }}
+                            onMouseDown={e => { defPopupTimeout.current = setTimeout(() => { const rect = (e.target as HTMLElement).getBoundingClientRect(); showDefinitionPopup(token, { x: rect.left + rect.width / 2, y: rect.top }); }, 120); }}
+                            onMouseUp={() => { if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current); }}
+                            onTouchStart={e => { defPopupTimeout.current = setTimeout(() => { const rect = (e.target as HTMLElement).getBoundingClientRect(); showDefinitionPopup(token, { x: rect.left + rect.width / 2, y: rect.top }); }, 120); }}
+                            onTouchEnd={() => { if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current); }}
+                            style={{ borderBottom: getUnderline(type, isHovered), cursor: 'pointer', transition: 'border-color 0.2s', position: 'relative', padding: '0 2px', userSelect: 'text' }}
+                          >
+                            {token}
+                            {showPopup && (
+                              <span style={{ position: 'absolute', left: '50%', top: '-2.2em', transform: 'translateX(-50%)', zIndex: 100, background: '#fff', borderRadius: '0.5em', border: `2px solid ${getPopupColor(popup.status)}`, color: getPopupColor(popup.status), fontWeight: 600, fontSize: '1em', padding: '0.1em 0.6em', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', pointerEvents: 'none' }}>{popup.status}</span>
+                            )}
+                          </span>
+                        );
+                      } else {
+                        return <span key={`${pIdx}-sep-${i}`}>{token}</span>;
+                      }
+                    })}
+                  </p>
+                ))
+              )}
               <div style={{ height: '200px' }} />
             </div>
           </div>
@@ -993,6 +1149,19 @@ export default function ReaderPage() {
                 onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize); }}
                 className="w-full accent-blue-600"
               />
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="disable-underlines"
+                type="checkbox"
+                checked={disableWordUnderlines}
+                onChange={e => {
+                  setDisableWordUnderlines(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked);
+                }}
+                className="mr-3 h-5 w-5 accent-blue-600 border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="disable-underlines" className="font-semibold text-black select-none cursor-pointer">Disable word underlines & popups</label>
             </div>
             {/* Single example text, black color, all settings applied */}
             <div className="mt-4 p-2 border rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
