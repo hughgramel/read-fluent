@@ -8,6 +8,8 @@ import { UserService } from '@/services/userService';
 import { WordService, WordType, Word } from '@/services/wordService';
 import DOMPurify from 'dompurify';
 import { createPortal } from 'react-dom';
+import React from 'react';
+import Head from 'next/head';
 
 // Types
 interface BookSection {
@@ -26,6 +28,8 @@ interface Book {
   totalWords: number;
   fileName: string;
   dateAdded: string;
+  css?: string;
+  cover?: string;
 }
 
 interface ReadingProgress {
@@ -676,6 +680,36 @@ export default function ReaderPage() {
     attemptScrape();
 };
 
+  // Inject book CSS into the DOM, scoped to .epub-html
+  React.useEffect(() => {
+    if (book?.css) {
+      let styleTag = document.getElementById('epub-book-css') as HTMLStyleElement | null;
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'epub-book-css';
+        document.head.appendChild(styleTag);
+      }
+      // Prefix all CSS selectors with .epub-html to scope styles
+      const scopedCss = book.css.replace(/(^|\})\s*([^@\s][^{]+)\s*\{/g, (match, brace, selector) => {
+        // Don't prefix @keyframes or @font-face
+        if (/^@/.test(selector.trim())) return match;
+        // Prefix each selector in a comma-separated list
+        const scoped = selector.split(',').map((sel: string) => `.epub-html ${sel.trim()}`).join(', ');
+        return `${brace} ${scoped} {`;
+      });
+      styleTag.textContent = scopedCss;
+    }
+    return () => {
+      const styleTag = document.getElementById('epub-book-css');
+      if (styleTag) styleTag.remove();
+    };
+  }, [book?.css]);
+
+  // Helper: check if a string is a valid image URL
+  function isValidImageUrl(url: string | undefined): boolean {
+    return !!url && (url.startsWith('http') || url.startsWith('data:image'));
+  }
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
@@ -697,6 +731,7 @@ export default function ReaderPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 [font-family:var(--font-mplus-rounded)] relative">
+      <EpubHtmlStyles />
       {/* Mobile: Dropdown icon is in the bar when header is visible, floating when hidden */}
       {isMobile ? (
         showHeader ? (
@@ -772,7 +807,7 @@ export default function ReaderPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <span className="text-[#0B1423] font-bold text-sm flex items-center justify-center" style={{ minWidth: '48px', textAlign: 'center', height: '32px', lineHeight: '32px' }}>{section.title}</span>
+                <span className="text-[#0B1423] font-bold text-sm flex items-center justify-center" style={{ minWidth: '48px', textAlign: 'center', height: '32px', lineHeight: '32px' }}>{section.title && section.title.trim() !== '' ? section.title : 'Untitled Section'}</span>
                 <button
                   onClick={() => nextSection()}
                   disabled={currentSection === (book.sections.length || 0) - 1}
@@ -889,7 +924,11 @@ export default function ReaderPage() {
                   </svg>
                 </button>
                 <span className={`text-[#0B1423] font-bold ${isMobile ? 'text-sm' : 'text-xl'}`} style={{ minWidth: isMobile ? '48px' : '140px', textAlign: 'center' }}>
-                  {showEntireBook ? book.sections[visibleSection]?.title : section.title}
+                  {showEntireBook
+                    ? (book.sections[visibleSection]?.title && book.sections[visibleSection]?.title.trim() !== ''
+                        ? book.sections[visibleSection]?.title
+                        : 'Untitled Section')
+                    : (section.title && section.title.trim() !== '' ? section.title : 'Untitled Section')}
                 </span>
                 <button
                   onClick={() => showEntireBook ? scrollToSection(Math.min(visibleSection + 1, book.sections.length - 1)) : nextSection()}
@@ -1018,7 +1057,7 @@ export default function ReaderPage() {
                   onClick={() => { setCurrentSection(idx); router.replace(`/reader?book=${book.id}&section=${idx}`); }}
                   className={`block w-full text-left px-3 py-2 rounded-lg mb-1 font-medium border ${idx === currentSection ? 'bg-blue-100 text-blue-700 border-blue-400' : 'bg-white text-[#0B1423] border-transparent hover:bg-gray-100'}`}
                 >
-                  {s.title}
+                  {s.title && s.title.trim() !== '' ? s.title : 'Untitled Section'}
                 </button>
               ))}
             </div>
@@ -1036,66 +1075,18 @@ export default function ReaderPage() {
           <div className="bg-white rounded-lg border-2 border-[#d1d5db] shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'var(--font-mplus-rounded)', fontSize: '1.1rem', maxWidth: isMobile ? '100vw' : readerWidth, margin: '0 auto', width: '100%', padding: isMobile ? '1.5rem 0.5rem' : undefined }}>
             <div
               ref={contentRef}
-              className="prose prose-lg max-w-none text-gray-800 leading-relaxed overflow-y-auto scroll-smooth relative"
-              style={{ scrollBehavior: 'smooth', fontFamily: readerFont, fontSize: readerFontSize, margin: '0 auto', height: 'calc(100vh - 260px)' }}
+              className="epub-html overflow-y-auto scroll-smooth relative"
+              style={{ scrollBehavior: 'smooth', margin: '0 auto', height: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize }}
             >
               {showEntireBook ? (
                 book.sections.map((sec, secIdx) => (
                   <div key={sec.id || secIdx} ref={el => { sectionRefs.current[secIdx] = el; }} id={`section-${secIdx}`} className="mb-12 pt-20">
                     <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">{sec.title}</h2>
-                    {sec.content.split('\n\n').map((paragraph, pIdx) => (
-                      <p key={pIdx} className="mb-6 text-lg">
-                        {tokenize(paragraph).map((token, i) => {
-                          if (/^[\p{L}\p{M}\d'-]+$/u.test(token)) {
-                            // In entire book mode, just render plain text (no underline, no events)
-                            return (
-                              <span key={`${secIdx}-${pIdx}-${i}`}>{token}</span>
-                            );
-                          } else {
-                            return <span key={`${secIdx}-${pIdx}-sep-${i}`}>{token}</span>;
-                          }
-                        })}
-                      </p>
-                    ))}
+                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(sec.content) }} />
                   </div>
                 ))
               ) : (
-                section.content.split('\n\n').map((paragraph, pIdx) => (
-                  <p key={pIdx} className="mb-6 text-lg">
-                    {currentTokenizedSection[pIdx]?.map((token, i) => {
-                      if (/^[\p{L}\p{M}\d'-]+$/u.test(token)) {
-                        if (disableWordUnderlines) {
-                          return <span key={`${pIdx}-${i}`}>{token}</span>;
-                        }
-                        const lower = token.toLowerCase();
-                        const type = wordStatusMap[lower];
-                        const showPopup = popup && popup.word === `${pIdx}-${i}`;
-                        const isHovered = hoveredWord === `${pIdx}-${i}`;
-                        return (
-                          <span
-                            key={`${pIdx}-${i}`}
-                            data-word-key={`${pIdx}-${i}`}
-                            onClick={e => handleWordClick(token, e, `${pIdx}-${i}`)}
-                            onMouseEnter={e => { throttledSetHoveredWord(`${pIdx}-${i}`); }}
-                            onMouseLeave={() => { throttledSetHoveredWord(null); if (!defPopup?.anchor) hideDefinitionPopup(); }}
-                            onMouseDown={e => { defPopupTimeout.current = setTimeout(() => { const rect = (e.target as HTMLElement).getBoundingClientRect(); showDefinitionPopup(token, { x: rect.left + rect.width / 2, y: rect.top }); }, 120); }}
-                            onMouseUp={() => { if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current); }}
-                            onTouchStart={e => { defPopupTimeout.current = setTimeout(() => { const rect = (e.target as HTMLElement).getBoundingClientRect(); showDefinitionPopup(token, { x: rect.left + rect.width / 2, y: rect.top }); }, 120); }}
-                            onTouchEnd={() => { if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current); }}
-                            style={{ borderBottom: getUnderline(type, isHovered), cursor: 'pointer', transition: 'border-color 0.2s', position: 'relative', padding: '0 2px', userSelect: 'text' }}
-                          >
-                            {token}
-                            {showPopup && (
-                              <span style={{ position: 'absolute', left: '50%', top: '-2.2em', transform: 'translateX(-50%)', zIndex: 100, background: '#fff', borderRadius: '0.5em', border: `2px solid ${getPopupColor(popup.status)}`, color: getPopupColor(popup.status), fontWeight: 600, fontSize: '1em', padding: '0.1em 0.6em', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', pointerEvents: 'none' }}>{popup.status}</span>
-                            )}
-                          </span>
-                        );
-                      } else {
-                        return <span key={`${pIdx}-sep-${i}`}>{token}</span>;
-                      }
-                    })}
-                  </p>
-                ))
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(section.content) }} />
               )}
               <div style={{ height: '200px' }} />
             </div>
@@ -1250,5 +1241,37 @@ export default function ReaderPage() {
         })()
       )}
     </div>
+  );
+}
+
+// Add minimal CSS for .epub-html to ensure images, headings, and footnotes display well
+export function EpubHtmlStyles() {
+  return (
+    <style jsx global>{`
+      .epub-html { font-size: 1em; }
+      .epub-html *, .epub-html *:before, .epub-html *:after {
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      .epub-html img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 1em auto;
+        position: static !important;
+      }
+      .epub-html *[style*='position:fixed'],
+      .epub-html *[style*='position:absolute'] {
+        position: static !important;
+      }
+      .epub-html p { margin: 1em 0; font-size: 1em; }
+      .epub-html a { color: #2563eb; text-decoration: underline; }
+      .epub-html sup, .epub-html sub, .epub-html .footnote, .epub-html .footnotes { font-size: 0.75em; }
+      .epub-html table { border-collapse: collapse; width: 100%; }
+      .epub-html th, .epub-html td { border: 1px solid #ccc; padding: 0.3em 0.6em; }
+      .epub-html blockquote { border-left: 4px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #555; background: #fafafa; }
+      .epub-html ul, .epub-html ol { margin: 1em 0 1em 2em; }
+      .epub-html li { margin: 0.3em 0; }
+    `}</style>
   );
 } 

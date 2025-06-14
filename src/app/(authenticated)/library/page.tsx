@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata } from '@/services/epubService';
 import { useAuth } from '@/hooks/useAuth';
 import { FiTrash2 } from 'react-icons/fi';
+import { uploadFileAndGetUrl } from '@/lib/firebase';
 
 // Types
 interface BookSection {
@@ -27,6 +28,8 @@ interface Book {
   storagePath?: string;
   downloadURL?: string;
   completed?: boolean;
+  css: string;
+  cover: string;
 }
 
 interface ReadingProgress {
@@ -101,6 +104,8 @@ export default function library() {
         storagePath: meta.storagePath,
         downloadURL: meta.downloadURL,
         completed: meta.completed || false,
+        css: '', // No CSS in metadata
+        cover: '', // No cover in metadata
       })));
     });
   }, [user]);
@@ -138,6 +143,24 @@ export default function library() {
     }
   };
 
+  // Helper to normalize paths like OEBPS/Text/../Images/T_Page_027.jpg => OEBPS/Images/T_Page_027.jpg
+  function normalizePath(path: string): string {
+    const parts: string[] = [];
+    path.split('/').forEach(part => {
+      if (part === '..') {
+        parts.pop();
+      } else if (part !== '.' && part !== '') {
+        parts.push(part);
+      }
+    });
+    return parts.join('/');
+  }
+
+  // Helper to safely get innerText
+  function getInnerText(el: Element | null): string {
+    return (el && 'innerText' in el) ? (el as HTMLElement).innerText : '';
+  }
+
   // Upload EPUB and store in Storage/Firestore
   const processEpubFile = async (file: File) => {
     if (!user?.uid) return;
@@ -163,6 +186,7 @@ export default function library() {
       const spine = Array.from(opfDoc.querySelectorAll('spine itemref')).map(item => item.getAttribute('idref')).filter(Boolean);
       const sections: BookSection[] = [];
       let totalWords = 0;
+      const bookId = Date.now().toString();
       for (const itemId of spine) {
         const manifestItem = opfDoc.querySelector(`manifest item[id="${itemId}"]`);
         if (!manifestItem) continue;
@@ -173,13 +197,131 @@ export default function library() {
         if (sectionFile) {
           const sectionHtml = await sectionFile.async('text');
           const sectionDoc = parser.parseFromString(sectionHtml, 'text/html');
+          // --- Image handling ---
+          const imgElements = sectionDoc.querySelectorAll('img');
+          for (const img of imgElements) {
+            const src = img.getAttribute('src');
+            if (src && !src.startsWith('data:') && !src.startsWith('http')) {
+              // Resolve relative path
+              let imgPath = src;
+              if (!/^https?:\/\//.test(src)) {
+                // Relative to section file
+                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/') + 1);
+                imgPath = basePath + src;
+              }
+              const normalizedImgPath = normalizePath(imgPath);
+              const imgFile = zip.file(normalizedImgPath);
+              if (imgFile) {
+                const ext = normalizedImgPath.split('.').pop()?.toLowerCase() || 'png';
+                const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
+                const imgData = await imgFile.async('uint8array');
+                const firebasePath = `books/${bookId}/images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                const url = await uploadFileAndGetUrl(firebasePath, new Blob([imgData], { type: mime }));
+                img.setAttribute('src', url);
+              } else {
+                console.warn('Image not found in EPUB zip:', normalizedImgPath);
+              }
+            }
+          }
+          // --- SVG <image> handling ---
+          const svgImageElements = sectionDoc.querySelectorAll('image');
+          for (const svgImg of svgImageElements) {
+            // Try both xlink:href and href
+            let href = svgImg.getAttribute('xlink:href') || svgImg.getAttribute('href');
+            if (href && !href.startsWith('data:') && !href.startsWith('http')) {
+              let imgPath = href;
+              if (!/^https?:\/\//.test(href)) {
+                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/') + 1);
+                imgPath = basePath + href;
+              }
+              const normalizedImgPath = normalizePath(imgPath);
+              const imgFile = zip.file(normalizedImgPath);
+              if (imgFile) {
+                const ext = normalizedImgPath.split('.').pop()?.toLowerCase() || 'png';
+                const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
+                const imgData = await imgFile.async('uint8array');
+                const firebasePath = `books/${bookId}/images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                const url = await uploadFileAndGetUrl(firebasePath, new Blob([imgData], { type: mime }));
+                svgImg.setAttribute('xlink:href', url);
+                svgImg.setAttribute('href', url); // for compatibility
+              } else {
+                console.warn('SVG image not found in EPUB zip:', normalizedImgPath);
+              }
+            }
+          }
+          const htmlContent = sectionDoc.body?.innerHTML || '';
+          // Strip HTML tags for word count
           const textContent = sectionDoc.body?.textContent || '';
           const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length;
-          const sectionTitle = sectionDoc.querySelector('title')?.textContent || sectionDoc.querySelector('h1, h2, h3')?.textContent || `${sections.length + 1}`;
+          // Section title: concatenate multiple <a> elements (e.g., chapter number and title)
+          let sectionTitle = '';
+          // 1. Concatenate <a> elements in main heading container (e.g., <p class*='capitulo'> or first <p> with <a>)
+          let headingContainer: Element | null = sectionDoc.querySelector('p.capitulo') || sectionDoc.querySelector('p[class*="capitulo"]');
+          if (!headingContainer) {
+            // Fallback: first <p> with at least one <a>
+            headingContainer = Array.from(sectionDoc.querySelectorAll('p')).find(p => p.querySelector('a')) || null;
+          }
+          if (headingContainer) {
+            const aEls = Array.from(headingContainer.querySelectorAll('a'));
+            if (aEls.length > 0) {
+              sectionTitle = aEls.map(a => getInnerText(a).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+            }
+          }
+          // If still not found, try previous logic
+          if (!sectionTitle) {
+            // <span> with class containing 'numero' and next <a> with <br>
+            const headingSpan = sectionDoc.querySelector('span[class*="numero"]');
+            if (headingSpan && headingSpan.textContent && headingSpan.textContent.trim().length > 0) {
+              sectionTitle = headingSpan.textContent.trim();
+              const nextA = headingSpan.parentElement?.querySelector('a');
+              if (nextA && nextA.innerHTML.includes('<br')) {
+                sectionTitle += ': ' + getInnerText(nextA).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+              }
+            }
+          }
+          if (!sectionTitle) {
+            // <a> with <br> (chapter title)
+            const aWithBr = sectionDoc.querySelector('a[href][innerHTML*="<br"]');
+            if (aWithBr && getInnerText(aWithBr) && getInnerText(aWithBr).trim().length > 0) {
+              sectionTitle = getInnerText(aWithBr).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+          }
+          // 2. <p> with class containing 'titulo'
+          if (!sectionTitle) {
+            const tituloP = sectionDoc.querySelector('p[class*="titulo"]');
+            if (tituloP && tituloP.textContent && tituloP.textContent.trim().length > 0) {
+              sectionTitle = tituloP.textContent.trim();
+            }
+          }
+          // 3. <h1>
+          if (!sectionTitle) {
+            const firstH1 = sectionDoc.querySelector('h1');
+            if (firstH1 && firstH1.textContent && firstH1.textContent.trim().length > 0) {
+              sectionTitle = firstH1.textContent.trim();
+            }
+          }
+          // 4. <h2>
+          if (!sectionTitle) {
+            const firstH2 = sectionDoc.querySelector('h2');
+            if (firstH2 && firstH2.textContent && firstH2.textContent.trim().length > 0) {
+              sectionTitle = firstH2.textContent.trim();
+            }
+          }
+          // 5. <p>
+          if (!sectionTitle) {
+            const firstP = sectionDoc.querySelector('p');
+            if (firstP && firstP.textContent && firstP.textContent.trim().length > 0) {
+              sectionTitle = firstP.textContent.trim();
+            }
+          }
+          // 6. fallback
+          if (!sectionTitle) {
+            sectionTitle = sectionDoc.querySelector('title')?.textContent || sectionDoc.querySelector('h3')?.textContent || `${sections.length + 1}`;
+          }
           if (itemId) {
             sections.push({
               title: sectionTitle.trim(),
-              content: textContent,
+              content: htmlContent,
               wordCount: wordCount,
               id: itemId
             });
@@ -187,16 +329,70 @@ export default function library() {
           }
         }
       }
-      const bookId = Date.now().toString();
+      // --- Extract all CSS files referenced in the manifest ---
+      const cssFiles = Array.from(opfDoc.querySelectorAll('manifest item')).filter(item => {
+        const mediaType = item.getAttribute('media-type');
+        return mediaType && mediaType.includes('css');
+      });
+      let bookCss = '';
+      for (const cssItem of cssFiles) {
+        const cssHref = cssItem.getAttribute('href');
+        if (cssHref) {
+          const cssPath = opfPath.substring(0, opfPath.lastIndexOf('/') + 1) + cssHref;
+          const cssFile = zip.file(cssPath);
+          if (cssFile) {
+            const cssText = await cssFile.async('text');
+            bookCss += '\n' + cssText;
+          }
+        }
+      }
+      // --- Title extraction: prefer <dc:title> from metadata, fallback to first h1/h2 in first section ---
+      let bookTitle = '';
+      const dcTitle = opfDoc.querySelector('metadata > title, metadata > dc\\:title');
+      if (dcTitle && dcTitle.textContent) {
+        bookTitle = dcTitle.textContent.trim();
+      }
+      // Fallback: try first h1/h2 in first section
+      if (!bookTitle && sections.length > 0) {
+        const firstSection = sections[0].content;
+        const m = firstSection.match(/<h1[^>]*>(.*?)<\/h1>|<h2[^>]*>(.*?)<\/h2>/i);
+        if (m) bookTitle = m[1] || m[2] || '';
+      }
+      if (!bookTitle) bookTitle = title;
+
+      // --- Cover image extraction ---
+      let coverUrl = '';
+      // Try to find manifest item with id='cover' or media-type image/*
+      let coverItem = opfDoc.querySelector('manifest item[id*=cover i][media-type^="image/"]');
+      if (!coverItem) {
+        // Fallback: first image in manifest
+        coverItem = opfDoc.querySelector('manifest item[media-type^="image/"]');
+      }
+      if (coverItem) {
+        const coverHref = coverItem.getAttribute('href');
+        if (coverHref) {
+          const coverPath = opfPath.substring(0, opfPath.lastIndexOf('/') + 1) + coverHref;
+          const coverFile = zip.file(coverPath);
+          if (coverFile) {
+            const ext = coverPath.split('.').pop()?.toLowerCase() || 'png';
+            const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
+            const coverData = await coverFile.async('uint8array');
+            const firebasePath = `books/${bookId}/cover.${ext}`;
+            coverUrl = await uploadFileAndGetUrl(firebasePath, new Blob([coverData], { type: mime }));
+          }
+        }
+      }
       const newBook: Book = {
         id: bookId,
-        title,
+        title: bookTitle,
         author,
         description,
         sections,
         totalWords,
         fileName: file.name,
-        dateAdded: new Date().toISOString()
+        dateAdded: new Date().toISOString(),
+        css: bookCss,
+        cover: coverUrl,
       };
       const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook);
       const savedMeta = await saveBookMetadata(user.uid, bookId, {
@@ -223,6 +419,8 @@ export default function library() {
           storagePath,
           downloadURL,
           completed: false,
+          css: newBook.css,
+          cover: newBook.cover,
         }
       ]);
       setIsUploading(false);
@@ -310,6 +508,8 @@ export default function library() {
         storagePath: meta.storagePath,
         downloadURL: meta.downloadURL,
         completed: meta.completed || false,
+        css: '', // No CSS in metadata
+        cover: '', // No cover in metadata
       })));
     });
   };
@@ -516,11 +716,7 @@ export default function library() {
               className="prose prose-lg max-w-none text-gray-800 leading-relaxed h-[calc(100vh-400px)] overflow-y-auto scroll-smooth"
               style={{ scrollBehavior: 'smooth' }}
             >
-              {currentBook.sections[currentSection].content.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="mb-6 text-lg">
-                  {paragraph}
-                </p>
-              ))}
+              <div dangerouslySetInnerHTML={{ __html: currentBook.sections[currentSection].content }} />
               <div style={{ height: '200px' }} />
             </div>
           </div>

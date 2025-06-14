@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,6 +19,7 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // Test Firebase connection
 export async function testFirebaseConnection() {
@@ -40,4 +42,10 @@ export async function testFirebaseConnection() {
   }
 }
 
-export { app, auth, db }; 
+export async function uploadFileAndGetUrl(path: string, file: Blob | Uint8Array | ArrayBuffer) {
+  const ref = storageRef(storage, path);
+  await uploadBytes(ref, file);
+  return await getDownloadURL(ref);
+}
+
+export { app, auth, db, storage }; 
