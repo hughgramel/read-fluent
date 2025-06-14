@@ -99,11 +99,11 @@ export default function AboutPage() {
   };
 
   return (
-    <div className="w-full max-w-6xl [font-family:var(--font-mplus-rounded)] py-8">
+    <div className="w-full max-w-6xl" style={{ fontFamily: 'Inter, sans-serif' }}>
       <div className="flex flex-col gap-8">
         <div className="w-full">
           <div className="mb-6">
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#0B1423]">
+            <h1 className="text-4xl font-extrabold text-[#222] tracking-tight" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
               Words
             </h1>
           </div>
@@ -134,12 +134,14 @@ export default function AboutPage() {
           </div>
           {showAdd && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
-              <div className="bg-white rounded-lg p-8 border-2 border-gray-300 shadow-lg max-w-md w-full relative">
+              <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif' }}>
                 <button
                   onClick={() => setShowAdd(false)}
-                  className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl"
+                  className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
+                  style={{ background: 'none', border: 'none', lineHeight: 1 }}
+                  aria-label="Close"
                 >×</button>
-                <h2 className="text-xl font-bold mb-4 text-[#0B1423]">Add Word</h2>
+                <h2 className="text-xl font-extrabold mb-4 text-[#222] tracking-tight text-center">Add Word</h2>
                 {!langLoaded ? (
                   <div className="text-gray-400">Loading language...</div>
                 ) : (
@@ -237,14 +239,7 @@ export default function AboutPage() {
                       <tr key={w.word} className="border-b border-gray-100">
                         <td className="py-3 px-3 text-gray-400 font-mono text-lg w-12">{i + 1}</td>
                         <td className="py-3 px-3">
-                          <span className={
-                            `inline-flex items-center px-6 py-2 rounded-lg border-2 text-lg font-semibold capitalize shadow-[0_6px_0] ` +
-                            (w.type === 'known'
-                              ? 'bg-green-100 border-green-700 text-green-800 shadow-green-700'
-                              : w.type === 'tracking'
-                                ? 'bg-purple-100 border-purple-700 text-purple-800 shadow-purple-700'
-                                : 'bg-red-100 border-red-700 text-red-800 shadow-red-700')
-                          }>
+                          <span className="inline-block px-2 py-1 text-sm font-semibold rounded bg-gray-100 text-[#0B1423] border border-gray-200 mr-2 mb-2">
                             {w.type}
                           </span>
                         </td>

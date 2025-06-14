@@ -82,14 +82,14 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="w-full max-w-6xl [font-family:var(--font-mplus-rounded)] py-8">
+    <div className="w-full max-w-6xl" style={{ fontFamily: 'Inter, sans-serif' }}>
       <div className="flex flex-col gap-8">
         <div className="w-full">
           <div className="mb-6">
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#0B1423]">
+            <h1 className="text-4xl font-extrabold text-[#222] tracking-tight" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
               {user.displayName || 'User'}
             </h1>
-            <p className="text-sm text-[#0B1423]/70 mt-1">
+            <p className="text-sm text-[#222]/70 mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
               Joined {formatJoinDate(user.createdAt)}
             </p>
           </div>

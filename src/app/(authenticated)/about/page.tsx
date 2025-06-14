@@ -25,11 +25,11 @@ export default function AboutPage() {
   }
 
   return (
-    <div className="w-full max-w-6xl [font-family:var(--font-mplus-rounded)] py-8">
+    <div className="w-full max-w-6xl" style={{ fontFamily: 'Inter, sans-serif' }}>
       <div className="flex flex-col gap-8">
         <div className="w-full">
           <div className="mb-6">
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#0B1423]">
+            <h1 className="text-4xl font-extrabold text-[#222] tracking-tight" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
               About readfluent
             </h1>
           </div>

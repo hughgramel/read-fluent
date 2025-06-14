@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import '@fontsource/inter/variable.css';
 
 const navigation = [
   { name: 'Library', href: '/library', icon: '📚' },
@@ -30,12 +31,12 @@ export default function Header() {
   return (
     <>
       {/* Top Header for medium and large screens */}
-      <header className="bg-white border-b border-gray-200 hidden sm:block w-full z-50 relative">
-        <nav className="w-full px-4 sm:px-6 lg:px-12">
+      <header className="bg-white border-b border-gray-100 hidden sm:block w-full z-50 relative">
+        <nav className="w-full px-4 sm:px-8 lg:px-16">
           <div className="flex items-center justify-center h-16 sm:h-16 lg:h-20 flex-nowrap">
             {/* Logo (Left) */}
-            <div className="flex-shrink-0 mr-4 lg:mr-8 absolute left-4 sm:left-6 lg:left-12">
-              <Link href="/library" className="font-bold text-[#0B1423] hover:text-[#162033] transition-colors duration-200 whitespace-nowrap [font-family:var(--font-mplus-rounded)] flex items-baseline">
+            <div className="flex-shrink-0 mr-4 lg:mr-8 absolute left-4 sm:left-8 lg:left-16">
+              <Link href="/library" className="font-extrabold text-[#2563eb] hover:text-[#1749b1] transition-colors duration-200 whitespace-nowrap flex items-baseline tracking-tight">
                 <span className="text-4xl sm:text-5xl">readfluent</span>
               </Link>
             </div>
@@ -50,21 +51,14 @@ export default function Header() {
                       key={item.name}
                       href={item.href}
                       className={`
-                        relative px-2 sm:px-3 lg:px-4 py-5 text-base sm:text-lg lg:text-xl font-medium transition-colors duration-200 flex items-center whitespace-nowrap [font-family:var(--font-mplus-rounded)]
-                        ${isActive 
-                          ? 'text-[#0B1423]'
-                          : 'text-gray-600 hover:text-[#0B1423]'
-                        }
-                        group tracking-wide
+                        flex items-center gap-2 px-2 sm:px-3 lg:px-4 py-2 text-base sm:text-lg lg:text-xl font-semibold transition-colors duration-200 whitespace-nowrap tracking-wide
+                        border-b-2 ${isActive ? 'border-[#2563eb] text-[#2563eb]' : 'border-transparent text-gray-600 hover:text-[#2563eb]'}
+                        focus:outline-none focus:text-[#2563eb] focus:border-[#2563eb]
                       `}
+                      style={{ background: 'none', boxShadow: 'none', borderRadius: 0, minHeight: 0 }}
                     >
-                      <span className="mr-1 sm:mr-2 lg:mr-3 text-xl lg:text-2xl">{item.icon}</span>
-                      <span className="sm:inline">{item.name}</span>
-                      <span 
-                        className={`absolute bottom-0 left-0 w-full h-0.5 bg-[#67b9e7] transform transition-all duration-300 ease-in-out
-                          ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`
-                        }
-                      ></span>
+                      <span className="text-xl lg:text-2xl" style={{ lineHeight: 1 }}>{item.icon}</span>
+                      <span className="sm:inline" style={{ lineHeight: 1 }}>{item.name}</span>
                     </Link>
                   );
                 })}
@@ -75,7 +69,7 @@ export default function Header() {
       </header>
 
       {/* Bottom Navigation Bar for mobile */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50">
         <div className="flex justify-around items-center h-16">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
@@ -84,16 +78,14 @@ export default function Header() {
                 key={item.name}
                 href={item.href}
                 className={`
-                  flex flex-col items-center justify-center px-3 py-3 
-                  ${isActive 
-                    ? 'text-[#0B1423]'
-                    : 'text-gray-500 hover:text-[#0B1423]'
-                  }
-                  transition-colors duration-200 [font-family:var(--font-mplus-rounded)]
+                  flex flex-col items-center justify-center px-2 py-2 font-semibold text-sm
+                  border-t-2 ${isActive ? 'border-[#2563eb] text-[#2563eb]' : 'border-transparent text-gray-500 hover:text-[#2563eb]'}
+                  focus:outline-none focus:text-[#2563eb] focus:border-[#2563eb] transition-colors duration-200
                 `}
+                style={{ background: 'none', boxShadow: 'none', borderRadius: 0, minHeight: 0 }}
               >
-                <span className="text-2xl mb-1">{item.icon}</span>
-                <span className="text-sm">{item.name}</span>
+                <span className="text-2xl mb-0.5" style={{ lineHeight: 1 }}>{item.icon}</span>
+                <span style={{ lineHeight: 1 }}>{item.name}</span>
               </Link>
             );
           })}
@@ -101,9 +93,9 @@ export default function Header() {
       </div>
 
       {/* Mobile Top Bar with title only */}
-      <header className="bg-white border-b border-gray-200 sm:hidden z-50 relative">
+      <header className="bg-white border-b border-gray-100 sm:hidden z-50 relative">
         <div className="flex items-center justify-center h-16 px-4">
-          <Link href="/library" className="font-bold text-[#0B1423] [font-family:var(--font-mplus-rounded)] flex items-baseline">
+          <Link href="/library" className="font-extrabold text-[#2563eb] flex items-baseline tracking-tight">
             <span className="text-3xl">readfluent</span>
           </Link>
         </div>

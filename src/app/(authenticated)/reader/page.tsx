@@ -776,7 +776,7 @@ export default function ReaderPage() {
   const section = book.sections[currentSection];
 
   return (
-    <div className="min-h-screen bg-gray-50 [font-family:var(--font-mplus-rounded)] relative">
+    <div className="min-h-screen bg-gray-50 [font-family:Inter, var(--font-inter), sans-serif] relative">
       <EpubHtmlStyles />
       {/* Mobile: Dropdown icon is in the bar when header is visible, floating when hidden */}
       {isMobile ? (
@@ -824,14 +824,14 @@ export default function ReaderPage() {
       )}
       {/* Header (conditionally rendered) */}
       {showHeader && (
-        <div className="bg-white border-b-2 border-gray-300 shadow-[0_6px_0px_#d1d5db] fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '56px' : '64px', paddingTop: 0, paddingBottom: 0 }}>
+        <div className="bg-white border-[0.75] border-black fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '56px' : '64px', paddingTop: 0, paddingBottom: 0 }}>
           {isMobile ? (
             <div className="w-full px-2 flex items-center justify-between relative" style={{ minHeight: '56px', height: '56px' }}>
               {/* Left: Back button */}
               <div className="flex items-center h-full">
                 <button
                   onClick={backToLibrary}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-white font-semibold text-[#0B1423] border-2 border-[#d1d5db] shadow-[0_4px_0px_#d1d5db] hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px_#d1d5db] transition-all w-8 h-8 p-0 text-base"
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                   style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
                   aria-label="Back to Library"
                 >
@@ -841,11 +841,11 @@ export default function ReaderPage() {
                 </button>
               </div>
               {/* Center: Section navigation */}
-              <div className="flex items-center gap-2 h-full">
+              <div className="flex items-center gap-2 mx-auto" style={{maxWidth: 700}}>
                 <button
                   onClick={() => prevSection()}
                   disabled={currentSection === 0}
-                  className="flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-[#4792ba] bg-[#67b9e7] text-white shadow-[0_4px_0_#4792ba] hover:bg-[#4792ba] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed w-8 h-8 p-0 text-base"
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                   style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
                   aria-label="Previous Section"
                 >
@@ -853,16 +853,23 @@ export default function ReaderPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <span className="font-bold text-xl truncate max-w-xs" title={section.title && section.title.trim() !== '' ? section.title : 'Untitled Section'}>
-                  {(() => {
-                    const title = section.title && section.title.trim() !== '' ? section.title : 'Untitled Section';
-                    return title.length > 40 ? title.slice(0, 40) + '...' : title;
-                  })()}
-                </span>
+                <input
+                  type="number"
+                  value={currentSection + 1}
+                  min={1}
+                  max={book.sections.length}
+                  onChange={(e) => {
+                    const newSection = Math.max(0, Math.min(Number(e.target.value) - 1, book.sections.length - 1));
+                    setCurrentSection(newSection);
+                    router.replace(`/reader?book=${book.id}&section=${newSection}`);
+                  }}
+                  className="w-12 text-center border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black transition-colors"
+                />
+                <span>/ {book.sections.length}</span>
                 <button
                   onClick={() => nextSection()}
                   disabled={currentSection === (book.sections.length || 0) - 1}
-                  className="flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-[#4792ba] bg-[#67b9e7] text-white shadow-[0_4px_0_#4792ba] hover:bg-[#4792ba] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed w-8 h-8 p-0 text-base"
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                   style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
                   aria-label="Next Section"
                 >
@@ -870,13 +877,14 @@ export default function ReaderPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
+                <span className="truncate font-semibold text-lg ml-4" style={{maxWidth: 320}}>{section.title}</span>
               </div>
               {/* Right: Controls, now to the left of the dropdown icon */}
               <div className="flex items-center gap-1 h-full pr-10"> {/* pr-10 to make space for dropdown icon */}
                 {!showEntireBook && (
                   <button
                     onClick={handleScrapeComprehension}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-purple-700 bg-purple-100 text-purple-700 shadow-[0_4px_0_#a78bfa] hover:bg-purple-200 transition-all w-8 h-8 p-0 text-base mr-2"
+                    className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                     style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
                     title="Scrape Comprehension Stats"
                   >
@@ -887,16 +895,16 @@ export default function ReaderPage() {
                   <>
                     <button
                       onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-                      className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-green-700 bg-green-500 text-white shadow-[0_4px_0_#166534] hover:bg-green-600 transition-all ${isAutoScrolling ? 'opacity-80' : ''} ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-4 py-3 text-lg'}`}
-                      style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
+                      className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
+                      style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
                       title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
                     >
                       {isAutoScrolling ? (
-                        <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       ) : (
-                        <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -909,13 +917,13 @@ export default function ReaderPage() {
                           const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
                           setScrollSpeed(next);
                         }}
-                        className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-green-700 bg-white text-green-700 shadow-[0_4px_0_#166534] hover:bg-green-50 transition-all"
+                        className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                         title="Change scroll speed"
                       >
                         {scrollSpeed.toFixed(1)}x
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-1 shadow-sm border-2 border-[#d1d5db] ml-2">
+                      <div className="flex items-center gap-2 bg-white rounded-md px-3 py-1 border-[0.75] border-black">
                         <input
                           type="range"
                           min="0.5"
@@ -925,7 +933,7 @@ export default function ReaderPage() {
                           onChange={(e) => setScrollSpeed(Number(e.target.value))}
                           className="w-24 accent-green-600"
                         />
-                        <span className="text-sm font-medium text-gray-600 min-w-[2rem] text-center">
+                        <span className="text-sm font-medium text-black min-w-[2rem] text-center">
                           {scrollSpeed.toFixed(1)}x
                         </span>
                       </div>
@@ -934,12 +942,12 @@ export default function ReaderPage() {
                 )}
                 <button
                   onClick={() => setShowSettings(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg px-0 py-0 text-base font-semibold border-2 border-gray-300 bg-white text-[#0B1423] hover:bg-gray-100 transition-all w-8 h-8"
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black border-[0.75] border-black rounded-md bg-white hover:bg-gray-100 transition-colors"
                   style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
                   title="Reader Settings"
                   aria-label="Reader Settings"
                 >
-                  {isMobile ? '⚙️' : 'Settings'}
+                    {isMobile ? '⚙️' : 'Settings'}
                 </button>
               </div>
             </div>
@@ -949,7 +957,7 @@ export default function ReaderPage() {
               <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <button
                   onClick={backToLibrary}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg bg-white font-semibold text-[#0B1423] border-2 border-[#d1d5db] shadow-[0_4px_0px_#d1d5db] hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px_#d1d5db] transition-all ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-5 py-3 text-lg'}`}
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                   style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
                 >
                   <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -961,7 +969,7 @@ export default function ReaderPage() {
                 {!isMobile && (
                   <button
                     onClick={() => setShowSidebar((prev) => !prev)}
-                    className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-3 text-lg font-semibold text-[#0B1423] border-2 border-[#d1d5db] shadow-[0_4px_0px_#d1d5db] hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px_#d1d5db] transition-all ml-2"
+                    className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                     title="Show/Hide sections"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -970,27 +978,14 @@ export default function ReaderPage() {
                   </button>
                 )}
 
-                {/* Show entire book in one page, hide on mobile, show on desktop */}
-                {!isMobile && (
-                  <div className="flex items-center gap-2 ml-2">
-                    <button
-                      onClick={() => setShowSidebar((prev) => !prev)}
-                      className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-3 text-lg font-semibold text-[#0B1423] border-2 border-[#d1d5db] shadow-[0_4px_0px_#d1d5db] hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px_#d1d5db] transition-all ml-2"
-                      title="Show/Hide sections"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
+               
               </div>
               {/* Section navigation (centered) */}
               <div className="flex items-center gap-4 mx-auto" style={{ position: 'relative', left: 0, right: 0 }}>
                 <button
                   onClick={() => showEntireBook ? scrollToSection(Math.max(visibleSection - 1, 0)) : prevSection()}
                   disabled={showEntireBook ? visibleSection === 0 : currentSection === 0}
-                  className={`flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-[#4792ba] bg-[#67b9e7] text-white shadow-[0_4px_0_#4792ba] hover:bg-[#4792ba] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-5 py-3 text-lg'}`}
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                   style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
                 >
                   <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1015,7 +1010,7 @@ export default function ReaderPage() {
                 <button
                   onClick={() => showEntireBook ? scrollToSection(Math.min(visibleSection + 1, book.sections.length - 1)) : nextSection()}
                   disabled={showEntireBook ? visibleSection === book.sections.length - 1 : currentSection === (book.sections.length || 0) - 1}
-                  className={`flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-[#4792ba] bg-[#67b9e7] text-white shadow-[0_4px_0_#4792ba] hover:bg-[#4792ba] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-5 py-3 text-lg'}`}
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                   style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
                 >
                   <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1030,7 +1025,7 @@ export default function ReaderPage() {
                   <>
                     <button
                       onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-                      className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-green-700 bg-green-500 text-white shadow-[0_4px_0_#166534] hover:bg-green-600 transition-all ${isAutoScrolling ? 'opacity-80' : ''} ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-4 py-3 text-lg'}`}
+                      className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                       style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
                       title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
                     >
@@ -1052,13 +1047,13 @@ export default function ReaderPage() {
                           const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
                           setScrollSpeed(next);
                         }}
-                        className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-green-700 bg-white text-green-700 shadow-[0_4px_0_#166534] hover:bg-green-50 transition-all"
+                        className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                         title="Change scroll speed"
                       >
                         {scrollSpeed.toFixed(1)}x
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-1 shadow-sm border-2 border-[#d1d5db] ml-2">
+                      <div className="flex items-center gap-2 bg-white rounded-md px-3 py-1 border border-black">
                         <input
                           type="range"
                           min="0.5"
@@ -1068,7 +1063,7 @@ export default function ReaderPage() {
                           onChange={(e) => setScrollSpeed(Number(e.target.value))}
                           className="w-24 accent-green-600"
                         />
-                        <span className="text-sm font-medium text-gray-600 min-w-[2rem] text-center">
+                        <span className="text-sm font-medium text-black min-w-[2rem] text-center">
                           {scrollSpeed.toFixed(1)}x
                         </span>
                       </div>
@@ -1078,7 +1073,7 @@ export default function ReaderPage() {
                 {/* Fullscreen */}
                 {!isMobile && (<button
                   onClick={handleFullscreen}
-                  className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-gray-300 bg-white text-[#0B1423] hover:bg-gray-100 transition-all"
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black hover:text-[#2563eb] focus:text-[#2563eb] border-none bg-transparent rounded-none shadow-none disabled:text-gray-300 transition-colors"
                   title="Toggle Fullscreen"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1088,7 +1083,7 @@ export default function ReaderPage() {
                 {/* Settings: cog on desktop, emoji on mobile */}
                 <button
                   onClick={() => setShowSettings(true)}
-                  className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-gray-300 bg-white text-[#0B1423] hover:bg-gray-100 transition-all"
+                  className="flex items-center gap-2 px-3 py-2 font-semibold text-black border border-black rounded-md bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-black transition-colors"
                   title="Reader Settings"
                 >
                     {isMobile ? '⚙️' : 'Settings'}
@@ -1105,7 +1100,7 @@ export default function ReaderPage() {
         {/* Sidebar (persistent, always flush left) */}
         {showSidebar && !isMobile && (
           <div
-            className="bg-white w-64 max-w-full z-10 rounded-xl pb-6 transition-all duration-300"
+            className="bg-white w-64 max-w-full z-10 rounded-xl pb-6 transition-all duration-300 border-[0.75] border-black"
             style={{
               position: 'fixed',
               top: '54%',
@@ -1113,8 +1108,6 @@ export default function ReaderPage() {
               opacity: showSidebar ? 1 : 0,
               height: '70vh',
               minHeight: '400px',
-              boxShadow: '0 6px 0 #d1d5db',
-              borderRight: '2px solid #e5e7eb',
               display: 'flex',
               flexDirection: 'column',
               zIndex: 10,
@@ -1122,7 +1115,7 @@ export default function ReaderPage() {
               pointerEvents: showSidebar ? 'auto' : 'none',
             }}
           >
-            <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-black">
               <span className="font-bold text-lg text-[#0B1423]">Sections</span>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-2">
@@ -1147,8 +1140,19 @@ export default function ReaderPage() {
             maxWidth: isMobile ? '100vw' : undefined,
           }}
         >
-          <div className="bg-white rounded-lg border-2 border-[#d1d5db] shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'var(--font-mplus-rounded)', fontSize: '1.1rem', maxWidth: readerWidth > 1100 ? readerWidth : 1100, width: readerWidth, margin: '0 auto', padding: isMobile ? '1.5rem 0.5rem' : undefined }}>
+          <div className="bg-white rounded-lg border-[0.75] border-black shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'Inter, var(--font-inter), sans-serif', fontSize: '1.1rem', maxWidth: readerWidth > 1100 ? readerWidth : 1100, width: readerWidth, margin: '0 auto', padding: isMobile ? '1.5rem 0.5rem' : undefined }}>
             <>
+              {/* Only show cover image above the reading area for the first section */}
+              {book.cover && currentSection === 0 && (
+                <div className="flex justify-center mb-8">
+                  <img
+                    src={book.cover}
+                    alt={book.title + ' cover'}
+                    className="rounded-lg shadow-md object-cover"
+                    style={{ aspectRatio: '2/3', width: '120px', maxWidth: '180px', maxHeight: '260px', background: '#f3f4f6' }}
+                  />
+                </div>
+              )}
               {currentViewMode === 'scroll-section' && (
                 <div
                   ref={contentRef}
@@ -1190,7 +1194,7 @@ export default function ReaderPage() {
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
-          <div className="bg-white rounded-lg p-8 border-2 border-gray-300 shadow-lg max-w-md w-full relative">
+          <div className="bg-white rounded-lg p-8 border-[0.75] border-black shadow-lg max-w-md w-full relative" style={{ fontFamily: 'Inter, var(--font-inter), sans-serif' }}>
             <button
               onClick={() => setShowSettings(false)}
               className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl"
@@ -1207,7 +1211,7 @@ export default function ReaderPage() {
                 step={1}
                 value={readerFontSize}
                 onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value), disableWordUnderlines, currentTheme, currentViewMode); }}
-                className="w-full accent-blue-600"
+                className="w-full accent-green-600"
               />
             </div>
             <div className="mb-6">
@@ -1219,7 +1223,7 @@ export default function ReaderPage() {
                 step={10}
                 value={readerWidth}
                 onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize, disableWordUnderlines, currentTheme, currentViewMode); }}
-                className="w-full accent-blue-600"
+                className="w-full accent-green-600"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
                 <span>Narrow (~55 char)</span>
@@ -1236,7 +1240,7 @@ export default function ReaderPage() {
                   setDisableWordUnderlines(e.target.checked);
                   savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked, currentTheme, currentViewMode);
                 }}
-                className="mr-3 h-5 w-5 accent-blue-600 border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 accent-green-600 border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-underlines" className="font-semibold text-black select-none cursor-pointer">Disable word underlines & popups</label>
             </div>
@@ -1248,7 +1252,7 @@ export default function ReaderPage() {
                   setCurrentTheme(e.target.value);
                   savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, e.target.value, currentViewMode);
                 }}
-                className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-[#4792ba] focus:ring-2 focus:ring-[#a8dcfd] outline-none transition-all text-black"
+                className="w-full px-4 py-2 rounded-lg border-[0.75] border-black focus:outline-none focus:ring-2 focus:ring-green-600 transition-all text-black"
               >
                 <option value="light">Light</option>
                 <option value="sepia">Sepia</option>
@@ -1265,7 +1269,7 @@ export default function ReaderPage() {
                   setCurrentViewMode(newMode);
                   savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, newMode);
                 }}
-                className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-[#4792ba] focus:ring-2 focus:ring-[#a8dcfd] outline-none transition-all text-black"
+                className="w-full px-4 py-2 rounded-lg border-[0.75] border-black focus:outline-none focus:ring-2 focus:ring-green-600 transition-all text-black"
               >
                 <option value="scroll-section">Scroll within Section</option>
                 <option value="scroll-book">Continuous Scroll (Entire Book)</option>
@@ -1273,7 +1277,7 @@ export default function ReaderPage() {
               </select>
             </div>
             {/* Single example text, black color, all settings applied */}
-            <div className="mt-4 p-2 border rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
+            <div className="mt-4 p-2 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: 'Inter, var(--font-inter), sans-serif', fontSize: readerFontSize, maxWidth: readerWidth }}>
               Example: El rápido zorro marrón salta sobre el perro perezoso.
             </div>
           </div>
@@ -1311,7 +1315,7 @@ export default function ReaderPage() {
                 minWidth: 260,
                 maxWidth: 340,
                 padding: '1.2em 1.2em 1em 1.2em',
-                fontFamily: 'var(--font-mplus-rounded)',
+                fontFamily: 'Inter, var(--font-inter), sans-serif',
                 color: '#0B1423',
                 pointerEvents: 'auto',
                 maxHeight: 400,
@@ -1324,7 +1328,7 @@ export default function ReaderPage() {
                 style={{ position: 'absolute', top: 8, right: 12, background: 'none', border: 'none', fontSize: 22, color: '#bbb', cursor: 'pointer' }}
                 aria-label="Close"
               >×</button>
-              <div className="font-bold text-xl mb-2">{defPopup.word}</div>
+              <div className="font-bold text-lg mb-2">{defPopup.word}</div>
               {defPopup.loading && <div className="text-gray-400">Loading...</div>}
               {defPopup.error && <div className="text-red-500">{defPopup.error}</div>}
               {defPopup.data && !defPopup.error && (
@@ -1341,10 +1345,10 @@ export default function ReaderPage() {
                               ))}
                             </div>
                           )}
-                          <div className="text-base font-semibold mb-1">Definitions</div>
+                          <div className="text-sm font-semibold mb-1">Definitions</div>
                           <ul className="list-disc pl-5">
                             {entry.definitions && entry.definitions.slice(0, 5).map((d: any, k: number) => (
-                              <li key={k} className="mb-1 text-base" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(d.definition) }} />
+                              <li key={k} className="mb-1 text-sm" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(d.definition) }} />
                             ))}
                           </ul>
                         </div>

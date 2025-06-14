@@ -5,8 +5,9 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata } from '@/services/epubService';
 import { useAuth } from '@/hooks/useAuth';
-import { FiTrash2 } from 'react-icons/fi';
+import { FiTrash2, FiBarChart2, FiCheckCircle } from 'react-icons/fi';
 import { uploadFileAndGetUrl } from '@/lib/firebase';
+import '@fontsource/inter';
 
 // Types
 interface BookSection {
@@ -572,50 +573,83 @@ export default function library() {
 
   // Book Card
   function BookCard({ book }: { book: Book }) {
+    const knownPct = 94.6;
+    const trackingPct = 3.5;
+    const unknownPct = 1.8;
+    const completed = book.completed;
     return (
       <div
-        className="bg-white rounded-xl border-2 border-gray-300 shadow-[0_4px_0px_#d1d5db] flex flex-col [font-family:var(--font-mplus-rounded)] w-full max-w-[280px] aspect-[3/4] min-h-[160px] cursor-pointer transition-all duration-200 mx-0 focus:outline-none focus:ring-0"
-        style={{ aspectRatio: '3/4', minHeight: 160 }}
+        className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col w-full max-w-[280px] min-h-[320px] cursor-pointer transition-all duration-200 hover:shadow-lg group"
+        style={{ fontFamily: 'Inter, sans-serif', minHeight: 320, padding: 0 }}
         onClick={() => openBook(book)}
         tabIndex={0}
         role="button"
         aria-label={`Read ${book.title}`}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = '0 12px 24px 0 rgba(0,0,0,0.10), 0 4px 0 #d1d5db'; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 0px #d1d5db'; }}
       >
-        <div className="p-2 flex-1 flex flex-col justify-between gap-1.5">
-          <div className="flex justify-end mb-1">
-            <button
-              onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, book.storagePath); }}
-              className="text-gray-400 hover:text-red-500 text-lg"
-              title="Delete book"
-              tabIndex={-1}
-            >
-              <FiTrash2 className="w-5 h-5" />
-            </button>
+        <div className="flex justify-end p-2">
+          <button
+            onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, book.storagePath); }}
+            className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
+            title="Delete book"
+            tabIndex={-1}
+            style={{ background: 'none', border: 'none' }}
+          >
+            <FiTrash2 className="w-5 h-5" />
+          </button>
+        </div>
+        {/* Book Cover */}
+        {book.cover && (
+          <div className="flex justify-center mb-3">
+            <img
+              src={book.cover}
+              alt={book.title + ' cover'}
+              className="rounded-lg shadow-md object-cover"
+              style={{ aspectRatio: '2/3', width: '400px', maxWidth: '240px', maxHeight: '360px', background: '#f3f4f6' }}
+            />
           </div>
-          <h3 className="font-bold text-[#0B1423] mb-1 line-clamp-2 text-base text-center">{book.title}</h3>
-          <p className="text-gray-500 text-xs mb-0.5 text-center font-medium italic">{book.author}</p>
-          <p className="text-gray-400 text-xs text-center mb-1">{book.totalWords.toLocaleString()} words</p>
-          <div className="flex justify-center gap-1 mb-2 text-xs font-semibold">
-            <span className="text-green-600">94.6% Known</span>
-            <span className="text-purple-500">3.5% Tracking</span>
-            <span className="text-red-500">1.8% Unknown</span>
+        )}
+        <div className="flex-1 flex flex-col justify-between px-5 pb-5 pt-0 gap-2">
+          <h3 className="font-bold text-[#222] text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em' }}>{book.title}</h3>
+          {/* Reading Progress Bar */}
+          <div className="w-full mb-1">
+            <div className="relative h-3 rounded-full bg-gray-200 overflow-hidden">
+              <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: completed ? '100%' : '0%' }} />
+            </div>
+            <div className="flex justify-between text-xs mt-1 text-[#555]">
+            <span>{book.author}</span>
+            <span className="text-right">{completed ? `${book.totalWords.toLocaleString()} / ${book.totalWords.toLocaleString()}` : `0 / ${book.totalWords.toLocaleString()}`} words</span>
           </div>
-          <div className="flex gap-2 mt-0 px-2 pb-2">
+          </div>
+          
+          {/* Comprehension Progress Bar */}
+          <div className="w-full mt-1 mb-1">
+            <div className="relative h-3 rounded-full bg-gray-200 overflow-hidden">
+              <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: `${knownPct}%`, borderRadius: '999px 0 0 999px' }} />
+              <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: `${100 - unknownPct}%`, opacity: 0.3 }} />
+              <div className="absolute left-0 top-0 h-full bg-[#007BFF]" style={{ width: `${trackingPct + knownPct}%`, opacity: 0.2 }} />
+            </div>
+            <div className="flex justify-between text-xs mt-1 text-[#555]">
+              <span>{knownPct}% Known</span>
+              <span>{unknownPct}% Unknown</span>
+            </div>
+          </div>
+          {/* Author and Word Count */}
+         
+          {/* Actions */}
+          <div className="flex gap-2 mt-2">
             <button
               onClick={e => { e.stopPropagation(); setDataModalBook(book); }}
-              className="flex-1 inline-flex items-center justify-center rounded-lg bg-white px-0 py-2 text-base font-semibold text-[#0B1423] border-2 border-gray-300 shadow-[0_4px_0px_#d1d5db] hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px_#d1d5db] transition-all min-w-0"
+              className="flex-1 flex items-center justify-center gap-1 rounded border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1 px-2 text-sm transition-colors"
               tabIndex={-1}
             >
-              Data
+              <FiBarChart2 className="w-4 h-4" /> Data
             </button>
             <button
               onClick={e => { e.stopPropagation(); toggleCompleted(book); }}
-              className={`flex-1 inline-flex items-center justify-center rounded-lg px-0 py-2 text-base font-semibold border-2 border-gray-300 shadow-[0_4px_0px_#d1d5db] transition-all min-w-0 ${book.completed ? 'bg-gray-200 hover:bg-gray-300 text-[#0B1423]' : 'bg-yellow-200 hover:bg-yellow-300 text-[#0B1423]'}`}
+              className={`flex-1 flex items-center justify-center gap-1 rounded border ${book.completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1 px-2 text-sm transition-colors`}
               tabIndex={-1}
             >
-              {book.completed ? 'Uncomplete' : 'Complete'}
+              <FiCheckCircle className="w-4 h-4" /> {book.completed ? 'Uncomplete' : 'Complete'}
             </button>
           </div>
         </div>
@@ -627,20 +661,22 @@ export default function library() {
   function DataModal() {
     if (!dataModalBook) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-sm">
-        <div className="bg-white rounded-lg p-8 border-2 border-gray-300 shadow-[0_8px_0px_#d1d5db] max-w-md w-full relative [font-family:var(--font-mplus-rounded)]">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif' }}>
           <button
             onClick={() => setDataModalBook(null)}
-            className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl"
+            className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
+            style={{ background: 'none', border: 'none', lineHeight: 1 }}
+            aria-label="Close"
           >
             ×
           </button>
-          <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">Book Data</h2>
-          <div className="text-gray-700 text-base space-y-2">
-            <div><b>Title:</b> {dataModalBook.title}</div>
-            <div><b>Author:</b> {dataModalBook.author}</div>
-            <div><b>File:</b> {dataModalBook.fileName}</div>
-            <div><b>Date Added:</b> {new Date(dataModalBook.dateAdded).toLocaleString()}</div>
+          <h2 className="text-2xl font-extrabold mb-4 text-[#222] tracking-tight text-center">Book Data</h2>
+          <div className="text-gray-700 text-base space-y-3 px-2">
+            <div className="flex justify-between"><span className="font-semibold">Title:</span> <span>{dataModalBook.title}</span></div>
+            <div className="flex justify-between"><span className="font-semibold">Author:</span> <span>{dataModalBook.author}</span></div>
+            <div className="flex justify-between"><span className="font-semibold">File:</span> <span>{dataModalBook.fileName}</span></div>
+            <div className="flex justify-between"><span className="font-semibold">Date Added:</span> <span>{new Date(dataModalBook.dateAdded).toLocaleString()}</span></div>
             {/* Add more analytics here later */}
           </div>
         </div>
@@ -760,11 +796,12 @@ export default function library() {
     <div className="min-h-screen bg-gray-50 [font-family:var(--font-mplus-rounded)]">
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-[#0B1423] flex items-center gap-[0.2]">📚 My Library</h1>
+          <h1 className="text-4xl font-extrabold text-[#222] flex items-center gap-2 tracking-tight" style={{ fontFamily: 'Inter, sans-serif' }}>📚 My Library</h1>
           <button
-            className="px-4 py-2 bg-[#67b9e7] text-white rounded-lg hover:bg-[#4792ba] transition-colors text-base font-semibold shadow-[0_4px_0_#4792ba] border-2 border-[#4792ba]"
+            className="px-6 py-2 rounded-lg bg-[#2563eb] text-white font-bold shadow-md hover:bg-[#1749b1] transition-colors text-lg border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
             disabled={isUploading}
             onClick={() => document.getElementById('epub-upload-input')?.click()}
+            style={{ fontFamily: 'Inter, sans-serif', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.08)' }}
           >
             {isUploading ? 'Uploading...' : 'Upload EPUB'}
           </button>
@@ -795,15 +832,24 @@ export default function library() {
 
   // SectionRow component
   function SectionRow({ title, books }: { title: string; books: Book[] }) {
+    const shelfMap: Record<string, string> = {
+      'Active': 'Currently Reading',
+      'Not Started': 'To Read',
+      'Completed': 'Finished',
+    };
     return (
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold text-[#0B1423] mb-4 [font-family:var(--font-mplus-rounded)] underline underline-offset-4">{title}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[180px] ml-0 md:ml-0">
+      <div className="mb-16">
+        <div className="flex items-center gap-4 mb-6 mt-12">
+          <h2 className="text-3xl font-extrabold text-[#222] tracking-tight" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.01em' }}>{shelfMap[title] || title}</h2>
+          <div className="flex-1 border-t border-gray-200" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 min-h-[180px]">
           {books.length > 0 ? books.map((book) => (
             <BookCard key={book.id} book={book} />
           )) : (
-            <div className="col-span-1 md:col-span-2 lg:col-span-3 flex items-center justify-center text-gray-300 italic h-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
-              No books in this shelf yet.
+            <div className="col-span-full flex flex-col items-center justify-center text-gray-300 italic h-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
+              <span className="text-2xl mb-2">📚</span>
+              <span className="text-base text-gray-400">No books in this shelf yet.</span>
             </div>
           )}
         </div>
