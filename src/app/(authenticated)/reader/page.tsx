@@ -80,6 +80,19 @@ export default function ReaderPage() {
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [visibleSection, setVisibleSection] = useState<number>(0);
   const [disableWordUnderlines, setDisableWordUnderlines] = useState<boolean>(false);
+  const [currentTheme, setCurrentTheme] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('reader-theme') || 'light';
+    }
+    return 'light';
+  });
+  const [currentViewMode, setCurrentViewMode] = useState<'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('reader-view-mode') as 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two') || 'scroll-section';
+    }
+    return 'scroll-section';
+  });
+  const [isWideScreen, setIsWideScreen] = useState(false);
 
   // Load book from Firebase Storage
   useEffect(() => {
@@ -226,15 +239,48 @@ export default function ReaderPage() {
           setReaderWidth(prefs.readerWidth || 700);
           setReaderFontSize(prefs.readerFontSize || 18);
           setDisableWordUnderlines(!!prefs.disableWordUnderlines);
+          setCurrentTheme(prefs.theme || 'light');
+          setCurrentViewMode((prefs.viewMode as 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two') || 'scroll-section');
         }
       });
     }
   }, [user]);
 
+  // Detect wide screen for two-page spread
+  useEffect(() => {
+    const checkWideScreen = () => {
+      setIsWideScreen(window.innerWidth > 1024);
+    };
+    checkWideScreen();
+    window.addEventListener('resize', checkWideScreen);
+    return () => window.removeEventListener('resize', checkWideScreen);
+  }, []);
+
+  // Apply theme to html[data-theme] and persist viewMode
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('reader-theme', currentTheme);
+    localStorage.setItem('reader-view-mode', currentViewMode);
+  }, [currentTheme, currentViewMode]);
+
   // Save preferences when changed
-  const savePreferences = async (font: string, width: number, fontSize: number, disableUnderlines = disableWordUnderlines) => {
+  const savePreferences = async (
+    font: string,
+    width: number,
+    fontSize: number,
+    disableUnderlines = disableWordUnderlines,
+    theme = currentTheme,
+    viewMode = currentViewMode
+  ) => {
     if (user?.uid) {
-      await UserService.updateUserPreferences(user.uid, { readerFont: font, readerWidth: width, readerFontSize: fontSize, disableWordUnderlines: disableUnderlines });
+      await UserService.updateUserPreferences(user.uid, {
+        readerFont: font,
+        readerWidth: width,
+        readerFontSize: fontSize,
+        disableWordUnderlines: disableUnderlines,
+        theme: theme,
+        viewMode: viewMode,
+      });
     }
   };
 
@@ -902,13 +948,17 @@ export default function ReaderPage() {
 
                 {/* Show entire book in one page, hide on mobile, show on desktop */}
                 {!isMobile && (
-                  <button
-                    onClick={() => setShowEntireBook(v => !v)}
-                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-blue-400 bg-white text-blue-700 hover:bg-blue-50 transition-all ml-2 ${showEntireBook ? 'bg-blue-100 border-blue-700' : ''}`}
-                    title="Show entire book in one page"
-                  >
-                    {showEntireBook ? 'Single Page' : 'Show Entire Book'}
-                  </button>
+                  <div className="flex items-center gap-2 ml-2">
+                    <button
+                      onClick={() => setShowSidebar((prev) => !prev)}
+                      className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-3 text-lg font-semibold text-[#0B1423] border-2 border-[#d1d5db] shadow-[0_4px_0px_#d1d5db] hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px_#d1d5db] transition-all ml-2"
+                      title="Show/Hide sections"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
               </div>
               {/* Section navigation (centered) */}
@@ -943,17 +993,6 @@ export default function ReaderPage() {
               </div>
               {/* Right controls (move left, not fully flush right) */}
               <div className="absolute right-32 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {/* Scrape Comprehension button (desktop only, not in showEntireBook mode) */}
-                {!showEntireBook && (
-                  <button
-                    onClick={handleScrapeComprehension}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-purple-700 bg-purple-100 text-purple-700 shadow-[0_4px_0_#a78bfa] hover:bg-purple-200 transition-all px-4 py-3 text-lg mr-2"
-                    style={{ minWidth: 32, minHeight: 32 }}
-                    title="Scrape Comprehension Stats"
-                  >
-                    Scrape
-                  </button>
-                )}
                 {/* Auto-scroll/play button ... */}
                 <button
                   onClick={() => setIsAutoScrolling(!isAutoScrolling)}
@@ -1072,24 +1111,43 @@ export default function ReaderPage() {
             maxWidth: isMobile ? '100vw' : undefined,
           }}
         >
-          <div className="bg-white rounded-lg border-2 border-[#d1d5db] shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'var(--font-mplus-rounded)', fontSize: '1.1rem', maxWidth: isMobile ? '100vw' : readerWidth, margin: '0 auto', width: '100%', padding: isMobile ? '1.5rem 0.5rem' : undefined }}>
-            <div
-              ref={contentRef}
-              className="epub-html overflow-y-auto scroll-smooth relative"
-              style={{ scrollBehavior: 'smooth', margin: '0 auto', height: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize }}
-            >
-              {showEntireBook ? (
-                book.sections.map((sec, secIdx) => (
-                  <div key={sec.id || secIdx} ref={el => { sectionRefs.current[secIdx] = el; }} id={`section-${secIdx}`} className="mb-12 pt-20">
-                    <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">{sec.title}</h2>
-                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(sec.content) }} />
-                  </div>
-                ))
-              ) : (
-                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(section.content) }} />
+          <div className="bg-white rounded-lg border-2 border-[#d1d5db] shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'var(--font-mplus-rounded)', fontSize: '1.1rem', maxWidth: readerWidth > 1100 ? readerWidth : 1100, width: readerWidth, margin: '0 auto', padding: isMobile ? '1.5rem 0.5rem' : undefined }}>
+            <>
+              {currentViewMode === 'scroll-section' && (
+                <div
+                  ref={contentRef}
+                  className="epub-html overflow-y-auto scroll-smooth relative"
+                  style={{ scrollBehavior: 'smooth', margin: '0 auto', height: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
+                >
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(section.content) }} />
+                  <div style={{ height: '200px' }} />
+                </div>
               )}
-              <div style={{ height: '200px' }} />
-            </div>
+              {currentViewMode === 'scroll-book' && (
+                <div
+                  className="epub-html scroll-smooth relative"
+                  style={{ scrollBehavior: 'smooth', margin: '0 auto', minHeight: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
+                >
+                  {book.sections.map((sec, secIdx) => (
+                    <div key={sec.id || secIdx} className="mb-12 pt-20">
+                      <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">{sec.title}</h2>
+                      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(sec.content) }} />
+                    </div>
+                  ))}
+                  <div style={{ height: '200px' }} />
+                </div>
+              )}
+              {currentViewMode === 'paginated-single' && (
+                <div
+                  className="epub-html scroll-smooth relative flex flex-col items-center justify-center"
+                  style={{ scrollBehavior: 'smooth', margin: '0 auto', minHeight: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
+                >
+                  <div className="w-full">
+                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(section.content) }} />
+                  </div>
+                </div>
+              )}
+            </>
           </div>
         </div>
       </div>
@@ -1105,20 +1163,6 @@ export default function ReaderPage() {
             </button>
             <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">Reader Settings</h2>
             <div className="mb-6">
-              <label className="block font-semibold mb-2 text-black">Font</label>
-              <select
-                value={readerFont}
-                onChange={e => { setReaderFont(e.target.value); savePreferences(e.target.value, readerWidth, readerFontSize); }}
-                className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-[#4792ba] focus:ring-2 focus:ring-[#a8dcfd] outline-none transition-all text-black"
-              >
-                <option value="serif">Serif</option>
-                <option value="sans-serif">Sans Serif</option>
-                <option value="Merriweather, serif">Merriweather</option>
-                <option value="EB Garamond, serif">EB Garamond</option>
-                <option value="Playfair Display, serif">Playfair Display</option>
-              </select>
-            </div>
-            <div className="mb-6">
               <label className="block font-semibold mb-2 text-black">Font Size ({readerFontSize}px)</label>
               <input
                 type="range"
@@ -1126,7 +1170,7 @@ export default function ReaderPage() {
                 max={28}
                 step={1}
                 value={readerFontSize}
-                onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value)); }}
+                onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value), disableWordUnderlines, currentTheme, currentViewMode); }}
                 className="w-full accent-blue-600"
               />
             </div>
@@ -1134,13 +1178,18 @@ export default function ReaderPage() {
               <label className="block font-semibold mb-2 text-black">Text Width ({readerWidth}px)</label>
               <input
                 type="range"
-                min={600}
-                max={1000}
+                min={500}
+                max={1200}
                 step={10}
                 value={readerWidth}
-                onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize); }}
+                onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize, disableWordUnderlines, currentTheme, currentViewMode); }}
                 className="w-full accent-blue-600"
               />
+              <div className="flex justify-between text-sm text-gray-600 mt-1">
+                <span>Narrow (~55 char)</span>
+                <span>Medium (~75 char)</span>
+                <span>Wide (~95 char)</span>
+              </div>
             </div>
             <div className="mb-6 flex items-center">
               <input
@@ -1149,11 +1198,43 @@ export default function ReaderPage() {
                 checked={disableWordUnderlines}
                 onChange={e => {
                   setDisableWordUnderlines(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked, currentTheme, currentViewMode);
                 }}
                 className="mr-3 h-5 w-5 accent-blue-600 border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-underlines" className="font-semibold text-black select-none cursor-pointer">Disable word underlines & popups</label>
+            </div>
+            <div className="mb-6">
+              <label className="block font-semibold mb-2 text-black">Theme</label>
+              <select
+                value={currentTheme}
+                onChange={e => {
+                  setCurrentTheme(e.target.value);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, e.target.value, currentViewMode);
+                }}
+                className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-[#4792ba] focus:ring-2 focus:ring-[#a8dcfd] outline-none transition-all text-black"
+              >
+                <option value="light">Light</option>
+                <option value="sepia">Sepia</option>
+                <option value="dark">Dark (Night Mode)</option>
+                <option value="solarized">Solarized</option>
+              </select>
+            </div>
+            <div className="mb-6">
+              <label className="block font-semibold mb-2 text-black">View Mode</label>
+              <select
+                value={currentViewMode}
+                onChange={e => {
+                  const newMode = e.target.value as 'scroll-section' | 'scroll-book' | 'paginated-single';
+                  setCurrentViewMode(newMode);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, newMode);
+                }}
+                className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-[#4792ba] focus:ring-2 focus:ring-[#a8dcfd] outline-none transition-all text-black"
+              >
+                <option value="scroll-section">Scroll within Section</option>
+                <option value="scroll-book">Continuous Scroll (Entire Book)</option>
+                <option value="paginated-single">Single Page</option>
+              </select>
             </div>
             {/* Single example text, black color, all settings applied */}
             <div className="mt-4 p-2 border rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>

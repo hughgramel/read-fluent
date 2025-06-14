@@ -3,6 +3,41 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --accent-color: #67b9e7;
+  --text-color: #0B1423;
+  --secondary-text-color: #777777;
+  --border-color: #cccccc;
+  --shadow-color: #d1d5db;
+}
+
+html[data-theme='dark'] {
+  --background: #121212;
+  --foreground: #ededed;
+  --accent-color: #90caf9;
+  --text-color: #ededed;
+  --secondary-text-color: #a0a0a0;
+  --border-color: #424242;
+  --shadow-color: #000000;
+}
+
+html[data-theme='sepia'] {
+  --background: #fbf0d9;
+  --foreground: #5a4b32;
+  --accent-color: #67b9e7;
+  --text-color: #5a4b32;
+  --secondary-text-color: #8b7d6b;
+  --border-color: #c0b8a8;
+  --shadow-color: #d1d5db;
+}
+
+html[data-theme='solarized'] {
+  --background: #002b36;
+  --foreground: #839496;
+  --accent-color: #268bd2;
+  --text-color: #839496;
+  --secondary-text-color: #657b83;
+  --border-color: #586e75;
+  --shadow-color: #073642;
 }
 
 @theme inline {

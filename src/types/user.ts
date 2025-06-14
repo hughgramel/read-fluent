@@ -9,6 +9,8 @@ export interface UserPreferences {
   nativeLanguage?: string; // user's native language
   // Add more preferences as needed
   disableWordUnderlines?: boolean; // disables word underlines and popups
+  theme?: string;
+  viewMode?: 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two';
 }
 
 export interface UserStats {
