@@ -853,7 +853,12 @@ export default function ReaderPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <span className="text-[#0B1423] font-bold text-sm flex items-center justify-center" style={{ minWidth: '48px', textAlign: 'center', height: '32px', lineHeight: '32px' }}>{section.title && section.title.trim() !== '' ? section.title : 'Untitled Section'}</span>
+                <span className="font-bold text-xl truncate max-w-xs" title={section.title && section.title.trim() !== '' ? section.title : 'Untitled Section'}>
+                  {(() => {
+                    const title = section.title && section.title.trim() !== '' ? section.title : 'Untitled Section';
+                    return title.length > 40 ? title.slice(0, 40) + '...' : title;
+                  })()}
+                </span>
                 <button
                   onClick={() => nextSection()}
                   disabled={currentSection === (book.sections.length || 0) - 1}
@@ -878,36 +883,55 @@ export default function ReaderPage() {
                     Scrape
                   </button>
                 )}
-                <button
-                  onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-green-700 bg-green-500 text-white shadow-[0_4px_0_#166534] hover:bg-green-600 transition-all ${isAutoScrolling ? 'opacity-80' : ''} w-8 h-8 p-0 text-base`}
-                  style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
-                  title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
-                  aria-label="Toggle Auto-Scroll"
-                >
-                  {isAutoScrolling ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
-                    setScrollSpeed(next);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg px-0 py-0 text-xs font-semibold border-2 border-green-700 bg-white text-green-700 shadow-[0_4px_0_#166534] hover:bg-green-50 transition-all w-8 h-8"
-                  style={{ minWidth: 32, minHeight: 32, width: 32, height: 32 }}
-                  title="Change scroll speed"
-                  aria-label="Change Scroll Speed"
-                >
-                  {scrollSpeed.toFixed(1)}x
-                </button>
+                {currentViewMode === 'scroll-section' && (
+                  <>
+                    <button
+                      onClick={() => setIsAutoScrolling(!isAutoScrolling)}
+                      className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-green-700 bg-green-500 text-white shadow-[0_4px_0_#166534] hover:bg-green-600 transition-all ${isAutoScrolling ? 'opacity-80' : ''} ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-4 py-3 text-lg'}`}
+                      style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
+                      title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
+                    >
+                      {isAutoScrolling ? (
+                        <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                    </button>
+                    {/* Speed control: slider on desktop, button on mobile */}
+                    {isMobile ? (
+                      <button
+                        onClick={() => {
+                          const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
+                          setScrollSpeed(next);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-green-700 bg-white text-green-700 shadow-[0_4px_0_#166534] hover:bg-green-50 transition-all"
+                        title="Change scroll speed"
+                      >
+                        {scrollSpeed.toFixed(1)}x
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-1 shadow-sm border-2 border-[#d1d5db] ml-2">
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="5"
+                          step="0.1"
+                          value={scrollSpeed}
+                          onChange={(e) => setScrollSpeed(Number(e.target.value))}
+                          className="w-24 accent-green-600"
+                        />
+                        <span className="text-sm font-medium text-gray-600 min-w-[2rem] text-center">
+                          {scrollSpeed.toFixed(1)}x
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
                 <button
                   onClick={() => setShowSettings(true)}
                   className="inline-flex items-center justify-center gap-2 rounded-lg px-0 py-0 text-base font-semibold border-2 border-gray-300 bg-white text-[#0B1423] hover:bg-gray-100 transition-all w-8 h-8"
@@ -973,12 +997,20 @@ export default function ReaderPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <span className={`text-[#0B1423] font-bold ${isMobile ? 'text-sm' : 'text-xl'}`} style={{ minWidth: isMobile ? '48px' : '140px', textAlign: 'center' }}>
-                  {showEntireBook
-                    ? (book.sections[visibleSection]?.title && book.sections[visibleSection]?.title.trim() !== ''
-                        ? book.sections[visibleSection]?.title
-                        : 'Untitled Section')
-                    : (section.title && section.title.trim() !== '' ? section.title : 'Untitled Section')}
+                <span className={`text-[#0B1423] font-bold ${isMobile ? 'text-sm' : 'text-xl'}`} style={{ minWidth: isMobile ? '48px' : '140px', textAlign: 'center', maxWidth: isMobile ? '120px' : '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={showEntireBook
+                  ? (book.sections[visibleSection]?.title && book.sections[visibleSection]?.title.trim() !== ''
+                      ? book.sections[visibleSection]?.title
+                      : 'Untitled Section')
+                  : (section.title && section.title.trim() !== '' ? section.title : 'Untitled Section')
+                }>
+                  {(() => {
+                    const title = showEntireBook
+                      ? (book.sections[visibleSection]?.title && book.sections[visibleSection]?.title.trim() !== ''
+                          ? book.sections[visibleSection]?.title
+                          : 'Untitled Section')
+                      : (section.title && section.title.trim() !== '' ? section.title : 'Untitled Section');
+                    return title.length > 40 ? title.slice(0, 40) + '…' : title;
+                  })()}
                 </span>
                 <button
                   onClick={() => showEntireBook ? scrollToSection(Math.min(visibleSection + 1, book.sections.length - 1)) : nextSection()}
@@ -994,50 +1026,54 @@ export default function ReaderPage() {
               {/* Right controls (move left, not fully flush right) */}
               <div className="absolute right-32 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 {/* Auto-scroll/play button ... */}
-                <button
-                  onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-green-700 bg-green-500 text-white shadow-[0_4px_0_#166534] hover:bg-green-600 transition-all ${isAutoScrolling ? 'opacity-80' : ''} ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-4 py-3 text-lg'}`}
-                  style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
-                  title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
-                >
-                  {isAutoScrolling ? (
-                    <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  ) : (
-                    <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                </button>
-                {/* Speed control: slider on desktop, button on mobile */}
-                {isMobile ? (
-                  <button
-                    onClick={() => {
-                      const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
-                      setScrollSpeed(next);
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-green-700 bg-white text-green-700 shadow-[0_4px_0_#166534] hover:bg-green-50 transition-all"
-                    title="Change scroll speed"
-                  >
-                    {scrollSpeed.toFixed(1)}x
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-1 shadow-sm border-2 border-[#d1d5db] ml-2">
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="5"
-                      step="0.1"
-                      value={scrollSpeed}
-                      onChange={(e) => setScrollSpeed(Number(e.target.value))}
-                      className="w-24 accent-green-600"
-                    />
-                    <span className="text-sm font-medium text-gray-600 min-w-[2rem] text-center">
-                      {scrollSpeed.toFixed(1)}x
-                    </span>
-                  </div>
+                {currentViewMode === 'scroll-section' && (
+                  <>
+                    <button
+                      onClick={() => setIsAutoScrolling(!isAutoScrolling)}
+                      className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-green-700 bg-green-500 text-white shadow-[0_4px_0_#166534] hover:bg-green-600 transition-all ${isAutoScrolling ? 'opacity-80' : ''} ${isMobile ? 'w-8 h-8 p-0 text-base' : 'px-4 py-3 text-lg'}`}
+                      style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
+                      title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
+                    >
+                      {isAutoScrolling ? (
+                        <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                    </button>
+                    {/* Speed control: slider on desktop, button on mobile */}
+                    {isMobile ? (
+                      <button
+                        onClick={() => {
+                          const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
+                          setScrollSpeed(next);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-semibold border-2 border-green-700 bg-white text-green-700 shadow-[0_4px_0_#166534] hover:bg-green-50 transition-all"
+                        title="Change scroll speed"
+                      >
+                        {scrollSpeed.toFixed(1)}x
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-1 shadow-sm border-2 border-[#d1d5db] ml-2">
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="5"
+                          step="0.1"
+                          value={scrollSpeed}
+                          onChange={(e) => setScrollSpeed(Number(e.target.value))}
+                          className="w-24 accent-green-600"
+                        />
+                        <span className="text-sm font-medium text-gray-600 min-w-[2rem] text-center">
+                          {scrollSpeed.toFixed(1)}x
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
                 {/* Fullscreen */}
                 {!isMobile && (<button
