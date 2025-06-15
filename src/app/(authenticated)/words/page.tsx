@@ -99,17 +99,17 @@ export default function AboutPage() {
   };
 
   return (
-    <div className="w-full max-w-6xl" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="w-full max-w-6xl mx-auto" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
       <div className="flex flex-col gap-8">
         <div className="w-full">
           <div className="mb-6">
-            <h1 className="text-4xl font-extrabold text-[#222] tracking-tight" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
+            <h1 className="text-4xl font-extrabold text-[#2563eb] tracking-tight" style={{ letterSpacing: '-0.02em' }}>
               Words
             </h1>
           </div>
           <div className="flex items-center gap-2 mb-6 pl-2" style={{ maxWidth: 700 }}>
             <select
-              className="rounded-lg border-2 border-gray-300 px-3 py-2 text-lg font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+              className="rounded-full border-2 border-gray-200 px-4 py-2 text-base font-bold text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all"
               value={filter}
               onChange={e => setFilter(e.target.value as any)}
               style={{ minWidth: 110 }}
@@ -118,14 +118,14 @@ export default function AboutPage() {
             </select>
             <input
               type="text"
-              className="rounded-lg border-2 border-gray-300 px-3 py-2 text-lg font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none w-40"
+              className="rounded-full border-2 border-gray-200 px-4 py-2 text-base font-bold text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none w-40 transition-all"
               placeholder="Filter words..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ minWidth: 120 }}
             />
             <button
-              className="p-2 rounded-lg border-2 border-blue-400 bg-white text-blue-600 hover:bg-blue-50 font-bold"
+              className="px-4 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
               onClick={openAddModal}
               title="Add Word"
             >
@@ -134,14 +134,14 @@ export default function AboutPage() {
           </div>
           {showAdd && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
-              <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <div className="bg-white rounded-2xl p-8 border-[0.75] border-black shadow-lg max-w-md w-full relative" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
                 <button
                   onClick={() => setShowAdd(false)}
-                  className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
-                  style={{ background: 'none', border: 'none', lineHeight: 1 }}
+                  className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors bg-transparent border-none"
+                  style={{ lineHeight: 1 }}
                   aria-label="Close"
                 >×</button>
-                <h2 className="text-xl font-extrabold mb-4 text-[#222] tracking-tight text-center">Add Word</h2>
+                <h2 className="text-xl font-extrabold mb-4 text-[#2563eb] tracking-tight text-center">Add Word</h2>
                 {!langLoaded ? (
                   <div className="text-gray-400">Loading language...</div>
                 ) : (
@@ -173,7 +173,7 @@ export default function AboutPage() {
                     </div>
                     {addMultiple ? (
                       <textarea
-                        className="rounded-lg border-2 border-gray-300 px-4 py-2 text-base font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none min-h-[80px]"
+                        className="rounded-lg border-2 border-gray-200 px-4 py-2 text-base font-bold text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none min-h-[80px]"
                         placeholder={'Enter words separated by spaces or commas, or use quotes for phrases (e.g. banana fruit "to be")'}
                         value={addMultiText}
                         onChange={e => setAddMultiText(e.target.value)}
@@ -181,7 +181,7 @@ export default function AboutPage() {
                       />
                     ) : (
                       <input
-                        className="rounded-lg border-2 border-gray-300 px-4 py-2 text-base font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                        className="rounded-lg border-2 border-gray-200 px-4 py-2 text-base font-bold text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none"
                         placeholder="Word"
                         value={addWord}
                         onChange={e => setAddWord(e.target.value)}
@@ -190,7 +190,7 @@ export default function AboutPage() {
                     )}
                     <div className="flex gap-2">
                       <select
-                        className="rounded-lg border-2 border-gray-300 px-3 py-1 text-base font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                        className="rounded-full border-2 border-gray-200 px-4 py-2 text-base font-bold text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all"
                         value={addType}
                         onChange={e => setAddType(e.target.value as WordType)}
                       >
@@ -199,7 +199,7 @@ export default function AboutPage() {
                         <option value="ignored">Ignored</option>
                       </select>
                       <select
-                        className="rounded-lg border-2 border-gray-300 px-3 py-1 text-base font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                        className="rounded-full border-2 border-gray-200 px-4 py-2 text-base font-bold text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all"
                         value={addLang}
                         onChange={e => setAddLang(e.target.value)}
                       >
@@ -208,11 +208,11 @@ export default function AboutPage() {
                     </div>
                     <button
                       type="submit"
-                      className="rounded-lg bg-blue-500 text-white font-semibold px-4 py-2 hover:bg-blue-600 transition-all"
+                      className="rounded-full bg-[#2563eb] text-white font-bold px-4 py-2 hover:bg-[#1749b1] transition-all"
                     >Add</button>
                     <button
                       type="button"
-                      className="rounded-lg bg-gray-200 text-gray-500 font-semibold px-4 py-2 cursor-not-allowed mt-2"
+                      className="rounded-full bg-gray-200 text-gray-500 font-bold px-4 py-2 cursor-not-allowed mt-2"
                       disabled
                     >Import Migaku .db file (Coming Soon)</button>
                   </form>
@@ -221,30 +221,37 @@ export default function AboutPage() {
             </div>
           )}
           <div className="mt-4 flex justify-start">
-            <div className="w-full max-w-xl">
+            <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               {filtered.length === 0 ? (
                 <div className="text-gray-400 italic">No words found.</div>
               ) : (
                 <table className="w-full text-left">
                   <thead>
                     <tr>
-                      <th className="py-3 px-3 text-base font-bold text-gray-500">#</th>
-                      <th className="py-3 px-3 text-base font-bold text-gray-500">Status</th>
-                      <th className="py-3 px-3 text-base font-bold text-gray-500">Lang</th>
-                      <th className="py-3 px-3 text-base font-bold text-gray-500">Word</th>
+                      <th className="py-3 px-3 text-base font-bold text-gray-400">#</th>
+                      <th className="py-3 px-3 text-base font-bold text-gray-400">Status</th>
+                      <th className="py-3 px-3 text-base font-bold text-gray-400">Lang</th>
+                      <th className="py-3 px-3 text-base font-bold text-gray-400">Word</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((w, i) => (
                       <tr key={w.word} className="border-b border-gray-100">
-                        <td className="py-3 px-3 text-gray-400 font-mono text-lg w-12">{i + 1}</td>
+                        <td className="py-3 px-3 text-gray-300 font-mono text-lg w-12">{i + 1}</td>
                         <td className="py-3 px-3">
-                          <span className="inline-block px-2 py-1 text-sm font-semibold rounded bg-gray-100 text-[#0B1423] border border-gray-200 mr-2 mb-2">
+                          <span
+                            className={`inline-block px-2 py-1 text-sm font-bold rounded-full mr-2 mb-2
+                              ${w.type === 'known' ? 'bg-[#16a34a] text-white' :
+                                w.type === 'tracking' ? 'bg-[#a78bfa] text-white' :
+                                w.type === 'ignored' ? 'bg-[#f87171] text-white' :
+                                'bg-gray-200 text-gray-500'}
+                            `}
+                          >
                             {w.type}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-[#0B1423] font-semibold text-2xl w-16">{w.language || profileLang || 'en'}</td>
-                        <td className="py-3 px-3 font-bold text-2xl text-[#0B1423]">{w.word}</td>
+                        <td className="py-3 px-3 text-[#2563eb] font-bold text-lg w-16">{profileLang || 'en'}</td>
+                        <td className="py-3 px-3 font-extrabold text-xl text-[#232946]">{w.word}</td>
                       </tr>
                     ))}
                   </tbody>

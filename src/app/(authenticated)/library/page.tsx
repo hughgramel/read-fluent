@@ -54,6 +54,11 @@ export default function library() {
   const [scrollSpeed, setScrollSpeed] = useState(1); // Speed multiplier (1-5)
   const contentRef = useRef<HTMLDivElement>(null);
   const [dataModalBook, setDataModalBook] = useState<Book | null>(null);
+  // Sidebar width constants (should match Sidebar.tsx)
+  const SIDEBAR_COLLAPSED_WIDTH = 80;
+  const SIDEBAR_EXPANDED_WIDTH = 240;
+  // Track sidebar state for margin adjustment
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -134,6 +139,17 @@ export default function library() {
       localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
     }
   }, [currentBook, currentSection, view]);
+
+  // Listen for sidebar hover/pin events (using a custom event for demo)
+  useEffect(() => {
+    function handleSidebarEvent(e: any) {
+      if (e.detail && typeof e.detail.expanded === 'boolean') {
+        setSidebarExpanded(e.detail.expanded);
+      }
+    }
+    window.addEventListener('sidebar-toggle', handleSidebarEvent);
+    return () => window.removeEventListener('sidebar-toggle', handleSidebarEvent);
+  }, []);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -579,8 +595,8 @@ export default function library() {
     const completed = book.completed;
     return (
       <div
-        className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col w-full max-w-[280px] min-h-[320px] cursor-pointer transition-all duration-200 hover:shadow-lg group"
-        style={{ fontFamily: 'Inter, sans-serif', minHeight: 320, padding: 0 }}
+        className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col w-full max-w-[320px] min-h-[320px] cursor-pointer transition-all duration-200 hover:shadow-lg group"
+        style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', minHeight: 320, padding: 0 }}
         onClick={() => openBook(book)}
         tabIndex={0}
         role="button"
@@ -604,49 +620,46 @@ export default function library() {
               src={book.cover}
               alt={book.title + ' cover'}
               className="rounded-lg shadow-md object-cover"
-              style={{ aspectRatio: '2/3', width: '400px', maxWidth: '240px', maxHeight: '360px', background: '#f3f4f6' }}
+              style={{ aspectRatio: '2/3', width: '120px', maxWidth: '180px', maxHeight: '220px', background: '#f3f4f6' }}
             />
           </div>
         )}
-        <div className="flex-1 flex flex-col justify-between px-5 pb-5 pt-0 gap-2">
-          <h3 className="font-bold text-[#222] text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em' }}>{book.title}</h3>
+        <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
+          <h3 className="font-bold text-[#232946] text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
           {/* Reading Progress Bar */}
           <div className="w-full mb-1">
-            <div className="relative h-3 rounded-full bg-gray-200 overflow-hidden">
-              <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: completed ? '100%' : '0%' }} />
+            <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
+              <div className="absolute left-0 top-0 h-full bg-[#2563eb] transition-all" style={{ width: completed ? '100%' : '0%' }} />
             </div>
-            <div className="flex justify-between text-xs mt-1 text-[#555]">
-            <span>{book.author}</span>
-            <span className="text-right">{completed ? `${book.totalWords.toLocaleString()} / ${book.totalWords.toLocaleString()}` : `0 / ${book.totalWords.toLocaleString()}`} words</span>
+            <div className="flex justify-between text-xs mt-1 text-[#6b7280]">
+              <span>{book.author}</span>
+              <span className="text-right">{completed ? `${book.totalWords.toLocaleString()} / ${book.totalWords.toLocaleString()}` : `0 / ${book.totalWords.toLocaleString()}`} words</span>
+            </div>
           </div>
-          </div>
-          
           {/* Comprehension Progress Bar */}
           <div className="w-full mt-1 mb-1">
-            <div className="relative h-3 rounded-full bg-gray-200 overflow-hidden">
+            <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
               <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: `${knownPct}%`, borderRadius: '999px 0 0 999px' }} />
               <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: `${100 - unknownPct}%`, opacity: 0.3 }} />
-              <div className="absolute left-0 top-0 h-full bg-[#007BFF]" style={{ width: `${trackingPct + knownPct}%`, opacity: 0.2 }} />
+              <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: `${trackingPct + knownPct}%`, opacity: 0.18 }} />
             </div>
-            <div className="flex justify-between text-xs mt-1 text-[#555]">
+            <div className="flex justify-between text-xs mt-1 text-[#6b7280]">
               <span>{knownPct}% Known</span>
               <span>{unknownPct}% Unknown</span>
             </div>
           </div>
-          {/* Author and Word Count */}
-         
           {/* Actions */}
           <div className="flex gap-2 mt-2">
             <button
               onClick={e => { e.stopPropagation(); setDataModalBook(book); }}
-              className="flex-1 flex items-center justify-center gap-1 rounded border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1 px-2 text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1.5 px-2 text-sm transition-colors"
               tabIndex={-1}
             >
               <FiBarChart2 className="w-4 h-4" /> Data
             </button>
             <button
               onClick={e => { e.stopPropagation(); toggleCompleted(book); }}
-              className={`flex-1 flex items-center justify-center gap-1 rounded border ${book.completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1 px-2 text-sm transition-colors`}
+              className={`flex-1 flex items-center justify-center gap-1 rounded-lg border ${book.completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1.5 px-2 text-sm transition-colors`}
               tabIndex={-1}
             >
               <FiCheckCircle className="w-4 h-4" /> {book.completed ? 'Uncomplete' : 'Complete'}
@@ -793,15 +806,26 @@ export default function library() {
 
   // Library view
   return (
-    <div className="min-h-screen bg-gray-50 [font-family:var(--font-mplus-rounded)]">
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-extrabold text-[#222] flex items-center gap-2 tracking-tight" style={{ fontFamily: 'Inter, sans-serif' }}>📚 My Library</h1>
+    <div className="min-h-screen" style={{ background: '#f7f8fa', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
+      <div
+        className="pr-8 pb-10 transition-all duration-300"
+        style={{
+          marginLeft: sidebarExpanded ? 80 : 32,
+          paddingTop: 24,
+          transition: 'margin-left 0.3s cubic-bezier(.4,0,.2,1)',
+          maxWidth: 1200,
+        }}
+      >
+        <div className="flex justify-between items-center mb-10">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-extrabold text-[#232946] tracking-tight" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>My Library</h1>
+            <div style={{ height: 4, width: 48, background: '#2563eb', borderRadius: 2 }} />
+          </div>
           <button
-            className="px-6 py-2 rounded-lg bg-[#2563eb] text-white font-bold shadow-md hover:bg-[#1749b1] transition-colors text-lg border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
+            className="px-7 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
             disabled={isUploading}
             onClick={() => document.getElementById('epub-upload-input')?.click()}
-            style={{ fontFamily: 'Inter, sans-serif', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.08)' }}
+            style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)' }}
           >
             {isUploading ? 'Uploading...' : 'Upload EPUB'}
           </button>
@@ -840,7 +864,7 @@ export default function library() {
     return (
       <div className="mb-16">
         <div className="flex items-center gap-4 mb-6 mt-12">
-          <h2 className="text-3xl font-extrabold text-[#222] tracking-tight" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.01em' }}>{shelfMap[title] || title}</h2>
+          <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>{shelfMap[title] || title}</h2>
           <div className="flex-1 border-t border-gray-200" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 min-h-[180px]">
@@ -848,7 +872,6 @@ export default function library() {
             <BookCard key={book.id} book={book} />
           )) : (
             <div className="col-span-full flex flex-col items-center justify-center text-gray-300 italic h-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
-              <span className="text-2xl mb-2">📚</span>
               <span className="text-base text-gray-400">No books in this shelf yet.</span>
             </div>
           )}
