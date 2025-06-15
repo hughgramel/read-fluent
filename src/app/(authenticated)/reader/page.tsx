@@ -10,6 +10,8 @@ import DOMPurify from 'dompurify';
 import { createPortal } from 'react-dom';
 import React from 'react';
 import Head from 'next/head';
+import { ReadingSessionService } from '@/services/readingSessionService';
+import { FiCheck } from 'react-icons/fi';
 
 // Types
 interface BookSection {
@@ -93,6 +95,11 @@ export default function ReaderPage() {
     return 'scroll-section';
   });
   const [isWideScreen, setIsWideScreen] = useState(false);
+  const [readSections, setReadSections] = useState<{ [key: string]: boolean }>({});
+  const [totalWordsRead, setTotalWordsRead] = useState(0);
+  const [showWordsReadPopup, setShowWordsReadPopup] = useState({ visible: false, wordCount: 0 });
+  const [disableWordsReadPopup, setDisableWordsReadPopup] = useState(false);
+  const [showUnmarkedPopup, setShowUnmarkedPopup] = useState({ visible: false, wordCount: 0 });
 
   // Load book from Firebase Storage
   useEffect(() => {
@@ -241,6 +248,7 @@ export default function ReaderPage() {
           setDisableWordUnderlines(!!prefs.disableWordUnderlines);
           setCurrentTheme(prefs.theme || 'light');
           setCurrentViewMode((prefs.viewMode as 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two') || 'scroll-section');
+          setDisableWordsReadPopup(!!prefs.disableWordsReadPopup);
         }
       });
     }
@@ -270,7 +278,8 @@ export default function ReaderPage() {
     fontSize: number,
     disableUnderlines = disableWordUnderlines,
     theme = currentTheme,
-    viewMode = currentViewMode
+    viewMode = currentViewMode,
+    disableWordsReadPopupValue = disableWordsReadPopup
   ) => {
     if (user?.uid) {
       await UserService.updateUserPreferences(user.uid, {
@@ -280,6 +289,7 @@ export default function ReaderPage() {
         disableWordUnderlines: disableUnderlines,
         theme: theme,
         viewMode: viewMode,
+        disableWordsReadPopup: disableWordsReadPopupValue,
       });
     }
   };
@@ -756,6 +766,121 @@ export default function ReaderPage() {
     return !!url && (url.startsWith('http') || url.startsWith('data:image'));
   }
 
+  // Load read sections on mount
+  useEffect(() => {
+    if (user?.uid && book?.id) {
+      ReadingSessionService.getBookSessions(user.uid, book.id).then(sessions => {
+        const readMap: { [key: string]: boolean } = {};
+        let totalWords = 0;
+        sessions.forEach(session => {
+          readMap[session.sectionId] = true;
+          totalWords += session.wordCount;
+        });
+        setReadSections(readMap);
+        setTotalWordsRead(totalWords);
+      });
+    }
+  }, [user, book]);
+
+  // Add mark as read handler
+  const handleMarkAsRead = async () => {
+    if (!user?.uid || !book || !book.sections[currentSection]) return;
+    const section = book.sections[currentSection];
+    const wordCount = section.wordCount;
+    if (wordCount === 0) return; // don't save or show popup for 0-word sections
+    try {
+      await ReadingSessionService.addSession({
+        userId: user.uid,
+        bookId: book.id,
+        bookTitle: book.title || 'Unknown Book',
+        sectionId: section.id,
+        sectionTitle: section.title,
+        wordCount,
+        timestamp: new Date()
+      });
+      setReadSections(prev => ({ ...prev, [section.id]: true }));
+      setTotalWordsRead(prev => prev + wordCount);
+      if (!disableWordsReadPopup) {
+        setShowWordsReadPopup({
+          visible: true,
+          wordCount: wordCount
+        });
+        setTimeout(() => setShowWordsReadPopup({ visible: false, wordCount: 0 }), 2500);
+      }
+    } catch (error) {
+      console.error('Failed to mark section as read:', error);
+    }
+  };
+
+  // Add handler to unmark as read
+  const handleUnmarkAsRead = async () => {
+    if (!user?.uid || !book || !book.sections[currentSection]) return;
+    const section = book.sections[currentSection];
+    if (section.wordCount === 0) return; // don't unmark or show popup for 0-word sections
+    try {
+      await ReadingSessionService.removeSession({
+        userId: user.uid,
+        bookId: book.id,
+        sectionId: section.id,
+      });
+      setReadSections(prev => {
+        const copy = { ...prev };
+        delete copy[section.id];
+        return copy;
+      });
+      setTotalWordsRead(prev => Math.max(0, prev - section.wordCount));
+      if (!disableWordsReadPopup) {
+        setShowUnmarkedPopup({
+          visible: true,
+          wordCount: section.wordCount
+        });
+        setTimeout(() => setShowUnmarkedPopup({ visible: false, wordCount: 0 }), 2500);
+      }
+    } catch (error) {
+      console.error('Failed to unmark section as read:', error);
+    }
+  };
+
+  // Add handleMarkSection and handleUnmarkSection inside the component
+  const handleMarkSection = async (sectionId: string, wordCount: number, sectionTitle: string) => {
+    if (!user?.uid || !book) return;
+    if (wordCount === 0) return;
+    try {
+      await ReadingSessionService.addSession({
+        userId: user.uid,
+        bookId: book.id,
+        bookTitle: book.title || 'Unknown Book',
+        sectionId,
+        sectionTitle,
+        wordCount,
+        timestamp: new Date()
+      });
+      setReadSections(prev => ({ ...prev, [sectionId]: true }));
+      setTotalWordsRead(prev => prev + wordCount);
+    } catch (error) {
+      console.error('Failed to mark section as read:', error);
+    }
+  };
+  const handleUnmarkSection = async (sectionId: string, wordCount: number) => {
+    if (!user?.uid || !book) return;
+    if (wordCount === 0) return;
+    try {
+      await ReadingSessionService.removeSession({
+        userId: user.uid,
+        bookId: book.id,
+        sectionId,
+      });
+      setReadSections(prev => {
+        const copy = { ...prev };
+        delete copy[sectionId];
+        return copy;
+      });
+      setTotalWordsRead(prev => Math.max(0, prev - wordCount));
+    } catch (error) {
+      console.error('Failed to unmark section as read:', error);
+    }
+  };
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
@@ -774,6 +899,9 @@ export default function ReaderPage() {
 
   // Always recalculate section from currentSection
   const section = book.sections[currentSection];
+
+  // Add a derived value for isZeroWordSection
+  const isZeroWordSection = section.wordCount === 0;
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
@@ -865,7 +993,7 @@ export default function ReaderPage() {
                   className="w-12 text-center border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2563eb] transition-colors text-base font-semibold"
                   style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}
                 />
-                <span className="text-base font-bold text-[#232946">/ {book.sections.length}</span>
+                <span className="text-base font-bold text-[#232946]">/ {book.sections.length}</span>
                 <button
                   onClick={() => nextSection()}
                   disabled={currentSection === (book.sections.length || 0) - 1}
@@ -1054,6 +1182,28 @@ export default function ReaderPage() {
               </div>
               {/* Right controls (move left, not fully flush right) */}
               <div className="absolute right-32 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {/* Mark as Read/Unmark Read button, only if not a zero-word section */}
+                {!isZeroWordSection && (
+                  !readSections[book.sections[currentSection]?.id] ? (
+                    <button
+                      onClick={handleMarkAsRead}
+                      className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-green-500 rounded-full shadow-sm hover:bg-green-600 focus:bg-green-600 border-none transition-colors text-base"
+                      title="Mark section as read"
+                    >
+                      <FiCheck className="w-4 h-4" />
+                      Mark Read
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleUnmarkAsRead}
+                      className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-red-500 rounded-full shadow-sm hover:bg-red-600 focus:bg-red-600 border-none transition-colors text-base"
+                      title="Unmark section as read"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      Unmark Read
+                    </button>
+                  )
+                )}
                 {/* Auto-scroll/play button ... */}
                 {currentViewMode === 'scroll-section' && (
                   <>
@@ -1159,16 +1309,29 @@ export default function ReaderPage() {
               <span className="font-extrabold text-xl text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>Sections</span>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-2" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
-              {book.sections.map((s, idx) => (
-                <button
-                  key={s.id || idx}
-                  onClick={() => { setCurrentSection(idx); router.replace(`/reader?book=${book.id}&section=${idx}`); }}
-                  className={`block w-full text-left px-4 py-3 rounded-lg mb-1 font-bold transition-all duration-150 ${idx === currentSection ? 'bg-[#e6f0fd] text-[#2563eb]' : 'bg-white text-[#626c91] hover:bg-[#f5f7fa] hover:text-[#2563eb]'}`}
-                  style={{ fontSize: 17, fontWeight: idx === currentSection ? 800 : 600, letterSpacing: '-0.01em' }}
-                >
-                  {s.title && s.title.trim() !== '' ? s.title : 'Untitled Section'}
-                </button>
-              ))}
+              {book.sections.map((s, idx) => {
+                const isRead = readSections[s.id] || s.wordCount === 0;
+                return (
+                  <button
+                    key={s.id || idx}
+                    onClick={() => {
+                      if (isRead && s.wordCount !== 0) handleUnmarkSection(s.id, s.wordCount);
+                      else if (!isRead && s.wordCount !== 0) handleMarkSection(s.id, s.wordCount, s.title);
+                    }}
+                    className={`block w-full text-left px-4 py-3 rounded-lg mb-1 font-bold transition-all duration-150 flex items-center justify-between ${idx === currentSection ? 'bg-[#e6f0fd] text-[#2563eb]' : 'bg-white text-[#626c91] hover:bg-[#f5f7fa] hover:text-[#2563eb]'}`}
+                    style={{ fontSize: 17, fontWeight: idx === currentSection ? 800 : 600, letterSpacing: '-0.01em' }}
+                  >
+                    <span className="truncate flex-1 min-w-0">{s.title && s.title.trim() !== '' ? s.title : 'Untitled Section'}</span>
+                    <span className="ml-2 flex-shrink-0" style={{ width: 28, display: 'inline-flex', justifyContent: 'center' }}>
+                      {s.wordCount === 0 ? (
+                        <FiCheck className="text-green-500 w-5 h-5" />
+                      ) : (
+                        <SectionCheckButton isRead={isRead} />
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1183,17 +1346,6 @@ export default function ReaderPage() {
         >
           <div className="bg-white rounded-lg border-[0.75] border-black shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: '1.1rem', maxWidth: readerWidth > 1100 ? readerWidth : 1100, width: readerWidth, margin: '0 auto', padding: isMobile ? '1.5rem 0.5rem' : undefined }}>
             <>
-              {/* Only show cover image above the reading area for the first section */}
-              {book.cover && currentSection === 0 && (
-                <div className="flex justify-center mb-8">
-                  <img
-                    src={book.cover}
-                    alt={book.title + ' cover'}
-                    className="rounded-lg shadow-md object-cover"
-                    style={{ aspectRatio: '2/3', width: '120px', maxWidth: '180px', maxHeight: '260px', background: '#f3f4f6' }}
-                  />
-                </div>
-              )}
               {currentViewMode === 'scroll-section' && (
                 <div
                   ref={contentRef}
@@ -1280,43 +1432,24 @@ export default function ReaderPage() {
                 checked={disableWordUnderlines}
                 onChange={e => {
                   setDisableWordUnderlines(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked, currentTheme, currentViewMode);
+                  savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked, currentTheme, currentViewMode, disableWordsReadPopup);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-underlines" className="font-bold text-black select-none cursor-pointer">Disable word underlines & popups</label>
             </div>
-            <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Theme</label>
-              <select
-                value={currentTheme}
+            <div className="mb-6 flex items-center">
+              <input
+                id="disable-words-read-popup"
+                type="checkbox"
+                checked={disableWordsReadPopup}
                 onChange={e => {
-                  setCurrentTheme(e.target.value);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, e.target.value, currentViewMode);
+                  setDisableWordsReadPopup(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, e.target.checked);
                 }}
-                className="w-full px-4 py-2 rounded-lg border-[0.75] border-black focus:outline-none focus:ring-2 focus:ring-[#2563eb] transition-all text-black font-semibold"
-              >
-                <option value="light">Light</option>
-                <option value="sepia">Sepia</option>
-                <option value="dark">Dark (Night Mode)</option>
-                <option value="solarized">Solarized</option>
-              </select>
-            </div>
-            <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">View Mode</label>
-              <select
-                value={currentViewMode}
-                onChange={e => {
-                  const newMode = e.target.value as 'scroll-section' | 'scroll-book' | 'paginated-single';
-                  setCurrentViewMode(newMode);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, newMode);
-                }}
-                className="w-full px-4 py-2 rounded-lg border-[0.75] border-black focus:outline-none focus:ring-2 focus:ring-[#2563eb] transition-all text-black font-semibold"
-              >
-                <option value="scroll-section">Scroll within Section</option>
-                <option value="scroll-book">Continuous Scroll (Entire Book)</option>
-                <option value="paginated-single">Single Page</option>
-              </select>
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="disable-words-read-popup" className="font-bold text-black select-none cursor-pointer">Disable words read popup</label>
             </div>
             {/* Single example text, black color, all settings applied */}
             <div className="mt-4 p-2 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: readerFontSize, maxWidth: readerWidth }}>
@@ -1403,6 +1536,17 @@ export default function ReaderPage() {
           );
         })()
       )}
+      {/* Add words read popup in bottom right */}
+      {showWordsReadPopup.visible && (
+        <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1000 }} className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg text-lg font-bold animate-fade-in">
+          Marked read! ({showWordsReadPopup.wordCount.toLocaleString()} words)
+        </div>
+      )}
+      {showUnmarkedPopup.visible && (
+        <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1000 }} className="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg text-lg font-bold animate-fade-in">
+          Marked unread! (-{showUnmarkedPopup.wordCount.toLocaleString()} words)
+        </div>
+      )}
     </div>
   );
 }
@@ -1438,3 +1582,28 @@ export function EpubHtmlStyles() {
     `}</style>
   );
 } 
+
+// Add SectionCheckButton component
+function SectionCheckButton({ isRead }: { isRead: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="transition-colors duration-200 w-6 h-6 flex items-center justify-center rounded focus:outline-none border-none bg-transparent"
+      style={{ padding: 0, minWidth: 24 }}
+      aria-label={isRead ? (hovered ? 'Unmark as read' : 'Marked as read') : 'Mark as read'}
+      disabled={!isRead}
+    >
+      {isRead ? (
+        hovered ? (
+          <svg className="w-5 h-5 text-red-500 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        ) : (
+          <FiCheck className="text-green-500 w-5 h-5 transition-all duration-200" />
+        )
+      ) : null}
+    </button>
+  );
+}

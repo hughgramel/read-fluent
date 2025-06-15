@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserService } from '@/services/userService';
 import Link from 'next/link';
+import { ReadingSessionService } from '@/services/readingSessionService';
 
 // Helper to format the date
 const formatJoinDate = (date: Date | undefined): string => {
@@ -43,6 +44,8 @@ export default function ProfilePage() {
     }
     return 'en';
   });
+  const [totalWordsRead, setTotalWordsRead] = useState(0);
+  const [booksCompleted, setBooksCompleted] = useState(0);
 
   const handleLogout = async () => {
     try {
@@ -62,6 +65,21 @@ export default function ProfilePage() {
         setLanguageLoaded(true);
       });
       setStats({ booksCompleted: 5, wordsRead: 12345, wordsKnown: 678 });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.uid) {
+      ReadingSessionService.getUserSessions(user.uid).then(sessions => {
+        let words = 0;
+        let books = 0;
+        sessions.forEach((s: typeof sessions[number] & { type?: string }) => {
+          if (s.type === 'book-complete') books++;
+          else words += s.wordCount;
+        });
+        setTotalWordsRead(words);
+        setBooksCompleted(books);
+      });
     }
   }, [user]);
 
@@ -241,9 +259,8 @@ export default function ProfilePage() {
               <div className="text-center py-8 text-[#0B1423]/50">Loading stats...</div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <StatCard label="Books Completed" value={stats.booksCompleted} icon="📚" />
-                <StatCard label="Words Read" value={stats.wordsRead} icon="📖" />
-                <StatCard label="Words Known" value={stats.wordsKnown} icon="✅" />
+                <StatCard label="Books Completed" value={booksCompleted} icon="📚" />
+                <StatCard label="Words Read" value={totalWordsRead} icon="📖" />
               </div>
             )}
           </section>

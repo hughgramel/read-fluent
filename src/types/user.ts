@@ -11,6 +11,7 @@ export interface UserPreferences {
   disableWordUnderlines?: boolean; // disables word underlines and popups
   theme?: string;
   viewMode?: 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two';
+  disableWordsReadPopup?: boolean; // disables the words read popup
 }
 
 export interface UserStats {

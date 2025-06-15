@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { FiTrash2, FiBarChart2, FiCheckCircle } from 'react-icons/fi';
 import { uploadFileAndGetUrl } from '@/lib/firebase';
 import '@fontsource/inter';
+import { ReadingSessionService } from '@/services/readingSessionService';
 
 // Types
 interface BookSection {
@@ -59,6 +60,7 @@ export default function library() {
   const SIDEBAR_EXPANDED_WIDTH = 240;
   // Track sidebar state for margin adjustment
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [bookWordsRead, setBookWordsRead] = useState<{ [key: string]: number }>({});
 
   // Auto-scroll effect
   useEffect(() => {
@@ -150,6 +152,18 @@ export default function library() {
     window.addEventListener('sidebar-toggle', handleSidebarEvent);
     return () => window.removeEventListener('sidebar-toggle', handleSidebarEvent);
   }, []);
+
+  // On mount, fetch reading sessions and compute words read per book
+  useEffect(() => {
+    if (!user?.uid) return;
+    ReadingSessionService.getUserSessions(user.uid).then(sessions => {
+      const wordsRead: { [key: string]: number } = {};
+      sessions.forEach(session => {
+        wordsRead[session.bookId] = (wordsRead[session.bookId] || 0) + session.wordCount;
+      });
+      setBookWordsRead(wordsRead);
+    });
+  }, [user]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -437,7 +451,7 @@ export default function library() {
           downloadURL,
           completed: false,
           css: newBook.css,
-          cover: newBook.cover,
+          cover: '',
         }
       ]);
       setIsUploading(false);
@@ -593,6 +607,8 @@ export default function library() {
     const trackingPct = 3.5;
     const unknownPct = 1.8;
     const completed = book.completed;
+    const wordsRead = bookWordsRead[book.id] || 0;
+    const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
     return (
       <div
         className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col w-full max-w-[320px] min-h-[320px] cursor-pointer transition-all duration-200 hover:shadow-lg group"
@@ -613,27 +629,16 @@ export default function library() {
             <FiTrash2 className="w-5 h-5" />
           </button>
         </div>
-        {/* Book Cover */}
-        {book.cover && (
-          <div className="flex justify-center mb-3">
-            <img
-              src={book.cover}
-              alt={book.title + ' cover'}
-              className="rounded-lg shadow-md object-cover"
-              style={{ aspectRatio: '2/3', width: '120px', maxWidth: '180px', maxHeight: '220px', background: '#f3f4f6' }}
-            />
-          </div>
-        )}
         <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
           <h3 className="font-bold text-[#232946] text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
           {/* Reading Progress Bar */}
           <div className="w-full mb-1">
             <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
-              <div className="absolute left-0 top-0 h-full bg-[#2563eb] transition-all" style={{ width: completed ? '100%' : '0%' }} />
+              <div className="absolute left-0 top-0 h-full bg-[#2563eb] transition-all" style={{ width: `${progressPct}%` }} />
             </div>
             <div className="flex justify-between text-xs mt-1 text-[#6b7280]">
               <span>{book.author}</span>
-              <span className="text-right">{completed ? `${book.totalWords.toLocaleString()} / ${book.totalWords.toLocaleString()}` : `0 / ${book.totalWords.toLocaleString()}`} words</span>
+              <span className="text-right">{wordsRead.toLocaleString()} / {book.totalWords.toLocaleString()} words</span>
             </div>
           </div>
           {/* Comprehension Progress Bar */}
