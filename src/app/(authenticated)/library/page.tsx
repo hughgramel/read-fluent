@@ -611,7 +611,7 @@ export default function library() {
     const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
     return (
       <div
-        className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col w-full max-w-[320px] min-h-[320px] cursor-pointer transition-all duration-200 hover:shadow-lg group"
+        className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col w-full max-w-[250px] min-h-[250px] aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group"
         style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', minHeight: 320, padding: 0 }}
         onClick={() => openBook(book)}
         tabIndex={0}
@@ -872,7 +872,7 @@ export default function library() {
           <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>{shelfMap[title] || title}</h2>
           <div className="flex-1 border-t border-gray-200" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 min-h-[180px]">
+        <div className="flex flex-wrap gap-x-4 gap-y-6 min-h-[180px]">
           {books.length > 0 ? books.map((book) => (
             <BookCard key={book.id} book={book} />
           )) : (
