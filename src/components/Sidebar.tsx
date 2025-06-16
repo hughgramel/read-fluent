@@ -8,7 +8,7 @@ import { PiTextAaBold } from 'react-icons/pi';
 // Sidebar Navigation Items
 const navigation = [
   { name: 'Library', href: '/library', icon: <FaBookOpen /> },
-  { name: 'Saved', href: '/saved', icon: <FaRegSave /> },
+  { name: 'History', href: '/history', icon: <FaRegSave /> },
   { name: 'Words', href: '/words', icon: <PiTextAaBold /> },
   { name: 'Profile', href: '/profile', icon: <FaUser /> },
   { name: 'About', href: '/about', icon: <FaInfoCircle /> },

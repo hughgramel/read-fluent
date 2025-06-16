@@ -8,7 +8,7 @@ import '@fontsource/inter/variable.css';
 
 const navigation = [
   { name: 'Library', href: '/library', icon: '📚' },
-  { name: 'Saved', href: '/saved', icon: '💾' },
+  { name: 'Saved', href: '/history', icon: '💾' },
   { name: 'Words', href: '/words', icon: '🔤' },
   { name: 'Profile', href: '/profile', icon: '👤' },
 ];

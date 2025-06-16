@@ -1352,7 +1352,43 @@ export default function ReaderPage() {
                   className="epub-html overflow-y-auto scroll-smooth relative"
                   style={{ scrollBehavior: 'smooth', margin: '0 auto', height: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
                 >
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(section.content) }} />
+                  {section.content.split('\n\n').map((paragraph, pIdx) => (
+                    <p key={pIdx} style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize }}>
+                      {tokenize(paragraph).map((token, i) => {
+                        const key = `${pIdx}-${i}`;
+                        const lower = token.toLowerCase();
+                        const status = wordStatusMap[lower];
+                        const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
+                        const wordStyle = {
+                          borderBottom: disableWordUnderlines ? 'none' : getUnderline(status, hoveredWord === key),
+                          color: shiftedWord === key ? '#a78bfa' : undefined,
+                          background: hoveredWord === key ? '#f3f4f6' : undefined,
+                          fontWeight: status === 'known' ? 700 : 500,
+                          padding: '0 2px',
+                          borderRadius: 2,
+                          position: 'relative' as const,
+                          zIndex: 1,
+                          fontFamily: readerFont,
+                          fontSize: readerFontSize,
+                        };
+                        return isWord ? (
+                          <span
+                            key={key}
+                            data-word-key={key}
+                            className="inline-block cursor-pointer transition-colors duration-150"
+                            style={wordStyle}
+                            onClick={e => handleWordClick(token, e, key)}
+                            onMouseEnter={() => throttledSetHoveredWord(key)}
+                            onMouseLeave={() => throttledSetHoveredWord(null)}
+                          >
+                            {token}
+                          </span>
+                        ) : (
+                          <span key={key} style={{ fontFamily: readerFont, fontSize: readerFontSize }}>{token}</span>
+                        );
+                      })}
+                    </p>
+                  ))}
                   <div style={{ height: '200px' }} />
                 </div>
               )}

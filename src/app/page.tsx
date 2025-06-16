@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Star, ChevronDown, Timer, Target, Landmark, Check } from 'lucide-react';
 import { SiDiscord } from "react-icons/si";
@@ -15,24 +15,24 @@ interface Review {
   rating: number;
 }
 
-// Fake Review Data
+// Updated Review Data
 const fakeReviews: Review[] = [
   {
     id: 1,
     name: "Alex R.",
-    quote: "Finally, a focus timer that doesn't feel like a chore! Building my nation keeps me coming back.",
+    quote: "The word tracking and dictionary integration is incredible. I can finally read books in my target language with confidence!",
     rating: 5,
   },
   {
     id: 2,
     name: "Samantha K.",
-    quote: "I'm getting so much more done. Seeing my resources grow after each Pomodoro is super motivating.",
+    quote: "Being able to sync my vocabulary with Anki has been a game-changer for my language learning journey.",
     rating: 5,
   },
   {
     id: 3,
     name: "Mike T.",
-    quote: "The blend of productivity and light strategy is perfect. It breaks up my workday nicely.",
+    quote: "The comprehension analysis helps me understand my progress. It's like having a personal language tutor!",
     rating: 5,
   },
 ];
@@ -44,32 +44,32 @@ interface FAQItem {
   answer: string;
 }
 
-// Fake FAQ Data
+// Updated FAQ Data
 const fakeFAQs: FAQItem[] = [
   {
     id: 1,
     question: "What makes readfluent unique?",
-    answer: "readfluent combines the proven Pomodoro focus technique with engaging nation-building gameplay. Instead of just watching a timer, you actively earn resources and make progress in a game world with each completed focus session."
+    answer: "readfluent combines intelligent word tracking, easy dictionary lookups, and progress analysis to make reading in your target language more effective. Unlike other readers, it automatically tracks your vocabulary, provides instant translations, and helps you build a personalized learning path."
   },
   {
     id: 2,
-    question: "Is this just another Pomodoro timer?",
-    answer: "While it uses Pomodoro principles (typically 25-minute focus intervals), the core loop involves earning in-game resources (like Gold, Industry, Population) for completing tasks and focus sessions. These resources are then used to develop your nation, creating a more engaging and rewarding experience than a standard timer."
+    question: "How does the word tracking work?",
+    answer: "As you read, readfluent automatically tracks which words you know and which ones you're learning. It provides instant dictionary lookups, saves words to your vocabulary list, and can sync with Anki for spaced repetition learning. This helps you build your vocabulary naturally through reading."
   },
   {
     id: 3,
-    question: "Do I need to be a gamer to use it?",
-    answer: "Not at all! The game mechanics are designed to be simple and supplementary to the core focus timer. The main goal is productivity; the game adds a layer of motivation and visual progress."
+    question: "Can I use my own ebooks?",
+    answer: "Yes! readfluent supports EPUB files, allowing you to read your own books. The platform will analyze the text, track your progress, and help you learn new vocabulary as you read."
   },
   {
     id: 4,
     question: "How much does it cost?",
-    answer: "readfluent is currently free to use during its development phase. We may introduce optional premium features in the future, but the core focus timer and gameplay loop will remain accessible."
+    answer: "readfluent is currently free to use during its development phase. We may introduce optional premium features in the future, but the core reading and vocabulary tracking features will remain accessible."
   },
   {
     id: 5,
-    question: "What kind of tasks can I track?",
-    answer: "You can create any kind of task you want to focus on, whether it's work-related projects, studying, creative work, or even household chores. Each completed task during a focus session contributes to your progress."
+    question: "What languages are supported?",
+    answer: "readfluent currently supports multiple languages with dictionary integration. We're constantly adding more language support and features to help you learn effectively."
   }
 ];
 
@@ -91,50 +91,90 @@ const ImagePlaceholder: React.FC<{ className?: string }> = ({ className = 'h-64 
 
 // Component for styled bold text
 const BoldHighlight: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <strong className="font-semibold text-[rgb(28,176,246)]">{children}</strong>
+  <strong className="font-semibold text-[#67b9e7]">{children}</strong>
 );
 
 export default function LandingPage() {
-  // State for FAQ Accordion
   const [openFAQIndex, setOpenFAQIndex] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState('home');
 
   const toggleFAQ = (index: number) => {
     setOpenFAQIndex(openFAQIndex === index ? null : index);
   };
 
+  // Handle scroll and update active section
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ['home', 'features', 'how-it-works', 'faq', 'reviews'];
+      const scrollPosition = window.scrollY + 100;
+
+      for (const section of sections) {
+        const element = document.getElementById(section);
+        if (element) {
+          const { offsetTop, offsetHeight } = element;
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            setActiveSection(section);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-[100dvh] bg-white text-[#0B1423] [font-family:var(--font-mplus-rounded)]">
-      {/* Header */}
+      {/* Header with Navigation */}
       <header className="px-4 lg:px-6 h-20 flex items-center justify-between sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200/60">
         <div className="container mx-auto max-w-7xl flex items-center justify-between w-full">
           <Link href="/" className="flex items-center justify-center" prefetch={false}>
-            {/* Adjusted size */}
             <span className="text-2xl font-bold text-[#0B1423] [font-family:var(--font-mplus-rounded)]">readfluent</span>
           </Link>
-          <nav className="flex items-center gap-5 sm:gap-8">
+          <nav className="hidden md:flex items-center gap-8">
+            <button
+              onClick={() => scrollToSection('features')}
+              className={`text-base font-medium transition-colors ${
+                activeSection === 'features' ? 'text-[#67b9e7]' : 'text-[#0B1423]/80 hover:text-[#0B1423]'
+              }`}
+            >
+              Features
+            </button>
+            <button
+              onClick={() => scrollToSection('how-it-works')}
+              className={`text-base font-medium transition-colors ${
+                activeSection === 'how-it-works' ? 'text-[#67b9e7]' : 'text-[#0B1423]/80 hover:text-[#0B1423]'
+              }`}
+            >
+              How It Works
+            </button>
+            <button
+              onClick={() => scrollToSection('faq')}
+              className={`text-base font-medium transition-colors ${
+                activeSection === 'faq' ? 'text-[#67b9e7]' : 'text-[#0B1423]/80 hover:text-[#0B1423]'
+              }`}
+            >
+              FAQ
+            </button>
             <Link href="/signin" className="text-base font-medium text-[#0B1423]/80 hover:text-[#0B1423] transition-colors" prefetch={false}>
               Sign In
             </Link>
-            {/* Discord Button - Added Icon */}
             <Link
-              href="#" // Replace with your Discord/Community Link
+              href="#"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-5 py-2 text-sm font-medium text-white shadow-[0_3px_0_#454FBF] transition-all hover:bg-[#454FBF] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:-translate-y-px active:translate-y-0 active:shadow-[0_1px_0_#454FBF] border-2 border-[#454FBF]"
               style={{ transform: 'translateY(-1px)' }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.boxShadow = '0 1px 0px #454FBF';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.boxShadow = '0 3px 0px #454FBF';
-              }}
-              onMouseLeave={(e) => { 
-                if (e.buttons === 1) {
-                    e.currentTarget.style.boxShadow = '0 3px 0px #454FBF';
-                }
-              }}
             >
-              <SiDiscord className="h-5 w-5" /> {/* Added Discord Icon */}
+              <SiDiscord className="h-5 w-5" />
               Community
             </Link>
           </nav>
@@ -142,8 +182,8 @@ export default function LandingPage() {
       </header>
       
       <main className="flex-1">
-        {/* Hero Section - Reverted to Duolingo Image Left / Text Right Style */}
-        <section className="w-full py-12 md:py-20 lg:py-28 flex items-center justify-center bg-gradient-to-br from-[#e0f2fe] to-[#fafbfe] min-h-[calc(100vh-80px)]">
+        {/* Hero Section - Updated Content */}
+        <section id="home" className="w-full py-12 md:py-20 lg:py-28 flex items-center justify-center bg-gradient-to-br from-[#e0f2fe] to-[#fafbfe] min-h-[calc(100vh-80px)]">
           <div className="container px-4 md:px-6 mx-auto max-w-6xl">
             <div className="grid md:grid-cols-2 gap-8 md:gap-12 lg:gap-16 items-center">
               {/* Left Column: Image */}
@@ -153,8 +193,11 @@ export default function LandingPage() {
               {/* Right Column: Text and Buttons */}
               <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-6">
                 <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl text-[#0B1423] [font-family:var(--font-mplus-rounded)]">
-                  Develop a nation, develop yourself.
+                  Read fluently, learn naturally.
                 </h1>
+                <p className="text-lg text-gray-600">
+                  Your intelligent language learning companion. Track vocabulary, analyze comprehension, and build your language skills through reading.
+                </p>
                 {/* Vertical Button Layout */}
                 <div className="flex flex-col gap-3 w-full max-w-xs mx-auto md:mx-0">
                   <Link
@@ -162,17 +205,6 @@ export default function LandingPage() {
                     className="inline-flex h-12 items-center justify-center rounded-lg bg-[#67b9e7] px-8 text-lg font-semibold text-white shadow-[0_4px_0_#4792ba] transition-all hover:bg-[#4792ba] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_0_#4792ba] whitespace-nowrap border-2 border-[#4792ba]"
                     style={{ transform: 'translateY(-2px)' }}
                     prefetch={false}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.boxShadow = '0 2px 0px #4792ba';
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.boxShadow = '0 4px 0px #4792ba';
-                    }}
-                    onMouseLeave={(e) => { 
-                      if (e.buttons === 1) {
-                          e.currentTarget.style.boxShadow = '0 4px 0px #4792ba';
-                      }
-                    }}
                   >
                     Sign Up Now
                   </Link>
@@ -181,17 +213,6 @@ export default function LandingPage() {
                     className="inline-flex h-12 items-center justify-center rounded-lg border-2 border-[#cccccc] bg-white px-8 text-lg font-medium text-[#0B1423] shadow-[0_4px_0_#cccccc] transition-all hover:bg-gray-100 hover:text-[#0B1423] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_0_#cccccc]"
                     prefetch={false}
                     style={{ transform: 'translateY(-2px)' }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.boxShadow = '0 2px 0px #cccccc';
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.boxShadow = '0 4px 0px #cccccc';
-                    }}
-                    onMouseLeave={(e) => { 
-                      if (e.buttons === 1) {
-                          e.currentTarget.style.boxShadow = '0 4px 0px #cccccc';
-                      }
-                    }}
                   >
                     I Already Have an Account
                   </Link>
@@ -201,15 +222,15 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Feature Highlights Section - Alternating Layout, Simplified Text, Updated Styling */}
-        <section className="w-full py-12 md:py-20 lg:py-28 border-t border-gray-200">
+        {/* Feature Highlights Section - Updated Content */}
+        <section id="features" className="w-full py-12 md:py-20 lg:py-28 border-t border-gray-200">
           <div className="container px-4 md:px-6 mx-auto max-w-5xl space-y-16 md:space-y-24">
             {/* Feature 1: Text Left, Image Right */}
             <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
               <div className="space-y-4">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl text-[#0B1423]">Focus Timer Meets Strategy</h2>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl text-[#0B1423]">Smart Word Tracking</h2>
                 <p className="text-[rgb(119,119,119)] md:text-lg">
-                  Use structured work blocks to enhance <BoldHighlight>deep work</BoldHighlight>. Each session translates directly into <BoldHighlight>in-game resources</BoldHighlight> for your growing nation.
+                  Automatically track your <BoldHighlight>vocabulary progress</BoldHighlight> as you read. Get instant <BoldHighlight>dictionary lookups</BoldHighlight> and save words for review.
                 </p>
               </div>
               <ImagePlaceholder />
@@ -221,9 +242,9 @@ export default function LandingPage() {
                 <ImagePlaceholder />
               </div>
               <div className="space-y-4">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl text-[#0B1423]">Build Your Legacy</h2>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl text-[#0B1423]">Comprehension Analysis</h2>
                 <p className="text-[rgb(119,119,119)] md:text-lg">
-                  Invest earned resources to develop industry, grow population, and raise armies. Your <BoldHighlight>strategic choices</BoldHighlight> shape your nation's destiny and provide <BoldHighlight>ongoing motivation</BoldHighlight>.
+                  Get insights into your <BoldHighlight>reading comprehension</BoldHighlight> and track your progress over time. Understand which areas need more focus.
                 </p>
               </div>
             </div>
@@ -231,9 +252,9 @@ export default function LandingPage() {
             {/* Feature 3: Text Left, Image Right */}
             <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
               <div className="space-y-4">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl text-[#0B1423]">Organize Your Efforts</h2>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl text-[#0B1423]">Anki Integration</h2>
                 <p className="text-[rgb(119,119,119)] md:text-lg">
-                  Create tasks and assign <BoldHighlight>reward types</BoldHighlight> (Economy, Industry, etc.). Track history and see the direct impact of your <BoldHighlight>focused work</BoldHighlight>.
+                  Seamlessly sync your <BoldHighlight>vocabulary</BoldHighlight> with Anki for spaced repetition learning. Build your <BoldHighlight>flashcard deck</BoldHighlight> automatically.
                 </p>
               </div>
               <ImagePlaceholder />
@@ -241,7 +262,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* How It Works Section - Alternating Layout, Simplified Text, Updated Styling */}
+        {/* How It Works Section - Updated Content */}
         <section id="how-it-works" className="w-full py-12 md:py-20 lg:py-28 border-t border-gray-200 bg-gray-50">
           <div className="container px-4 md:px-6 mx-auto max-w-5xl space-y-12 md:space-y-16">
             <h2 className="text-3xl font-bold tracking-tighter text-center sm:text-4xl md:text-5xl text-[#0B1423]">How It Works</h2>
@@ -250,9 +271,9 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
               <div className="space-y-3">
                 <span className="text-5xl font-bold text-[#67b9e7]">1</span>
-                <h3 className="text-2xl font-bold text-[#0B1423]">Set Your Task & Focus</h3>
+                <h3 className="text-2xl font-bold text-[#0B1423]">Upload Your Book</h3>
                 <p className="text-[rgb(119,119,119)] md:text-lg">
-                  Create a task, choose its <BoldHighlight>reward type</BoldHighlight> (Economy, Pop, etc.), and start the focus timer.
+                  Import your <BoldHighlight>EPUB files</BoldHighlight> and start reading in your target language.
                 </p>
               </div>
               <ImagePlaceholder />
@@ -265,9 +286,9 @@ export default function LandingPage() {
               </div>
               <div className="space-y-3">
                 <span className="text-5xl font-bold text-[#67b9e7]">2</span>
-                <h3 className="text-2xl font-bold text-[#0B1423]">Complete & Earn Rewards</h3>
+                <h3 className="text-2xl font-bold text-[#0B1423]">Track & Learn</h3>
                 <p className="text-[rgb(119,119,119)] md:text-lg">
-                  Finish your session. Complete the task to earn <BoldHighlight>Action Points</BoldHighlight> and resources.
+                  Get instant <BoldHighlight>translations</BoldHighlight> and track your vocabulary progress as you read.
                 </p>
               </div>
             </div>
@@ -276,9 +297,9 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
               <div className="space-y-3">
                 <span className="text-5xl font-bold text-[#67b9e7]">3</span>
-                <h3 className="text-2xl font-bold text-[#0B1423]">Develop Your Nation</h3>
+                <h3 className="text-2xl font-bold text-[#0B1423]">Review & Improve</h3>
                 <p className="text-[rgb(119,119,119)] md:text-lg">
-                  Use points and resources to <BoldHighlight>build structures</BoldHighlight>, raise armies, and grow your nation's power.
+                  Sync with <BoldHighlight>Anki</BoldHighlight> and use flashcards to reinforce your learning.
                 </p>
               </div>
               <ImagePlaceholder />
@@ -287,7 +308,7 @@ export default function LandingPage() {
         </section>
 
         {/* FAQ Section */}
-        <section className="w-full py-12 md:py-20 lg:py-28 border-t border-gray-200">
+        <section id="faq" className="w-full py-12 md:py-20 lg:py-28 border-t border-gray-200">
           <div className="container px-4 md:px-6 mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tighter text-center sm:text-4xl text-[#0B1423] mb-8 md:mb-12">
               Frequently Asked Questions
@@ -321,7 +342,7 @@ export default function LandingPage() {
         </section>
 
         {/* Social Proof Section (Reviews) */}
-        <section className="w-full py-12 md:py-20 lg:py-28 border-t border-gray-200 bg-gray-50">
+        <section id="reviews" className="w-full py-12 md:py-20 lg:py-28 border-t border-gray-200 bg-gray-50">
           <div className="container px-4 md:px-6 mx-auto max-w-5xl">
             <h2 className="text-3xl font-bold tracking-tighter text-center sm:text-4xl text-[#0B1423] mb-8 md:mb-12">
               What Users Are Saying
@@ -340,28 +361,17 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Final Call to Action Section - Adjusted Layout */}
-        <section className="w-full py-16 md:py-24 lg:py-28 flex items-center justify-center bg-gradient-to-br from-[#e0f2fe] to-[#fafbfe]"> {/* Reduced padding */}
-          <div className="container px-4 md:px-6 mx-auto max-w-5xl text-center flex flex-col items-center justify-center"> {/* Removed min-height */}
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-[#0B1423] mb-10"> {/* Increased margin-bottom */}
-              Ready to Boost Your Productivity?
+        {/* Final Call to Action Section - Updated Text */}
+        <section className="w-full py-16 md:py-24 lg:py-28 flex items-center justify-center bg-gradient-to-br from-[#e0f2fe] to-[#fafbfe]">
+          <div className="container px-4 md:px-6 mx-auto max-w-5xl text-center flex flex-col items-center justify-center">
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-[#0B1423] mb-10">
+              Ready to Transform Your Language Learning?
             </h2>
             <Link
               href="/signup"
               className="inline-flex h-14 items-center justify-center rounded-lg bg-[#67b9e7] px-10 text-xl font-semibold text-white shadow-[0_5px_0_#4792ba] transition-all hover:bg-[#4792ba] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:-translate-y-1 active:translate-y-0 active:shadow-[0_2px_0_#4792ba] whitespace-nowrap border-2 border-[#4792ba]"
               style={{ transform: 'translateY(-3px)' }}
               prefetch={false}
-              onMouseDown={(e) => {
-                e.currentTarget.style.boxShadow = '0 2px 0px #4792ba';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.boxShadow = '0 5px 0px #4792ba';
-              }}
-              onMouseLeave={(e) => { 
-                if (e.buttons === 1) {
-                    e.currentTarget.style.boxShadow = '0 5px 0px #4792ba';
-                }
-              }}
             >
               Sign Up Free
             </Link>
