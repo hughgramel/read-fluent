@@ -12,6 +12,7 @@ import React from 'react';
 import Head from 'next/head';
 import { ReadingSessionService } from '@/services/readingSessionService';
 import { FiCheck } from 'react-icons/fi';
+import parse, { HTMLReactParserOptions, Text } from 'html-react-parser';
 
 // Types
 interface BookSection {
@@ -103,6 +104,9 @@ export default function ReaderPage() {
 
   // Load book from Firebase Storage
   useEffect(() => {
+    // This effect loads the book metadata and content for the current user and bookId.
+    // It first tries to load from localStorage for speed, then falls back to fetching from storage if not cached.
+    // Sets the book state and current section, or error if not found.
     if (!user?.uid || !bookId) return;
     console.log('Current userId (reader):', user.uid);
     getBooks(user.uid).then(async (metadatas) => {
@@ -217,6 +221,8 @@ export default function ReaderPage() {
 
   // Save reading progress to Firestore metadata and localStorage
   useEffect(() => {
+    // This effect saves the user's reading progress for the current book and section.
+    // It updates both localStorage and Firestore metadata for persistence.
     if (book && user?.uid) {
       // Save to localStorage
       const progress: ReadingProgress = {
@@ -281,7 +287,10 @@ export default function ReaderPage() {
     viewMode = currentViewMode,
     disableWordsReadPopupValue = disableWordsReadPopup
   ) => {
+    // This function saves the user's reader preferences (font, width, font size, etc.) to the backend.
+    // It is called whenever a setting is changed in the UI.
     if (user?.uid) {
+      console.log('Saving preferences:', { font, width, fontSize, disableUnderlines, theme, viewMode, disableWordsReadPopupValue });
       await UserService.updateUserPreferences(user.uid, {
         readerFont: font,
         readerWidth: width,
@@ -738,7 +747,10 @@ export default function ReaderPage() {
 
   // Inject book CSS into the DOM, scoped to .epub-html
   React.useEffect(() => {
+    // This effect injects the book's custom CSS into the DOM, scoped to the .epub-html class.
+    // It ensures that book-specific styles do not leak outside the reading area.
     if (book?.css) {
+      console.log('Injecting book CSS into DOM');
       let styleTag = document.getElementById('epub-book-css') as HTMLStyleElement | null;
       if (!styleTag) {
         styleTag = document.createElement('style');
@@ -754,6 +766,63 @@ export default function ReaderPage() {
         return `${brace} ${scoped} {`;
       });
       styleTag.textContent = scopedCss;
+
+      // After CSS injection, wrap each word in spans
+      console.log('Wrapping words in spans');
+      const wrapWordsInSpans = () => {
+        const contentDiv = document.querySelector('.epub-html');
+        if (!contentDiv) return;
+
+        // Helper function to wrap text nodes in spans
+        const wrapTextNode = (node: Node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent || '';
+            // Split on word boundaries, preserving punctuation
+            const words = text.split(/(\s+|[.,!?;:"()\[\]{}…—–])/);
+            
+            // Create a document fragment to hold our new nodes
+            const fragment = document.createDocumentFragment();
+            
+            words.forEach((word, index) => {
+              if (word.trim()) {
+                const span = document.createElement('span');
+                span.className = 'word-span';
+                span.textContent = word;
+                fragment.appendChild(span);
+              } else if (word) {
+                // Preserve whitespace and punctuation
+                fragment.appendChild(document.createTextNode(word));
+              }
+            });
+            
+            // Replace the original text node with our new nodes
+            if (node.parentNode) {
+              node.parentNode.replaceChild(fragment, node);
+            }
+          }
+        };
+
+        // Recursively process all text nodes
+        const processNode = (node: Node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            wrapTextNode(node);
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            // Skip if it's already a word span or a button
+            if ((node as Element).classList.contains('word-span') || 
+                (node as Element).tagName === 'BUTTON') {
+              return;
+            }
+            // Process child nodes
+            Array.from(node.childNodes).forEach(processNode);
+          }
+        };
+
+        // Process all nodes in the content div
+        Array.from(contentDiv.childNodes).forEach(processNode);
+      };
+
+      // Execute the word wrapping
+      wrapWordsInSpans();
     }
     return () => {
       const styleTag = document.getElementById('epub-book-css');
@@ -902,6 +971,26 @@ export default function ReaderPage() {
 
   // Add a derived value for isZeroWordSection
   const isZeroWordSection = section.wordCount === 0;
+
+  // Helper to wrap words in spans for HTML content
+  function wrapWordsInHtml(html: string) {
+    const options: HTMLReactParserOptions = {
+      replace: (node: any) => {
+        if (node.type === 'text') {
+          // Tokenize the text node
+          const tokens = tokenize((node as Text).data);
+          return tokens.map((token, i) => {
+            const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
+            return isWord ? (
+              <span key={i} className="word-span">{token}</span>
+            ) : token;
+          });
+        }
+        return undefined;
+      },
+    };
+    return parse(html, options);
+  }
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
@@ -1344,7 +1433,11 @@ export default function ReaderPage() {
             maxWidth: isMobile ? '100vw' : undefined,
           }}
         >
-          <div className="bg-white rounded-lg border-[0.75] border-black shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: '1.1rem', maxWidth: readerWidth > 1100 ? readerWidth : 1100, width: readerWidth, margin: '0 auto', padding: isMobile ? '1.5rem 0.5rem' : undefined }}>
+          <div className="bg-white rounded-lg border-[0.75] border-black shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: '1.1rem', maxWidth: readerWidth > 1100 ? readerWidth : 1100, width: readerWidth, margin: '0 auto', padding: isMobile ? '1.5rem 0.5rem' : undefined }} ref={el => {
+            if (el) {
+              console.log('Setting main reading area font size:', readerFontSize, 'and width:', readerWidth);
+            }
+          }}>
             <>
               {currentViewMode === 'scroll-section' && (
                 <div
@@ -1371,11 +1464,12 @@ export default function ReaderPage() {
                           fontFamily: readerFont,
                           fontSize: readerFontSize,
                         };
+                        // Only wrap words in a span, not punctuation/whitespace
                         return isWord ? (
                           <span
                             key={key}
                             data-word-key={key}
-                            className="inline-block cursor-pointer transition-colors duration-150"
+                            className={"inline-block cursor-pointer transition-colors duration-150 word-span"}
                             style={wordStyle}
                             onClick={e => handleWordClick(token, e, key)}
                             onMouseEnter={() => throttledSetHoveredWord(key)}
@@ -1400,7 +1494,7 @@ export default function ReaderPage() {
                   {book.sections.map((sec, secIdx) => (
                     <div key={sec.id || secIdx} className="mb-12 pt-20">
                       <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">{sec.title}</h2>
-                      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(sec.content) }} />
+                      <div>{wrapWordsInHtml(sec.content)}</div>
                     </div>
                   ))}
                   <div style={{ height: '200px' }} />
@@ -1412,7 +1506,7 @@ export default function ReaderPage() {
                   style={{ scrollBehavior: 'smooth', margin: '0 auto', minHeight: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
                 >
                   <div className="w-full">
-                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(section.content) }} />
+                    <div>{wrapWordsInHtml(section.content)}</div>
                   </div>
                 </div>
               )}
@@ -1488,9 +1582,15 @@ export default function ReaderPage() {
               <label htmlFor="disable-words-read-popup" className="font-bold text-black select-none cursor-pointer">Disable words read popup</label>
             </div>
             {/* Single example text, black color, all settings applied */}
-            <div className="mt-4 p-2 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: readerFontSize, maxWidth: readerWidth }}>
-              Example: El rápido zorro marrón salta sobre el perro perezoso.
-            </div>
+            {(() => {
+              // Log font size and width for the settings example text
+              console.log('Settings example text font size:', readerFontSize, 'and width:', readerWidth);
+              return (
+                <div className="mt-4 p-2 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: readerFontSize, maxWidth: readerWidth }}>
+                  Example: El rápido zorro marrón salta sobre el perro perezoso.
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
