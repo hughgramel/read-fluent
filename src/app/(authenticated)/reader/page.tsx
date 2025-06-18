@@ -12,7 +12,9 @@ import React from 'react';
 import Head from 'next/head';
 import { ReadingSessionService } from '@/services/readingSessionService';
 import { FiCheck } from 'react-icons/fi';
+import { FaRegSave } from 'react-icons/fa';
 import parse, { HTMLReactParserOptions, Text } from 'html-react-parser';
+import { SentenceService } from '@/services/sentenceService';
 
 // Types
 interface BookSection {
@@ -109,6 +111,8 @@ export default function ReaderPage() {
     error: string | null;
   } | null>(null);
   const wiktionaryPopupTimeout = useRef<NodeJS.Timeout | null>(null);
+  // Add state for sentence save feedback
+  const [showSentenceSaved, setShowSentenceSaved] = useState(false);
 
   // Load book from Firebase Storage
   useEffect(() => {
@@ -1014,6 +1018,79 @@ export default function ReaderPage() {
     };
   }, [hoveredWord]);
 
+  // Add outside click/esc/shift close logic for Wiktionary popup
+  useEffect(() => {
+    if (!wiktionaryPopup) return;
+    const handleClick = (e: MouseEvent) => {
+      const popup = document.getElementById('wiktionary-popup');
+      if (popup && !popup.contains(e.target as Node)) {
+        hideWiktionaryPopup();
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Shift') hideWiktionaryPopup();
+    };
+    window.addEventListener('mousedown', handleClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [wiktionaryPopup]);
+
+  // Save icon click handler in Wiktionary popup
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user?.uid || !wiktionaryPopup) return;
+    // Find the nearest sentence-span parent of the word
+    const word = wiktionaryPopup.word;
+    const allWordSpans = document.querySelectorAll('.word-span');
+    let foundSentence = '';
+    for (const span of Array.from(allWordSpans)) {
+      if (span.textContent === word && span instanceof HTMLElement) {
+        let parent = span.parentElement;
+        while (parent && !parent.classList.contains('sentence-span')) {
+          parent = parent.parentElement;
+        }
+        if (parent && parent.classList.contains('sentence-span')) {
+          foundSentence = parent.textContent || '';
+          break;
+        }
+      }
+    }
+    if (foundSentence) {
+      SentenceService.addSentence(user.uid, foundSentence.trim(), { word });
+      setShowSentenceSaved(true);
+      setTimeout(() => setShowSentenceSaved(false), 1200);
+    }
+  };
+
+  // Add keydown handler for saving hovered sentence with 's'
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 's' && hoveredWord && user?.uid) {
+        // Find the sentence-span for the hovered word
+        const el = document.querySelector(`[data-word-key='${hoveredWord}']`);
+        if (el) {
+          let parent = el.parentElement;
+          while (parent && !parent.classList.contains('sentence-span')) {
+            parent = parent.parentElement;
+          }
+          if (parent && parent.classList.contains('sentence-span')) {
+            const sentence = parent.textContent || '';
+            if (sentence.trim()) {
+              SentenceService.addSentence(user.uid, sentence.trim());
+              setShowSentenceSaved(true);
+              setTimeout(() => setShowSentenceSaved(false), 1200);
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hoveredWord, user]);
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
@@ -1194,14 +1271,14 @@ export default function ReaderPage() {
       )}
       {/* Header (conditionally rendered) */}
       {showHeader && (
-        <div className="bg-white border-[0.75] border-black fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '56px' : '64px', paddingTop: 0, paddingBottom: 0, fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
+        <div className="bg-white border-[0.75] border-black fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '48px' : '64px', paddingTop: 0, paddingBottom: 0, fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
           {isMobile ? (
-            <div className="w-full px-2 flex items-center justify-between relative" style={{ minHeight: '56px', height: '56px' }}>
-              {/* Left: Back button */}
+            <div className="w-full px-1 flex items-center justify-between relative" style={{ minHeight: '48px', height: '48px' }}>
+              {/* Left: Back button (always visible on mobile) */}
               <div className="flex items-center h-full">
                 <button
                   onClick={backToLibrary}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                  className="flex items-center gap-2 px-2 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
                   style={{ minWidth: 32, minHeight: 32, width: 32, height: 32, fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}
                   aria-label="Back to Library"
                 >
@@ -1210,8 +1287,8 @@ export default function ReaderPage() {
                   </svg>
                 </button>
               </div>
-              {/* Center: Section navigation */}
-              <div className="flex items-center gap-2 mx-auto" style={{maxWidth: 700}}>
+              {/* Center: Section navigation (no title on mobile) */}
+              <div className="flex items-center gap-2 mx-auto">
                 <button
                   onClick={() => prevSection()}
                   disabled={currentSection === 0}
@@ -1233,7 +1310,7 @@ export default function ReaderPage() {
                     router.replace(`/reader?book=${book.id}&section=${newSection}`);
                   }}
                   className="w-12 text-center border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2563eb] transition-colors text-base font-semibold"
-                  style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}
+                  style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', color: '#232946', background: '#fff', opacity: 1 }}
                 />
                 <span className="text-base font-bold text-[#232946]">/ {book.sections.length}</span>
                 <button
@@ -1246,42 +1323,9 @@ export default function ReaderPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
-                <span
-                  className="truncate font-extrabold text-lg ml-4"
-                  style={{
-                    width: isMobile ? 220 : 420,
-                    minWidth: isMobile ? 220 : 420,
-                    maxWidth: isMobile ? 220 : 420,
-                    display: 'inline-block',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    color: '#232946',
-                    fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
-                    verticalAlign: 'middle',
-                  }}
-                >
-                  {(() => {
-                    const title = showEntireBook
-                      ? (book.sections[visibleSection]?.title && book.sections[visibleSection]?.title.trim() !== ''
-                          ? book.sections[visibleSection]?.title
-                          : 'Untitled Section')
-                      : (section.title && section.title.trim() !== '' ? section.title : 'Untitled Section');
-                    return title.length > 80 ? title.slice(0, 80) + '…' : title;
-                  })()}
-                </span>
               </div>
-              {/* Right: Controls, now to the left of the dropdown icon */}
-              <div className="flex items-center gap-1 h-full pr-10">
-                {!showEntireBook && (
-                  <button
-                    onClick={handleScrapeComprehension}
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                    title="Scrape Comprehension Stats"
-                  >
-                    Scrape
-                  </button>
-                )}
+              {/* Right: Controls, now to the left of the dropdown icon (no Scrape button on mobile) */}
+              <div className="flex items-center gap-1 h-full pr-2">
                 {currentViewMode === 'scroll-section' && (
                   <>
                     <button
@@ -1582,15 +1626,33 @@ export default function ReaderPage() {
           className="flex-1 flex justify-center transition-all duration-300"
           style={{
             marginLeft: showSidebar && !isMobile ? '17rem' : 0,
-            padding: isMobile ? '0 0.25rem' : undefined,
+            padding: isMobile ? '0 0.5rem' : undefined,
             maxWidth: isMobile ? '100vw' : undefined,
+            width: isMobile ? '100%' : undefined,
+            marginRight: isMobile ? 0 : undefined,
+            marginTop: isMobile ? 8 : undefined,
+            overflowX: isMobile ? 'hidden' : undefined,
+            boxSizing: 'border-box',
           }}
         >
-          <div className="bg-white rounded-lg border-[0.75] border-black shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: '1.1rem', maxWidth: readerWidth > 1100 ? readerWidth : 1100, width: readerWidth, margin: '0 auto', padding: isMobile ? '1.5rem 0.5rem' : undefined }} ref={el => {
-            if (el) {
-              console.log('Setting main reading area font size:', readerFontSize, 'and width:', readerWidth);
-            }
-          }}>
+          <div
+            className="bg-white rounded-lg border-[0.75] border-black shadow-[0_6px_0px_#d1d5db] p-12 mb-12 sm:p-4 sm:mb-4"
+            style={{
+              fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
+              fontSize: '1.1rem',
+              maxWidth: isMobile ? '100%' : readerWidth > 1100 ? readerWidth : 1100,
+              width: isMobile ? '100%' : readerWidth,
+              margin: '0 auto',
+              padding: isMobile ? '1.5rem 0.25rem' : undefined,
+              boxSizing: 'border-box',
+              overflowX: 'hidden',
+            }}
+            ref={el => {
+              if (el) {
+                console.log('Setting main reading area font size:', readerFontSize, 'and width:', readerWidth);
+              }
+            }}
+          >
             <>
               {currentViewMode === 'scroll-section' && (
                 <div
@@ -1823,8 +1885,10 @@ export default function ReaderPage() {
           let left = wiktionaryPopup.anchor.x;
           let top = wiktionaryPopup.anchor.y - 12;
           let transform = 'translate(-50%, -100%)';
-          const popupWidth = 340;
-          const popupHeight = 400;
+          const popupWidth = isMobile ? 260 : 320;
+          const popupHeight = isMobile ? 180 : 260;
+          const popupFontSize = isMobile ? 15 : 17;
+          const popupPadding = isMobile ? '0.5em 0.5em 0.4em 0.5em' : '0.8em 0.8em 0.6em 0.8em';
           const margin = 8;
           if (isMobile) {
             // Clamp left/right
@@ -1835,6 +1899,7 @@ export default function ReaderPage() {
               transform = 'translate(-50%, 0)';
             }
           }
+          // Sidebar gray: rgb(98,108,145)
           return (
             <div
               id="wiktionary-popup"
@@ -1845,53 +1910,69 @@ export default function ReaderPage() {
                 transform,
                 zIndex: 200,
                 background: '#fff',
-                borderRadius: '1em',
-                border: '2px solid #d1d5db',
-                minWidth: 260,
-                maxWidth: 340,
-                padding: '1.2em 1.2em 1em 1.2em',
+                borderRadius: '0.75em',
+                border: '1.5px solid #e5e7eb',
+                minWidth: popupWidth,
+                maxWidth: popupWidth,
+                width: popupWidth,
+                minHeight: popupHeight,
+                maxHeight: popupHeight,
+                padding: popupPadding,
                 fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
-                color: '#0B1423',
+                color: '#232946',
+                fontSize: popupFontSize,
                 pointerEvents: 'auto',
-                maxHeight: 400,
-                overflowY: 'auto',
+                overflow: 'hidden',
+                boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)',
               }}
-              onMouseLeave={hideWiktionaryPopup}
             >
-              <button
-                onClick={hideWiktionaryPopup}
-                style={{ position: 'absolute', top: 8, right: 12, background: 'none', border: 'none', fontSize: 22, color: '#bbb', cursor: 'pointer' }}
-                aria-label="Close"
-              >×</button>
-              <div className="font-bold text-lg mb-2">{wiktionaryPopup.word}</div>
-              {wiktionaryPopup.loading && <div className="text-gray-400">Loading...</div>}
-              {wiktionaryPopup.error && <div className="text-red-500">{wiktionaryPopup.error}</div>}
-              {wiktionaryPopup.data && !wiktionaryPopup.error && (
-                <>
-                  {Object.entries(wiktionaryPopup.data).map(([lang, entries]: any, idx) => (
-                    <div key={lang + idx}>
-                      {entries.map((entry: any, j: number) => (
-                        <div key={j} className="mb-3">
-                          <div className="text-xs font-bold text-purple-400 mb-1">{entry.partOfSpeech}</div>
-                          {entry.inflections && (
-                            <div className="mb-1 text-xs text-gray-500 flex flex-wrap gap-2">
-                              {entry.inflections.map((inf: any, k: number) => (
-                                <span key={k} className="bg-purple-100 text-purple-700 rounded px-2 py-0.5 text-xs font-semibold">{inf}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 2 }}>
+                <button
+                  onClick={handleSaveClick}
+                  style={{ background: 'none', border: 'none', fontSize: 18, color: 'rgb(98,108,145)', cursor: 'pointer', marginRight: 2, padding: 0, display: 'flex', alignItems: 'center' }}
+                  aria-label="Save sentence"
+                  tabIndex={0}
+                >
+                  <FaRegSave style={{ width: 18, height: 18, color: 'rgb(98,108,145)' }} />
+                </button>
+                <button
+                  onClick={hideWiktionaryPopup}
+                  style={{ background: 'none', border: 'none', fontSize: 22, color: '#bbb', cursor: 'pointer', padding: 0, marginLeft: 2 }}
+                  aria-label="Close"
+                  tabIndex={0}
+                >×</button>
+              </div>
+              <div className="font-bold text-lg mb-2" style={{ fontSize: 20, marginBottom: 8 }}>{wiktionaryPopup.word}</div>
+              <div style={{ overflowY: 'auto', maxHeight: popupHeight - 60, minHeight: 60 }}>
+                {wiktionaryPopup.loading && <div className="text-gray-400">Loading...</div>}
+                {wiktionaryPopup.error && <div className="text-red-500">{wiktionaryPopup.error}</div>}
+                {wiktionaryPopup.data && !wiktionaryPopup.error && (
+                  <>
+                    {Object.entries(wiktionaryPopup.data).map(([lang, entries]: any, idx) => (
+                      <div key={lang + idx} style={{ marginBottom: 8 }}>
+                        {entries.map((entry: any, j: number) => (
+                          <div key={j} className="mb-2">
+                            <div className="text-xs font-bold" style={{ color: '#a78bfa', marginBottom: 2 }}>{entry.partOfSpeech}</div>
+                            {entry.inflections && (
+                              <div className="mb-1 text-xs text-gray-500 flex flex-wrap gap-2">
+                                {entry.inflections.map((inf: any, k: number) => (
+                                  <span key={k} className="bg-purple-100 text-purple-700 rounded px-2 py-0.5 text-xs font-semibold">{inf}</span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="text-sm font-semibold mb-1">Definitions</div>
+                            <ul className="list-disc pl-5">
+                              {entry.definitions && entry.definitions.slice(0, 5).map((d: any, k: number) => (
+                                <li key={k} className="mb-1 text-sm" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(d.definition) }} />
                               ))}
-                            </div>
-                          )}
-                          <div className="text-sm font-semibold mb-1">Definitions</div>
-                          <ul className="list-disc pl-5">
-                            {entry.definitions && entry.definitions.slice(0, 5).map((d: any, k: number) => (
-                              <li key={k} className="mb-1 text-sm" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(d.definition) }} />
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </>
-              )}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
           );
         })()
@@ -1905,6 +1986,11 @@ export default function ReaderPage() {
       {showUnmarkedPopup.visible && (
         <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1000 }} className="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg text-lg font-bold animate-fade-in">
           Marked unread! (-{showUnmarkedPopup.wordCount.toLocaleString()} words)
+        </div>
+      )}
+      {showSentenceSaved && (
+        <div style={{ position: 'fixed', bottom: 32, left: 32, zIndex: 1000 }} className="bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg text-lg font-bold animate-fade-in">
+          Sentence saved!
         </div>
       )}
     </div>
@@ -1939,7 +2025,7 @@ export function EpubHtmlStyles() {
       .epub-html blockquote { border-left: 4px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #555; background: #fafafa; }
       .epub-html ul, .epub-html ol { margin: 1em 0 1em 2em; }
       .epub-html li { margin: 0.3em 0; }
-      .epub-html .sentence-span.sentence-hovered { background: rgba(255, 255, 0, 0.18) !important; border-radius: 0.25em; transition: background 0.15s; }
+      .epub-html .sentence-span.sentence-hovered { background: rgba(37, 99, 235, 0.10) !important; border-radius: 0.25em; transition: background 0.15s; }
     `}</style>
   );
 } 

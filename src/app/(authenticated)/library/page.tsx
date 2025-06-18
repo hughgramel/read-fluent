@@ -611,14 +611,15 @@ export default function library() {
     const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
     return (
       <div
-        className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col w-full max-w-[250px] min-h-[250px] aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group"
+        className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col w-full max-w-[250px] min-h-[250px] aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-md group
+          sm:max-w-[120px] sm:min-h-[120px] sm:p-1 sm:rounded-lg"
         style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', minHeight: 320, padding: 0 }}
         onClick={() => openBook(book)}
         tabIndex={0}
         role="button"
         aria-label={`Read ${book.title}`}
       >
-        <div className="flex justify-end p-2">
+        <div className="flex justify-end p-2 sm:p-1">
           <button
             onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, book.storagePath); }}
             className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
@@ -629,45 +630,45 @@ export default function library() {
             <FiTrash2 className="w-5 h-5" />
           </button>
         </div>
-        <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
-          <h3 className="font-bold text-[#232946] text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
+        <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2 sm:px-1 sm:pb-1 sm:gap-0.5">
+          <h3 className="font-bold text-[#232946] text-lg leading-tight mb-0.5 line-clamp-2 text-left sm:text-xs sm:mb-0" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
           {/* Reading Progress Bar */}
-          <div className="w-full mb-1">
-            <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
+          <div className="w-full mb-1 sm:mb-0.5">
+            <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden sm:h-1.5">
               <div className="absolute left-0 top-0 h-full bg-[#2563eb] transition-all" style={{ width: `${progressPct}%` }} />
             </div>
-            <div className="flex justify-between text-xs mt-1 text-[#6b7280]">
-              <span>{book.author}</span>
+            <div className="flex justify-between text-xs mt-1 text-[#6b7280] sm:text-[9px] sm:mt-0.5">
+              <span className="truncate">{book.author}</span>
               <span className="text-right">{wordsRead.toLocaleString()} / {book.totalWords.toLocaleString()} words</span>
             </div>
           </div>
           {/* Comprehension Progress Bar */}
-          <div className="w-full mt-1 mb-1">
-            <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
+          <div className="w-full mt-1 mb-1 sm:mt-0.5 sm:mb-0.5">
+            <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden sm:h-1.5">
               <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: `${knownPct}%`, borderRadius: '999px 0 0 999px' }} />
               <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: `${100 - unknownPct}%`, opacity: 0.3 }} />
               <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: `${trackingPct + knownPct}%`, opacity: 0.18 }} />
             </div>
-            <div className="flex justify-between text-xs mt-1 text-[#6b7280]">
+            <div className="flex justify-between text-xs mt-1 text-[#6b7280] sm:text-[9px] sm:mt-0.5">
               <span>{knownPct}% Known</span>
               <span>{unknownPct}% Unknown</span>
             </div>
           </div>
           {/* Actions */}
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-2 sm:gap-0.5 sm:mt-0.5">
             <button
               onClick={e => { e.stopPropagation(); setDataModalBook(book); }}
-              className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1.5 px-2 text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1.5 px-2 text-sm transition-colors sm:py-0.5 sm:px-0.5 sm:text-[10px]"
               tabIndex={-1}
             >
-              <FiBarChart2 className="w-4 h-4" /> Data
+              <FiBarChart2 className="w-4 h-4 sm:w-3 sm:h-3" /> Data
             </button>
             <button
               onClick={e => { e.stopPropagation(); toggleCompleted(book); }}
-              className={`flex-1 flex items-center justify-center gap-1 rounded-lg border ${book.completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1.5 px-2 text-sm transition-colors`}
+              className={`flex-1 flex items-center justify-center gap-1 rounded-lg border ${book.completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1.5 px-2 text-sm transition-colors sm:py-0.5 sm:px-0.5 sm:text-[10px]`}
               tabIndex={-1}
             >
-              <FiCheckCircle className="w-4 h-4" /> {book.completed ? 'Uncomplete' : 'Complete'}
+              <FiCheckCircle className="w-4 h-4 sm:w-3 sm:h-3" /> {book.completed ? 'Uncomplete' : 'Complete'}
             </button>
           </div>
         </div>

@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FaBookOpen, FaRegSave, FaUser, FaInfoCircle, FaThumbtack } from 'react-icons/fa';
 import { PiTextAaBold } from 'react-icons/pi';
+import { FaRegCommentDots } from 'react-icons/fa6';
 
 // Sidebar Navigation Items
 const navigation = [
   { name: 'Library', href: '/library', icon: <FaBookOpen /> },
   { name: 'History', href: '/history', icon: <FaRegSave /> },
   { name: 'Words', href: '/words', icon: <PiTextAaBold /> },
+  { name: 'Sentences', href: '/sentences', icon: <FaRegCommentDots /> },
   { name: 'Profile', href: '/profile', icon: <FaUser /> },
   { name: 'About', href: '/about', icon: <FaInfoCircle /> },
   // Add other authenticated links here if needed
