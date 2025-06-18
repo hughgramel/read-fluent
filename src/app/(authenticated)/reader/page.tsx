@@ -795,6 +795,22 @@ export default function ReaderPage() {
               if (word.trim()) {
                 const span = document.createElement('span');
                 span.className = 'word-span';
+                span.style.cursor = 'pointer';
+                span.style.zIndex = '10';
+                span.style.pointerEvents = 'auto';
+                // Create onclick handler, also when shift is pressed while hovering over the word
+                span.onmouseenter = (e) => {
+                  if (e.shiftKey) {
+                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                    showWiktionaryPopup(word, { x: rect.left + rect.width / 2, y: rect.top });
+                  }
+                };
+                span.onclick = (e) => {
+                  console.log('clicked', word);
+                  e.stopPropagation();
+                  const rect = (e.target as HTMLElement).getBoundingClientRect();
+                  showWiktionaryPopup(word, { x: rect.left + rect.width / 2, y: rect.top });
+                };
                 span.textContent = word;
                 fragment.appendChild(span);
               } else if (word) {
@@ -1075,7 +1091,12 @@ export default function ReaderPage() {
             return isWord ? (
               <WordSpan key={key} token={token} wordKey={key} wordStyle={wordStyle} />
             ) : (
-              <span key={key} style={{ fontFamily: readerFont, fontSize: readerFontSize }}>{token}</span>
+              <span key={key} onClick={e => {
+                console.log('clicked', token);
+                e.stopPropagation();
+                const rect = (e.target as HTMLElement).getBoundingClientRect();
+                showWiktionaryPopup(token, { x: rect.left + rect.width / 2, y: rect.top });
+              }} style={{ fontFamily: readerFont, fontSize: readerFontSize }}>{token}</span>
             );
           })}
         </span>
@@ -1099,9 +1120,7 @@ export default function ReaderPage() {
                 {tokens.map((token, i) => {
                   const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
                   const key = `html-${sIdx}-${i}`;
-                  return isWord ? (
-                    <WordSpan key={key} token={token} wordKey={key} />
-                  ) : token;
+                  return token;
                 })}
               </span>
             );
