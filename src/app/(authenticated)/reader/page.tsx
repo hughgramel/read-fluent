@@ -1159,7 +1159,7 @@ export default function ReaderPage() {
             const status = wordStatusMap[lower];
             const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
             const wordStyle = {
-              borderBottom: disableWordUnderlines ? 'none' : getUnderline(status, hoveredWord === key),
+              borderBottom: 'none', // Underlines disabled
               color: shiftedWord === key ? '#a78bfa' : undefined,
               background: hoveredWord === key ? '#f3f4f6' : undefined,
               fontWeight: status === 'known' ? 700 : 500,
@@ -1646,6 +1646,8 @@ export default function ReaderPage() {
               padding: isMobile ? '1.5rem 0.25rem' : undefined,
               boxSizing: 'border-box',
               overflowX: 'hidden',
+              border: isMobile ? 'none' : undefined,
+              borderColor: isMobile ? 'transparent' : undefined,
             }}
             ref={el => {
               if (el) {
@@ -1670,7 +1672,7 @@ export default function ReaderPage() {
                             const status = wordStatusMap[lower];
                             const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
                             const wordStyle = {
-                              borderBottom: disableWordUnderlines ? 'none' : getUnderline(status, hoveredWord === key),
+                              borderBottom: 'none', // Underlines disabled
                               color: shiftedWord === key ? '#a78bfa' : undefined,
                               background: hoveredWord === key ? '#f3f4f6' : undefined,
                               fontWeight: status === 'known' ? 700 : 500,
@@ -2018,7 +2020,7 @@ export function EpubHtmlStyles() {
         position: static !important;
       }
       .epub-html p { margin: 1em 0; font-size: 1em; }
-      .epub-html a { color: #2563eb; text-decoration: underline; }
+      .epub-html a { color: #2563eb; text-decoration: none !important; }
       .epub-html sup, .epub-html sub, .epub-html .footnote, .epub-html .footnotes { font-size: 0.75em; }
       .epub-html table { border-collapse: collapse; width: 100%; }
       .epub-html th, .epub-html td { border: 1px solid #ccc; padding: 0.3em 0.6em; }
