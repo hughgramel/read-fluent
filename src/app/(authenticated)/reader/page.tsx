@@ -775,51 +775,57 @@ export default function ReaderPage() {
       });
       styleTag.textContent = scopedCss;
 
-      // After CSS injection, wrap each word in spans
-      console.log('Wrapping words in spans');
-      const wrapWordsInSpans = () => {
+      // After CSS injection, wrap each sentence and word in spans
+      console.log('Wrapping sentences and words in spans');
+      const wrapSentencesAndWordsInSpans = () => {
         const contentDiv = document.querySelector('.epub-html');
         if (!contentDiv) return;
 
-        // Helper function to wrap text nodes in spans
+        // Helper function to wrap text nodes in sentence and word spans
         const wrapTextNode = (node: Node) => {
           if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent || '';
-            // Split on word boundaries, preserving punctuation
-            const words = text.split(/(\s+|[.,!?;:"()\[\]{}…—–])/);
-            
-            // Create a document fragment to hold our new nodes
+            // Split into sentences based on periods, exclamation, or question marks (not newlines)
+            const sentences = text.match(/[^.!?]+[.!?]+["']?(?=\s|$)|[^.!?]+$/g) || [];
             const fragment = document.createDocumentFragment();
-            
-            words.forEach((word, index) => {
-              if (word.trim()) {
-                const span = document.createElement('span');
-                span.className = 'word-span';
-                span.style.cursor = 'pointer';
-                span.style.zIndex = '10';
-                span.style.pointerEvents = 'auto';
-                // Create onclick handler, also when shift is pressed while hovering over the word
-                span.onmouseenter = (e) => {
-                  if (e.shiftKey) {
+            sentences.forEach((sentence) => {
+              const sentenceSpan = document.createElement('span');
+              sentenceSpan.className = 'sentence-span';
+              // Add hover effect for sentence highlighting
+              sentenceSpan.onmouseenter = () => {
+                sentenceSpan.classList.add('sentence-hovered');
+              };
+              sentenceSpan.onmouseleave = () => {
+                sentenceSpan.classList.remove('sentence-hovered');
+              };
+              // Now split sentence into words
+              const words = sentence.split(/(\s+|[.,!?;:"()\[\]{}…—–])/);
+              words.forEach((word) => {
+                if (word.trim()) {
+                  const wordSpan = document.createElement('span');
+                  wordSpan.className = 'word-span';
+                  wordSpan.style.cursor = 'pointer';
+                  wordSpan.style.zIndex = '10';
+                  wordSpan.style.pointerEvents = 'auto';
+                  wordSpan.onmouseenter = (e) => {
+                    if (e.shiftKey) {
+                      const rect = (e.target as HTMLElement).getBoundingClientRect();
+                      showWiktionaryPopup(word, { x: rect.left + rect.width / 2, y: rect.top });
+                    }
+                  };
+                  wordSpan.onclick = (e) => {
+                    e.stopPropagation();
                     const rect = (e.target as HTMLElement).getBoundingClientRect();
                     showWiktionaryPopup(word, { x: rect.left + rect.width / 2, y: rect.top });
-                  }
-                };
-                span.onclick = (e) => {
-                  console.log('clicked', word);
-                  e.stopPropagation();
-                  const rect = (e.target as HTMLElement).getBoundingClientRect();
-                  showWiktionaryPopup(word, { x: rect.left + rect.width / 2, y: rect.top });
-                };
-                span.textContent = word;
-                fragment.appendChild(span);
-              } else if (word) {
-                // Preserve whitespace and punctuation
-                fragment.appendChild(document.createTextNode(word));
-              }
+                  };
+                  wordSpan.textContent = word;
+                  sentenceSpan.appendChild(wordSpan);
+                } else if (word) {
+                  sentenceSpan.appendChild(document.createTextNode(word));
+                }
+              });
+              fragment.appendChild(sentenceSpan);
             });
-            
-            // Replace the original text node with our new nodes
             if (node.parentNode) {
               node.parentNode.replaceChild(fragment, node);
             }
@@ -831,22 +837,21 @@ export default function ReaderPage() {
           if (node.nodeType === Node.TEXT_NODE) {
             wrapTextNode(node);
           } else if (node.nodeType === Node.ELEMENT_NODE) {
-            // Skip if it's already a word span or a button
-            if ((node as Element).classList.contains('word-span') || 
-                (node as Element).tagName === 'BUTTON') {
+            // Skip if it's already a word or sentence span or a button
+            if (
+              (node as Element).classList.contains('word-span') ||
+              (node as Element).classList.contains('sentence-span') ||
+              (node as Element).tagName === 'BUTTON'
+            ) {
               return;
             }
-            // Process child nodes
             Array.from(node.childNodes).forEach(processNode);
           }
         };
-
-        // Process all nodes in the content div
         Array.from(contentDiv.childNodes).forEach(processNode);
       };
 
-      // Execute the word wrapping
-      wrapWordsInSpans();
+      wrapSentencesAndWordsInSpans();
     }
     return () => {
       const styleTag = document.getElementById('epub-book-css');
@@ -1934,6 +1939,7 @@ export function EpubHtmlStyles() {
       .epub-html blockquote { border-left: 4px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #555; background: #fafafa; }
       .epub-html ul, .epub-html ol { margin: 1em 0 1em 2em; }
       .epub-html li { margin: 0.3em 0; }
+      .epub-html .sentence-span.sentence-hovered { background: rgba(255, 255, 0, 0.18) !important; border-radius: 0.25em; transition: background 0.15s; }
     `}</style>
   );
 } 
