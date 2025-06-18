@@ -101,6 +101,14 @@ export default function ReaderPage() {
   const [showWordsReadPopup, setShowWordsReadPopup] = useState({ visible: false, wordCount: 0 });
   const [disableWordsReadPopup, setDisableWordsReadPopup] = useState(false);
   const [showUnmarkedPopup, setShowUnmarkedPopup] = useState({ visible: false, wordCount: 0 });
+  const [wiktionaryPopup, setWiktionaryPopup] = useState<{
+    word: string;
+    anchor: { x: number; y: number } | null;
+    loading: boolean;
+    data: any;
+    error: string | null;
+  } | null>(null);
+  const wiktionaryPopupTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Load book from Firebase Storage
   useEffect(() => {
@@ -950,6 +958,41 @@ export default function ReaderPage() {
     }
   };
 
+  // Handler to show Wiktionary popup
+  const showWiktionaryPopup = async (word: string, anchor: { x: number; y: number }) => {
+    setWiktionaryPopup({ word, anchor, loading: true, data: null, error: null });
+    const data = await fetchWiktionaryDefinition(word, nativeLanguage);
+    setWiktionaryPopup(prev => prev && prev.word === word ? { ...prev, loading: false, data, error: data.error || null } : prev);
+  };
+
+  // Handler to hide Wiktionary popup
+  const hideWiktionaryPopup = () => {
+    setWiktionaryPopup(null);
+    if (wiktionaryPopupTimeout.current) clearTimeout(wiktionaryPopupTimeout.current);
+  };
+
+  // Listen for Shift key globally and toggle Wiktionary popup for hovered word (all modes)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift' && hoveredWord) {
+        const el = document.querySelector(`[data-word-key='${hoveredWord}']`);
+        if (el) {
+          const rect = (el as HTMLElement).getBoundingClientRect();
+          showWiktionaryPopup((el as HTMLElement).innerText, { x: rect.left + rect.width / 2, y: rect.top });
+        }
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') hideWiktionaryPopup();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [hoveredWord]);
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
@@ -972,24 +1015,110 @@ export default function ReaderPage() {
   // Add a derived value for isZeroWordSection
   const isZeroWordSection = section.wordCount === 0;
 
-  // Helper to wrap words in spans for HTML content
-  function wrapWordsInHtml(html: string) {
+  // Helper to split text into sentences (simple regex, can be improved for edge cases)
+  function splitSentences(text: string) {
+    // This regex splits on sentence-ending punctuation followed by a space or end of string
+    return text.match(/[^.!?\n]+[.!?]+["']?(?=\s|$)|[^.!?\n]+$/g) || [];
+  }
+
+  // Helper to sanitize HTML: remove <a> tags and all event handlers
+  function sanitizeHtml(html: string) {
+    // Remove <a ...>...</a> tags
+    let sanitized = html.replace(/<a [^>]*>(.*?)<\/a>/gi, '$1');
+    // Remove inline event handlers (onclick, onmouseover, etc.)
+    sanitized = sanitized.replace(/ on\w+="[^"]*"/gi, '');
+    sanitized = sanitized.replace(/ on\w+='[^']*'/gi, '');
+    return sanitized;
+  }
+
+  // Add a single WordSpan component for all word spans
+  function WordSpan({ token, wordKey, wordStyle }: { token: string; wordKey: string; wordStyle?: React.CSSProperties }) {
+    return (
+      <span
+        data-word-key={wordKey}
+        className={"inline-block cursor-pointer transition-colors duration-150 word-span"}
+        style={wordStyle}
+        onClick={e => {
+          const rect = (e.target as HTMLElement).getBoundingClientRect();
+          showWiktionaryPopup(token, { x: rect.left + rect.width / 2, y: rect.top });
+        }}
+        onMouseEnter={() => throttledSetHoveredWord(wordKey)}
+        onMouseLeave={() => throttledSetHoveredWord(null)}
+      >
+        {token}
+      </span>
+    );
+  }
+
+  // In scroll-section mode, use WordSpan for all words
+  {section.content.split('\n\n').map((paragraph, pIdx) => (
+    <p key={pIdx} style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize }}>
+      {splitSentences(paragraph).map((sentence, sIdx) => (
+        <span key={sIdx} className="sentence-span">
+          {tokenize(sentence).map((token, i) => {
+            const key = `${pIdx}-${sIdx}-${i}`;
+            const lower = token.toLowerCase();
+            const status = wordStatusMap[lower];
+            const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
+            const wordStyle = {
+              borderBottom: disableWordUnderlines ? 'none' : getUnderline(status, hoveredWord === key),
+              color: shiftedWord === key ? '#a78bfa' : undefined,
+              background: hoveredWord === key ? '#f3f4f6' : undefined,
+              fontWeight: status === 'known' ? 700 : 500,
+              padding: '0 2px',
+              borderRadius: 2,
+              position: 'relative' as const,
+              zIndex: 1,
+              fontFamily: readerFont,
+              fontSize: readerFontSize,
+            };
+            return isWord ? (
+              <WordSpan key={key} token={token} wordKey={key} wordStyle={wordStyle} />
+            ) : (
+              <span key={key} style={{ fontFamily: readerFont, fontSize: readerFontSize }}>{token}</span>
+            );
+          })}
+        </span>
+      ))}
+    </p>
+  ))}
+
+  // In wrapSentencesAndWordsInHtml, use WordSpan for all words
+  function wrapSentencesAndWordsInHtml(html: string) {
+    const sanitized = sanitizeHtml(html);
     const options: HTMLReactParserOptions = {
       replace: (node: any) => {
         if (node.type === 'text') {
-          // Tokenize the text node
-          const tokens = tokenize((node as Text).data);
-          return tokens.map((token, i) => {
-            const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
-            return isWord ? (
-              <span key={i} className="word-span">{token}</span>
-            ) : token;
+          // Split into sentences
+          const sentences = splitSentences((node as Text).data);
+          return sentences.map((sentence, sIdx) => {
+            // Tokenize the sentence into words and punctuation
+            const tokens = tokenize(sentence);
+            return (
+              <span key={sIdx} className="sentence-span">
+                {tokens.map((token, i) => {
+                  const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
+                  const key = `html-${sIdx}-${i}`;
+                  return isWord ? (
+                    <WordSpan key={key} token={token} wordKey={key} />
+                  ) : token;
+                })}
+              </span>
+            );
+          });
+        }
+        // Remove all event handlers from elements
+        if (node.attribs) {
+          Object.keys(node.attribs).forEach(attr => {
+            if (/^on/i.test(attr)) {
+              delete node.attribs[attr];
+            }
           });
         }
         return undefined;
       },
     };
-    return parse(html, options);
+    return parse(sanitized, options);
   }
 
   return (
@@ -1447,40 +1576,33 @@ export default function ReaderPage() {
                 >
                   {section.content.split('\n\n').map((paragraph, pIdx) => (
                     <p key={pIdx} style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize }}>
-                      {tokenize(paragraph).map((token, i) => {
-                        const key = `${pIdx}-${i}`;
-                        const lower = token.toLowerCase();
-                        const status = wordStatusMap[lower];
-                        const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
-                        const wordStyle = {
-                          borderBottom: disableWordUnderlines ? 'none' : getUnderline(status, hoveredWord === key),
-                          color: shiftedWord === key ? '#a78bfa' : undefined,
-                          background: hoveredWord === key ? '#f3f4f6' : undefined,
-                          fontWeight: status === 'known' ? 700 : 500,
-                          padding: '0 2px',
-                          borderRadius: 2,
-                          position: 'relative' as const,
-                          zIndex: 1,
-                          fontFamily: readerFont,
-                          fontSize: readerFontSize,
-                        };
-                        // Only wrap words in a span, not punctuation/whitespace
-                        return isWord ? (
-                          <span
-                            key={key}
-                            data-word-key={key}
-                            className={"inline-block cursor-pointer transition-colors duration-150 word-span"}
-                            style={wordStyle}
-                            onClick={e => handleWordClick(token, e, key)}
-                            onMouseEnter={() => throttledSetHoveredWord(key)}
-                            onMouseLeave={() => throttledSetHoveredWord(null)}
-                          >
-                            {token}
-                          </span>
-                        ) : (
-                          <span key={key} style={{ fontFamily: readerFont, fontSize: readerFontSize }}>{token}</span>
-                        );
-                      })}
+                      {splitSentences(paragraph).map((sentence, sIdx) => (
+                        <span key={sIdx} className="sentence-span">
+                          {tokenize(sentence).map((token, i) => {
+                            const key = `${pIdx}-${sIdx}-${i}`;
+                            const lower = token.toLowerCase();
+                            const status = wordStatusMap[lower];
+                            const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
+                            const wordStyle = {
+                              borderBottom: disableWordUnderlines ? 'none' : getUnderline(status, hoveredWord === key),
+                              color: shiftedWord === key ? '#a78bfa' : undefined,
+                              background: hoveredWord === key ? '#f3f4f6' : undefined,
+                              fontWeight: status === 'known' ? 700 : 500,
+                              padding: '0 2px',
+                              borderRadius: 2,
+                              position: 'relative' as const,
+                              zIndex: 1,
+                              fontFamily: readerFont,
+                              fontSize: readerFontSize,
+                            };
+                            return isWord ? (
+                              <WordSpan key={key} token={token} wordKey={key} wordStyle={wordStyle} />
+                            ) : (
+                              <span key={key} style={{ fontFamily: readerFont, fontSize: readerFontSize }}>{token}</span>
+                            );
+                          })}
+                        </span>
+                      ))}
                     </p>
                   ))}
                   <div style={{ height: '200px' }} />
@@ -1494,7 +1616,7 @@ export default function ReaderPage() {
                   {book.sections.map((sec, secIdx) => (
                     <div key={sec.id || secIdx} className="mb-12 pt-20">
                       <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">{sec.title}</h2>
-                      <div>{wrapWordsInHtml(sec.content)}</div>
+                      <div>{wrapSentencesAndWordsInHtml(sec.content)}</div>
                     </div>
                   ))}
                   <div style={{ height: '200px' }} />
@@ -1506,7 +1628,7 @@ export default function ReaderPage() {
                   style={{ scrollBehavior: 'smooth', margin: '0 auto', minHeight: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
                 >
                   <div className="w-full">
-                    <div>{wrapWordsInHtml(section.content)}</div>
+                    <div>{wrapSentencesAndWordsInHtml(section.content)}</div>
                   </div>
                 </div>
               )}
@@ -1645,6 +1767,84 @@ export default function ReaderPage() {
               {defPopup.data && !defPopup.error && (
                 <>
                   {Object.entries(defPopup.data).map(([lang, entries]: any, idx) => (
+                    <div key={lang + idx}>
+                      {entries.map((entry: any, j: number) => (
+                        <div key={j} className="mb-3">
+                          <div className="text-xs font-bold text-purple-400 mb-1">{entry.partOfSpeech}</div>
+                          {entry.inflections && (
+                            <div className="mb-1 text-xs text-gray-500 flex flex-wrap gap-2">
+                              {entry.inflections.map((inf: any, k: number) => (
+                                <span key={k} className="bg-purple-100 text-purple-700 rounded px-2 py-0.5 text-xs font-semibold">{inf}</span>
+                              ))}
+                            </div>
+                          )}
+                          <div className="text-sm font-semibold mb-1">Definitions</div>
+                          <ul className="list-disc pl-5">
+                            {entry.definitions && entry.definitions.slice(0, 5).map((d: any, k: number) => (
+                              <li key={k} className="mb-1 text-sm" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(d.definition) }} />
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          );
+        })()
+      )}
+      {wiktionaryPopup && wiktionaryPopup.anchor && (
+        (() => {
+          let left = wiktionaryPopup.anchor.x;
+          let top = wiktionaryPopup.anchor.y - 12;
+          let transform = 'translate(-50%, -100%)';
+          const popupWidth = 340;
+          const popupHeight = 400;
+          const margin = 8;
+          if (isMobile) {
+            // Clamp left/right
+            left = Math.max(margin + popupWidth / 2, Math.min(window.innerWidth - margin - popupWidth / 2, left));
+            // If too close to top, show below the word
+            if (top - popupHeight < 0) {
+              top = wiktionaryPopup.anchor.y + 24;
+              transform = 'translate(-50%, 0)';
+            }
+          }
+          return (
+            <div
+              id="wiktionary-popup"
+              style={{
+                position: 'fixed',
+                left,
+                top,
+                transform,
+                zIndex: 200,
+                background: '#fff',
+                borderRadius: '1em',
+                border: '2px solid #d1d5db',
+                minWidth: 260,
+                maxWidth: 340,
+                padding: '1.2em 1.2em 1em 1.2em',
+                fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
+                color: '#0B1423',
+                pointerEvents: 'auto',
+                maxHeight: 400,
+                overflowY: 'auto',
+              }}
+              onMouseLeave={hideWiktionaryPopup}
+            >
+              <button
+                onClick={hideWiktionaryPopup}
+                style={{ position: 'absolute', top: 8, right: 12, background: 'none', border: 'none', fontSize: 22, color: '#bbb', cursor: 'pointer' }}
+                aria-label="Close"
+              >×</button>
+              <div className="font-bold text-lg mb-2">{wiktionaryPopup.word}</div>
+              {wiktionaryPopup.loading && <div className="text-gray-400">Loading...</div>}
+              {wiktionaryPopup.error && <div className="text-red-500">{wiktionaryPopup.error}</div>}
+              {wiktionaryPopup.data && !wiktionaryPopup.error && (
+                <>
+                  {Object.entries(wiktionaryPopup.data).map(([lang, entries]: any, idx) => (
                     <div key={lang + idx}>
                       {entries.map((entry: any, j: number) => (
                         <div key={j} className="mb-3">
