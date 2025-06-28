@@ -42,6 +42,8 @@ interface ReadingProgress {
 }
 
 export default function ReaderPage() {
+  // All hooks must be called here, at the top level, before any return or conditional logic
+  // (Move all useState, useEffect, useMemo, useCallback, useRef, etc. here)
   const router = useRouter();
   const searchParams = useSearchParams();
   const bookId = searchParams ? searchParams.get('book') : null;
@@ -133,6 +135,15 @@ export default function ReaderPage() {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
   const [showSectionSidebar, setShowSectionSidebar] = useState(true);
+
+  // Add state for read pages per section
+  const [readPagesBySection, setReadPagesBySection] = useState<{ [sectionIdx: number]: Set<number> }>({});
+
+  // Helper: get total words for a page
+  function getPageWordCount(sectionIdx: number, pageIdx: number): number {
+    const page = sectionPages[sectionIdx]?.[pageIdx] || [];
+    return page.join(' ').split(/\s+/).filter(Boolean).length;
+  }
 
   // Helper: robust sentence splitter
   function splitSentences(text: string) {
@@ -1096,24 +1107,56 @@ export default function ReaderPage() {
     }
   }, [book?.id, currentSentencePage]);
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
-        {error}
-      </div>
-    );
-  }
+  // Mark/unmark logic
+  const isPageRead = !!readPagesBySection[currentSectionIndex]?.has(currentPageIndex);
+  const handleMarkPageComplete = async () => {
+    if (isPageRead) return;
+    setReadPagesBySection(prev => {
+      const copy = { ...prev };
+      if (!copy[currentSectionIndex]) copy[currentSectionIndex] = new Set();
+      copy[currentSectionIndex].add(currentPageIndex);
+      return copy;
+    });
+    // Add to history
+    if (user?.uid && book) {
+      const session = {
+        userId: user.uid,
+        bookId: book.id,
+        bookTitle: book.title || '',
+        sectionId: `${currentSectionIndex}-${currentPageIndex}`,
+        sectionTitle: currentSection?.title || '',
+        wordCount: getPageWordCount(currentSectionIndex, currentPageIndex),
+        timestamp: new Date(),
+      };
+      await ReadingSessionService.addSession(session);
+    }
+    setTotalWordsRead(wr => wr + getPageWordCount(currentSectionIndex, currentPageIndex));
+  };
+  const handleUnmarkPageComplete = async () => {
+    if (!isPageRead) return;
+    setReadPagesBySection(prev => {
+      const copy = { ...prev };
+      if (copy[currentSectionIndex]) copy[currentSectionIndex].delete(currentPageIndex);
+      return copy;
+    });
+    if (user?.uid && book) {
+      await ReadingSessionService.removeSession({
+        userId: user.uid,
+        bookId: book.id,
+        sectionId: `${currentSectionIndex}-${currentPageIndex}`,
+      });
+    }
+    setTotalWordsRead(wr => Math.max(0, wr - getPageWordCount(currentSectionIndex, currentPageIndex)));
+  };
 
-  if (!book) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600 text-xl">
-        Book not found.
-      </div>
-    );
-  }
+  // (Place all hooks and functions here, do not return early)
+
+  // (Continue with the main render logic)
+
+
 
   // Always recalculate section from currentSentencePage
-  const section = book.sections[currentSentencePage];
+  const section = book?.sections[currentSentencePage];
 
   // Add a derived value for isZeroWordSection - check if current page has content
   const isZeroWordSection = !sentencePages[currentSentencePage] || sentencePages[currentSentencePage].length === 0;
@@ -1148,11 +1191,13 @@ export default function ReaderPage() {
   }
 
   // In scroll-section mode, use WordSpan for all words
-  {section.content.split('\n\n').map((paragraph, pIdx) => (
-    <p key={pIdx} style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize, fontWeight: 400 }}>
-      {paragraph}
-    </p>
-  ))}
+  {section && section.content
+    ? section.content.split('\n\n').map((paragraph, pIdx) => (
+        <p key={pIdx} style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize, fontWeight: 400 }}>
+          {paragraph}
+        </p>
+      ))
+    : null}
 
   // In wrapSentencesAndWordsInHtml, use WordSpan for all words
   function wrapSentencesAndWordsInHtml(html: string) {
@@ -1229,6 +1274,46 @@ export default function ReaderPage() {
   if (sectionPages.length && currentSectionIndex < sectionPages.length) {
     globalPageNumber = sectionPages.slice(0, currentSectionIndex).reduce((acc, arr) => acc + arr.length, 0) + currentPageIndex + 1;
   }
+
+  // Persist readPagesBySection in localStorage
+  // useEffect(() => {
+  //   if (book?.id) {
+  //     localStorage.setItem(`reader-read-pages-${book.id}`, JSON.stringify(
+  //       Object.fromEntries(Object.entries(readPagesBySection).map(([k, v]) => [k, Array.from(v)]))
+  //     ));
+  //   }
+  // }, [book?.id, readPagesBySection]);
+  // Restore on mount
+  useEffect(() => {
+    if (book?.id) {
+      const saved = localStorage.getItem(`reader-read-pages-${book.id}`);
+      if (saved) {
+        try {
+          const obj = JSON.parse(saved);
+          setReadPagesBySection(
+            Object.fromEntries(Object.entries(obj).map(([k, v]) => [Number(k), new Set(Array.isArray(v) ? v : [])]))
+          );
+        } catch {}
+      }
+    }
+  }, [book?.id]);
+
+    // Place early returns for error and !book after all hooks
+    if (error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
+          {error}
+        </div>
+      );
+    }
+  
+    if (!book) {
+      return (
+        <div className="min-h-screen flex items-center justify-center text-gray-600 text-xl">
+          Book not found.
+        </div>
+      );
+    }
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
@@ -1366,6 +1451,14 @@ export default function ReaderPage() {
                 {isMobile ? '⚙️' : 'Settings'}
               </button>
             </div>
+            {/* Add new control for marking/unmarking page */}
+            <div className="flex items-center gap-2 ml-6">
+              {isPageRead ? (
+                <button onClick={handleUnmarkPageComplete} className="px-4 py-2 rounded bg-green-500 text-white font-bold">Unmark Complete</button>
+              ) : (
+                <button onClick={handleMarkPageComplete} className="px-4 py-2 rounded bg-blue-500 text-white font-bold">Mark Complete</button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1376,16 +1469,26 @@ export default function ReaderPage() {
         {showSectionSidebar && (
           <div className="flex flex-col items-start pr-6" style={{ minWidth: 220 }}>
             <div className="font-bold text-lg mb-4">Sections</div>
-            {book.sections.map((section, idx) => (
-              <button
-                key={section.id || idx}
-                className={`w-full text-left px-4 py-2 rounded mb-1 font-semibold transition-all ${idx === currentSectionIndex ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
-                style={{ fontWeight: idx === currentSectionIndex ? 700 : 500, fontSize: 16 }}
-                onClick={() => goToPage(idx, 0)}
-              >
-                {section.title || `Section ${idx + 1}`}
-              </button>
-            ))}
+            {book.sections.map((section, idx) => {
+              const totalPages = sectionPages[idx]?.length || 0;
+              const readPages = readPagesBySection[idx]?.size || 0;
+              const allRead = totalPages > 0 && readPages === totalPages;
+              return (
+                <button
+                  key={section.id || idx}
+                  className={`w-full text-left px-4 py-2 rounded mb-1 font-semibold transition-all ${idx === currentSectionIndex ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                  style={{ fontWeight: idx === currentSectionIndex ? 700 : 500, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                  onClick={() => goToPage(idx, 0)}
+                >
+                  <span>{section.title || `Section ${idx + 1}`}</span>
+                  {allRead ? (
+                    <FiCheck className="text-green-500 ml-2" />
+                  ) : totalPages > 0 ? (
+                    <span className="ml-2 text-green-600 font-bold">{readPages} / {totalPages}</span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
         )}
         {/* Main reading area (centered, text always starts at top) */}

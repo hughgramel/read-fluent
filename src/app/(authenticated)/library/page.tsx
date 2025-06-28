@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { FiTrash2, FiBarChart2, FiCheckCircle } from 'react-icons/fi';
 import { uploadFileAndGetUrl } from '@/lib/firebase';
 import '@fontsource/inter';
-import { ReadingSessionService } from '@/services/readingSessionService';
+import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
 
 // Types
 interface BookSection {
@@ -61,6 +61,10 @@ export default function library() {
   // Track sidebar state for margin adjustment
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [bookWordsRead, setBookWordsRead] = useState<{ [key: string]: number }>({});
+  const [sessions, setSessions] = useState<ReadingSession[]>([]);
+  const [dailyGoal, setDailyGoal] = useState(1500);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goalInput, setGoalInput] = useState(1500);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -162,8 +166,18 @@ export default function library() {
         wordsRead[session.bookId] = (wordsRead[session.bookId] || 0) + session.wordCount;
       });
       setBookWordsRead(wordsRead);
+      setSessions(sessions);
     });
   }, [user]);
+
+  // On mount, load daily goal from localStorage if present
+  useEffect(() => {
+    const storedGoal = localStorage.getItem('rf-daily-goal');
+    if (storedGoal) {
+      setDailyGoal(Number(storedGoal));
+      setGoalInput(Number(storedGoal));
+    }
+  }, []);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -644,6 +658,17 @@ export default function library() {
   const notStarted = books.filter((b) => getBookStatus(b) === 'notStarted');
   const completed = books.filter((b) => getBookStatus(b) === 'completed');
 
+  // Helper: get today's date string (YYYY-MM-DD)
+  function getToday() {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  }
+  // Helper: get words read today
+  const wordsReadToday = sessions
+    ? sessions.filter((s: any) => s.timestamp && new Date(s.timestamp).toISOString().slice(0, 10) === getToday())
+        .reduce((sum: number, s: any) => sum + (s.wordCount || 0), 0)
+    : 0;
+
   // Book Card
   function BookCard({ book }: { book: Book }) {
     const knownPct = 94.6;
@@ -891,6 +916,70 @@ export default function library() {
             {error}
           </div>
         )}
+        {/* Daily Goals Row */}
+        <div className="mb-16">
+          <div className="flex items-center gap-4 mb-6 mt-12">
+            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>Daily Goals</h2>
+            <div className="flex-1 border-t border-gray-200" />
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-6 min-h-[180px]">
+            {/* Card 1: Reviews */}
+            {/* <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center w-full max-w-[240px] min-w-[180px] p-4" style={{ minHeight: 260 }}>
+              <div className="w-full text-left mb-2">
+                <span className="text-lg font-semibold text-[#232946]">Reviews</span>
+              </div>
+              <div className="relative flex items-center justify-center w-36 h-36 my-2">
+                <svg className="w-36 h-36 rotate-[-90deg]" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="10" />
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="#f4a261" strokeWidth="10" strokeDasharray="282.743" strokeDashoffset="90" strokeLinecap="round" />
+                </svg>
+                <span className="absolute text-xl font-bold text-[#232946]">55 / 91</span>
+              </div>
+              <div className="text-gray-500 text-sm text-center mb-4">Review 91 flashcards which are due today.</div>
+              <button className="text-[#6b7280] font-semibold text-base w-full text-center cursor-pointer bg-transparent border-none p-0 hover:underline">Start review</button>
+            </div> */}
+
+            {/* Card 2: Reading */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center w-full max-w-[240px] min-w-[180px] p-4" style={{ minHeight: 260 }}>
+              <div className="w-full text-left mb-2 flex items-center justify-between">
+                <span className="text-lg font-semibold text-[#232946]">Reading</span>
+                <button onClick={() => setShowGoalModal(true)} className="text-xs text-[#2563eb] font-semibold hover:underline ml-2">Set goal</button>
+              </div>
+              {/* Progress Circle */}
+              {(() => {
+                const pct = Math.min(100, (wordsReadToday / dailyGoal) * 100);
+                const dashoffset = 282.743 * (1 - pct / 100);
+                return (
+                  <div className="relative flex items-center justify-center w-36 h-36 my-2">
+                    <svg className="w-36 h-36 rotate-[-90deg]" viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="10" />
+                      <circle cx="50" cy="50" r="45" fill="none" stroke="#2563eb" strokeWidth="10" strokeDasharray="282.743" strokeDashoffset={dashoffset} strokeLinecap="round" />
+                    </svg>
+                    <span className="absolute text-xl font-bold text-[#232946]">{wordsReadToday} / {dailyGoal}</span>
+                  </div>
+                );
+              })()}
+              <div className="text-gray-500 text-sm text-center mb-4">Read {dailyGoal} words from any imported text.</div>
+              <button className="text-[#2563eb] font-semibold text-base w-full text-center cursor-pointer bg-transparent border-none p-0 hover:underline">Library</button>
+            </div>
+
+            {/* Card 3: New Words */}
+            {/* <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center w-full max-w-[240px] min-w-[180px] p-4" style={{ minHeight: 260 }}>
+              <div className="w-full text-left mb-2">
+                <span className="text-lg font-semibold text-[#232946]">New words</span>
+              </div>
+              <div className="relative flex items-center justify-center w-36 h-36 my-2">
+                <svg className="w-36 h-36 rotate-[-90deg]" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="10" />
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="#f4a261" strokeWidth="10" strokeDasharray="282.743" strokeDashoffset="225" strokeLinecap="round" />
+                </svg>
+                <span className="absolute text-xl font-bold text-[#232946]">1 / 10</span>
+              </div>
+              <div className="text-gray-500 text-sm text-center mb-4">Highlight and save 10 new words for review.</div>
+              <button className="text-[#2563eb] font-semibold text-base w-full text-center cursor-pointer bg-transparent border-none p-0 hover:underline">Library</button>
+            </div> */}
+          </div>
+        </div>
         {/* Active */}
         <SectionRow title="Active" books={activeBooks} />
         {/* Not Started */}
@@ -898,6 +987,38 @@ export default function library() {
         {/* Completed */}
         <SectionRow title="Completed" books={completed} />
         <DataModal />
+        {/* Daily Goal Modal */}
+        {showGoalModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <button
+                onClick={() => setShowGoalModal(false)}
+                className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
+                style={{ background: 'none', border: 'none', lineHeight: 1 }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h2 className="text-2xl font-extrabold mb-4 text-[#222] tracking-tight text-center">Set Daily Goal</h2>
+              <div className="flex flex-col gap-4 items-center">
+                <label className="font-semibold text-gray-700">Words per day</label>
+                <input
+                  type="number"
+                  min={100}
+                  max={10000}
+                  value={goalInput}
+                  onChange={e => setGoalInput(Number(e.target.value))}
+                  className="border border-gray-300 rounded-lg px-4 py-2 text-lg text-center focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                  style={{ width: 160 }}
+                />
+                <button
+                  onClick={() => { setDailyGoal(goalInput); setShowGoalModal(false); localStorage.setItem('rf-daily-goal', String(goalInput)); }}
+                  className="mt-2 px-6 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
+                >Save</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
