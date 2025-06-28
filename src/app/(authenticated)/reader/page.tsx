@@ -45,10 +45,9 @@ export default function ReaderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const bookId = searchParams ? searchParams.get('book') : null;
-  const sectionParam = searchParams ? searchParams.get('section') : null;
+  const pageParam = searchParams ? searchParams.get('page') : null;
   const { user } = useAuth();
   const [book, setBook] = useState<Book | null>(null);
-  const [currentSection, setCurrentSection] = useState(0);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -57,7 +56,6 @@ export default function ReaderPage() {
   const [readerFont, setReaderFont] = useState<string>('serif');
   const [readerWidth, setReaderWidth] = useState<number>(700);
   const [readerFontSize, setReaderFontSize] = useState<number>(18);
-  const [showSidebar, setShowSidebar] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [userWords, setUserWords] = useState<Word[]>([]);
@@ -80,8 +78,6 @@ export default function ReaderPage() {
   const defPopupTimeout = useRef<NodeJS.Timeout | null>(null);
   const [shiftedWord, setShiftedWord] = useState<string | null>(null);
   const [showEntireBook, setShowEntireBook] = useState(false);
-  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [visibleSection, setVisibleSection] = useState<number>(0);
   const [disableWordUnderlines, setDisableWordUnderlines] = useState<boolean>(false);
   const [currentTheme, setCurrentTheme] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -109,6 +105,136 @@ export default function ReaderPage() {
     error: string | null;
   } | null>(null);
   const wiktionaryPopupTimeout = useRef<NodeJS.Timeout | null>(null);
+  // 1. Add new state for container style
+  const [readerContainerStyle, setReaderContainerStyle] = useState<'contained' | 'border' | 'none' | 'full-width'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('reader-container-style') as 'contained' | 'border' | 'none' | 'full-width') || 'contained';
+    }
+    return 'contained';
+  });
+  // 1. Add state for sentencesPerPage and sentence-based pagination
+  const [sentencesPerPage, setSentencesPerPage] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return Number(localStorage.getItem('reader-sentences-per-page')) || 50;
+    }
+    return 50;
+  });
+  const [sentencePages, setSentencePages] = useState<string[][]>([]); // Each page is an array of sentences
+  const [currentSentencePage, setCurrentSentencePage] = useState(0);
+  const [readPages, setReadPages] = useState<{ [key: number]: boolean }>({});
+
+  // Add missing state variables to fix linter errors
+  const [visibleSection, setVisibleSection] = useState(0);
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Section-aware pagination state
+  const [sectionPages, setSectionPages] = useState<string[][][]>([]); // sectionPages[sectionIndex][pageIndex] = [sentences]
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+
+  const [showSectionSidebar, setShowSectionSidebar] = useState(true);
+
+  // Helper: robust sentence splitter
+  function splitSentences(text: string) {
+    // Handles .!? plus newlines, and avoids splitting on abbreviations (basic)
+    return text.match(/[^.!?\n]+[.!?]+["']?(?=\s|$)|[^.!?\n]+$/g) || [];
+  }
+
+  // Build sectionPages on book or sentencesPerPage change
+  useEffect(() => {
+    if (!book) return;
+    const newSectionPages: string[][][] = book.sections.map((section, idx) => {
+      // Print the full content before splitting
+      console.log(`Section ${idx + 1} (${section.title}): RAW CONTENT:`);
+      console.log(section.content);
+      // Split into sentences
+      function splitSentences(text: string): string[] {
+        const paragraphs = text.split(/\n\n+/g).map(p => p.trim()).filter(Boolean);
+        const sentenceRegex = /(?<!\b[A-Z][a-z]\.|Sr\.|Sra\.|Dr\.|Dra\.|etc\.|No\.|N\u00ba)\s*(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/g;
+        return paragraphs.flatMap(paragraph => paragraph.split(sentenceRegex).map((s: string) => s.trim()).filter(Boolean));
+      }
+      const sentences = splitSentences(section.content);
+      // Print only the first 10 split sentences
+      console.log(`Section ${idx + 1} (${section.title}): FIRST 10 SENTENCES:`);
+      sentences.slice(0, 10).forEach((s: string, i: number) => console.log(`Sentence ${i + 1}:`, s));
+      // Print the first sentence
+      if (sentences.length > 0) {
+        console.log(`Section ${idx + 1} (${section.title}): FIRST SENTENCE:`, sentences[0]);
+      } else {
+        console.log(`Section ${idx + 1} (${section.title}): No sentences found.`);
+      }
+      const pages: string[][] = [];
+      for (let i = 0; i < sentences.length; i += sentencesPerPage) {
+        pages.push(sentences.slice(i, i + sentencesPerPage));
+      }
+      return pages;
+    });
+    setSectionPages(newSectionPages);
+    // Restore progress
+    let sectionIdx = 0, pageIdx = 0;
+    const key = `reader-last-pos-${book.id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const obj = JSON.parse(saved);
+        if (typeof obj.sectionIndex === 'number' && typeof obj.pageIndex === 'number') {
+          sectionIdx = Math.max(0, Math.min(obj.sectionIndex, newSectionPages.length - 1));
+          pageIdx = Math.max(0, Math.min(obj.pageIndex, (newSectionPages[sectionIdx]?.length || 1) - 1));
+        }
+      } catch {}
+    }
+    setCurrentSectionIndex(sectionIdx);
+    setCurrentPageIndex(pageIdx);
+  }, [book, sentencesPerPage]);
+
+  // Save progress on change
+  useEffect(() => {
+    if (book?.id) {
+      // Clamp indices to valid ranges before saving
+      let sectionIdx = Math.max(0, Math.min(currentSectionIndex, sectionPages.length - 1));
+      let pageIdx = Math.max(0, Math.min(currentPageIndex, (sectionPages[sectionIdx]?.length || 1) - 1));
+      localStorage.setItem(`reader-last-pos-${book.id}`, JSON.stringify({ sectionIndex: sectionIdx, pageIndex: pageIdx }));
+    }
+  }, [book?.id, currentSectionIndex, currentPageIndex, sectionPages]);
+
+  // Navigation helpers
+  const goToPage = (sectionIdx: number, pageIdx: number) => {
+    // Clamp indices
+    sectionIdx = Math.max(0, Math.min(sectionIdx, sectionPages.length - 1));
+    pageIdx = Math.max(0, Math.min(pageIdx, (sectionPages[sectionIdx]?.length || 1) - 1));
+    setCurrentSectionIndex(sectionIdx);
+    setCurrentPageIndex(pageIdx);
+  };
+  const nextPage = () => {
+    if (!sectionPages.length) return;
+    const pagesInSection = sectionPages[currentSectionIndex]?.length || 0;
+    if (currentPageIndex < pagesInSection - 1) {
+      setCurrentPageIndex(currentPageIndex + 1);
+    } else if (currentSectionIndex < sectionPages.length - 1) {
+      setCurrentSectionIndex(currentSectionIndex + 1);
+      setCurrentPageIndex(0);
+    }
+  };
+  const prevPage = () => {
+    if (!sectionPages.length) return;
+    if (currentPageIndex > 0) {
+      setCurrentPageIndex(currentPageIndex - 1);
+    } else if (currentSectionIndex > 0) {
+      const prevSectionPages = sectionPages[currentSectionIndex - 1]?.length || 1;
+      setCurrentSectionIndex(currentSectionIndex - 1);
+      setCurrentPageIndex(prevSectionPages - 1);
+    }
+  };
+
+  // Sync currentSentencePage with URL parameter changes
+  useEffect(() => {
+    if (pageParam && !isNaN(Number(pageParam))) {
+      const pageNum = Math.max(0, Math.min(Number(pageParam), sentencePages.length - 1));
+      if (pageNum !== currentSentencePage) {
+        setCurrentSentencePage(pageNum);
+      }
+    }
+  }, [pageParam, sentencePages.length, currentSentencePage]);
 
   // Load book from Firebase Storage
   useEffect(() => {
@@ -158,10 +284,10 @@ export default function ReaderPage() {
           let sectionNum = 0;
           if (typeof (meta as any).currentSection === 'number') {
             sectionNum = (meta as any).currentSection;
-          } else if (sectionParam && !isNaN(Number(sectionParam))) {
-            sectionNum = Math.max(0, Math.min(Number(sectionParam), bookObj.sections.length - 1));
+          } else if (pageParam && !isNaN(Number(pageParam))) {
+            sectionNum = Math.max(0, Math.min(Number(pageParam), bookObj.sections.length - 1));
           }
-          setCurrentSection(sectionNum);
+          // Don't set currentSentencePage here - it will be set in the sentencePages effect
         } else {
           setError('Book could not be loaded.');
           setBook(null);
@@ -171,7 +297,37 @@ export default function ReaderPage() {
         setBook(null);
       }
     });
-  }, [user, bookId, sectionParam]);
+  }, [user, bookId, pageParam]);
+
+  // 2. On book load, flatten all section contents and paginate by sentencesPerPage
+  useEffect(() => {
+    if (!book) return;
+    // Flatten all section contents into a single string
+    const allText = book.sections.map(s => s.content).join(' ');
+    // Split into sentences (keep punctuation)
+    const sentences = allText.match(/[^.!?\n]+[.!?]+["']?(?=\s|$)|[^.!?\n]+$/g) || [];
+    // Chunk into pages
+    const newPages: string[][] = [];
+    for (let i = 0; i < sentences.length; i += sentencesPerPage) {
+      newPages.push(sentences.slice(i, i + sentencesPerPage));
+    }
+    setSentencePages(newPages);
+    // Set initial page based on URL parameter, saved progress, or localStorage
+    if (pageParam && !isNaN(Number(pageParam))) {
+      const pageNum = Math.max(0, Math.min(Number(pageParam), newPages.length - 1));
+      setCurrentSentencePage(pageNum);
+    } else {
+      // Try to restore from localStorage
+      let lastPage = 0;
+      if (book.id) {
+        const saved = localStorage.getItem(`reader-last-page-${book.id}`);
+        if (saved && !isNaN(Number(saved))) {
+          lastPage = Math.max(0, Math.min(Number(saved), newPages.length - 1));
+        }
+      }
+      setCurrentSentencePage(lastPage);
+    }
+  }, [book, sentencesPerPage, pageParam]);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -187,8 +343,8 @@ export default function ReaderPage() {
         if (contentRef.current) {
           const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
           if (scrollTop + clientHeight >= scrollHeight - 50) {
-            if (book && currentSection < book.sections.length - 1) {
-              nextSection(true);
+            if (book && currentSentencePage < sentencePages.length - 1) {
+              nextSentencePage();
             } else {
               setIsAutoScrolling(false);
             }
@@ -200,28 +356,9 @@ export default function ReaderPage() {
       scrollInterval = setInterval(smoothScroll, interval);
     }
     return () => { if (scrollInterval) clearInterval(scrollInterval); };
-  }, [isAutoScrolling, scrollSpeed, currentSection, book]);
+  }, [isAutoScrolling, scrollSpeed, currentSentencePage, sentencePages.length, book]);
 
-  useEffect(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, [currentSection]);
-
-  const nextSection = (fromAutoScroll = false) => {
-    if (book && currentSection < book.sections.length - 1) {
-      const newSection = currentSection + 1;
-      setCurrentSection(newSection);
-      router.replace(`/reader?book=${book.id}&section=${newSection}`);
-      if (fromAutoScroll && contentRef.current) {
-        setTimeout(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, 0);
-      }
-    }
-  };
-
-  const prevSection = () => {
-    if (currentSection > 0 && book) {
-      const newSection = currentSection - 1;
-      setCurrentSection(newSection);
-      router.replace(`/reader?book=${book.id}&section=${newSection}`);
-    }
-  };
+  useEffect(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, [currentSentencePage]);
 
   const backToLibrary = () => {
     router.push('/library');
@@ -235,7 +372,7 @@ export default function ReaderPage() {
       // Save to localStorage
       const progress: ReadingProgress = {
         bookId: book.id,
-        currentSection: currentSection,
+        currentSection: currentSentencePage,
         lastRead: new Date().toISOString()
       };
       const savedProgress = localStorage.getItem('epub-reader-progress');
@@ -247,9 +384,9 @@ export default function ReaderPage() {
       allProgress.push(progress);
       localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
       // Save to Firestore metadata
-      updateBookMetadata(user.uid, book.id, { currentSection });
+      updateBookMetadata(user.uid, book.id, { currentSection: currentSentencePage });
     }
-  }, [book, currentSection, user]);
+  }, [book, currentSentencePage, user]);
 
   // Load preferences on mount
   useEffect(() => {
@@ -293,12 +430,13 @@ export default function ReaderPage() {
     disableUnderlines = disableWordUnderlines,
     theme = currentTheme,
     viewMode = currentViewMode,
-    disableWordsReadPopupValue = disableWordsReadPopup
+    disableWordsReadPopupValue = disableWordsReadPopup,
+    containerStyle = readerContainerStyle
   ) => {
     // This function saves the user's reader preferences (font, width, font size, etc.) to the backend.
     // It is called whenever a setting is changed in the UI.
     if (user?.uid) {
-      console.log('Saving preferences:', { font, width, fontSize, disableUnderlines, theme, viewMode, disableWordsReadPopupValue });
+      console.log('Saving preferences:', { font, width, fontSize, disableUnderlines, theme, viewMode, disableWordsReadPopupValue, containerStyle });
       await UserService.updateUserPreferences(user.uid, {
         readerFont: font,
         readerWidth: width,
@@ -307,7 +445,9 @@ export default function ReaderPage() {
         theme: theme,
         viewMode: viewMode,
         disableWordsReadPopup: disableWordsReadPopupValue,
-      });
+        readerContainerStyle: containerStyle,
+      } as any);
+      localStorage.setItem('reader-container-style', containerStyle);
     }
   };
 
@@ -375,7 +515,7 @@ export default function ReaderPage() {
   // Helper: get underline style
   function getUnderline(type: WordType | undefined, hovered: boolean) {
     if (type === 'tracking') return '2px solid #a78bfa'; // purple
-    if (!type) return '2px solid #f87171'; // red (unknown)
+    if (!type) return 'none'; // no underline for unknown
     if (type === 'known') return hovered ? '2px solid #16a34a' : 'none';
     if (type === 'ignored') return hovered ? '2px solid #222' : 'none';
     return 'none';
@@ -521,7 +661,7 @@ export default function ReaderPage() {
       if (!hoveredWord || !user?.uid) return;
       const [pIdx, i] = hoveredWord.split('-');
       let wordToken = '';
-      const section = book?.sections?.[currentSection];
+      const section = book?.sections?.[currentSentencePage];
       if (section) {
         outer: for (const [paraIdx, paragraph] of section.content.split('\n\n').entries()) {
           if (String(paraIdx) === pIdx) {
@@ -559,7 +699,7 @@ export default function ReaderPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hoveredWord, user, book, currentSection]);
+  }, [hoveredWord, user, book, currentSentencePage, sentencePages.length]);
 
   // Remove shadow from definition popup, limit definitions to 5, and close on outside click, esc, or hover another word
   useEffect(() => {
@@ -581,7 +721,7 @@ export default function ReaderPage() {
     };
   }, [defPopup]);
   useEffect(() => {
-    if (defPopup && hoveredWord && defPopup.word !== (tokenize(section.content.split('\n\n')[parseInt(defPopup.word.split('-')[0])]).find((t, idx) => String(idx) === defPopup.word.split('-')[1]) || '')) {
+    if (defPopup && hoveredWord && defPopup.word !== (tokenize(sentencePages[currentSentencePage]?.join(' ')).find((t, idx) => String(idx) === defPopup.word.split('-')[1]) || '')) {
       hideDefinitionPopup();
     }
   }, [hoveredWord]);
@@ -591,7 +731,7 @@ export default function ReaderPage() {
     book?.sections.map(section => section.content.split('\n\n').map(tokenize)) || [],
     [book]
   );
-  const currentTokenizedSection = tokenizedSections[currentSection] || [];
+  const currentTokenizedSection = tokenizedSections[currentSentencePage] || [];
 
   // Throttle setHoveredWord to avoid rapid state updates
   const throttledSetHoveredWord = useCallback(
@@ -735,11 +875,11 @@ export default function ReaderPage() {
         console.log(result);
 
         const now = new Date().toISOString();
-        const key = `comprehension-${book?.id || 'unknown'}-${currentSection}`;
+        const key = `comprehension-${book?.id || 'unknown'}-${currentSentencePage}`;
         
         const data = {
             book: book?.id,
-            section: currentSection,
+            section: currentSentencePage,
             known_words: result.known || 0,
             unknown_words: result.unknown || 0,
             ignored_words: result.ignored || 0,
@@ -880,103 +1020,38 @@ export default function ReaderPage() {
     }
   }, [user, book]);
 
-  // Add mark as read handler
-  const handleMarkAsRead = async () => {
-    if (!user?.uid || !book || !book.sections[currentSection]) return;
-    const section = book.sections[currentSection];
-    const wordCount = section.wordCount;
-    if (wordCount === 0) return; // don't save or show popup for 0-word sections
-    try {
-      await ReadingSessionService.addSession({
-        userId: user.uid,
-        bookId: book.id,
-        bookTitle: book.title || 'Unknown Book',
-        sectionId: section.id,
-        sectionTitle: section.title,
-        wordCount,
-        timestamp: new Date()
-      });
-      setReadSections(prev => ({ ...prev, [section.id]: true }));
-      setTotalWordsRead(prev => prev + wordCount);
-      if (!disableWordsReadPopup) {
-        setShowWordsReadPopup({
-          visible: true,
-          wordCount: wordCount
-        });
-        setTimeout(() => setShowWordsReadPopup({ visible: false, wordCount: 0 }), 2500);
-      }
-    } catch (error) {
-      console.error('Failed to mark section as read:', error);
+  // 3. Navigation handlers for sentence pages
+  const nextSentencePage = () => {
+    if (currentSentencePage < sentencePages.length - 1) {
+      const newPage = currentSentencePage + 1;
+      setCurrentSentencePage(newPage);
+      router.push(`/reader?book=${book?.id}&page=${newPage}`, { scroll: false });
+    }
+  };
+  const prevSentencePage = () => {
+    if (currentSentencePage > 0) {
+      const newPage = currentSentencePage - 1;
+      setCurrentSentencePage(newPage);
+      router.push(`/reader?book=${book?.id}&page=${newPage}`, { scroll: false });
     }
   };
 
-  // Add handler to unmark as read
-  const handleUnmarkAsRead = async () => {
-    if (!user?.uid || !book || !book.sections[currentSection]) return;
-    const section = book.sections[currentSection];
-    if (section.wordCount === 0) return; // don't unmark or show popup for 0-word sections
-    try {
-      await ReadingSessionService.removeSession({
-        userId: user.uid,
-        bookId: book.id,
-        sectionId: section.id,
-      });
-      setReadSections(prev => {
-        const copy = { ...prev };
-        delete copy[section.id];
-        return copy;
-      });
-      setTotalWordsRead(prev => Math.max(0, prev - section.wordCount));
-      if (!disableWordsReadPopup) {
-        setShowUnmarkedPopup({
-          visible: true,
-          wordCount: section.wordCount
-        });
-        setTimeout(() => setShowUnmarkedPopup({ visible: false, wordCount: 0 }), 2500);
+  // 4. Mark as read logic (by sentence page)
+  const handleMarkAsRead = () => {
+    setReadPages(prev => {
+      const newRead = { ...prev };
+      for (let i = 0; i <= currentSentencePage; i++) {
+        newRead[i] = true;
       }
-    } catch (error) {
-      console.error('Failed to unmark section as read:', error);
-    }
+      return newRead;
+    });
   };
-
-  // Add handleMarkSection and handleUnmarkSection inside the component
-  const handleMarkSection = async (sectionId: string, wordCount: number, sectionTitle: string) => {
-    if (!user?.uid || !book) return;
-    if (wordCount === 0) return;
-    try {
-      await ReadingSessionService.addSession({
-        userId: user.uid,
-        bookId: book.id,
-        bookTitle: book.title || 'Unknown Book',
-        sectionId,
-        sectionTitle,
-        wordCount,
-        timestamp: new Date()
-      });
-      setReadSections(prev => ({ ...prev, [sectionId]: true }));
-      setTotalWordsRead(prev => prev + wordCount);
-    } catch (error) {
-      console.error('Failed to mark section as read:', error);
-    }
-  };
-  const handleUnmarkSection = async (sectionId: string, wordCount: number) => {
-    if (!user?.uid || !book) return;
-    if (wordCount === 0) return;
-    try {
-      await ReadingSessionService.removeSession({
-        userId: user.uid,
-        bookId: book.id,
-        sectionId,
-      });
-      setReadSections(prev => {
-        const copy = { ...prev };
-        delete copy[sectionId];
-        return copy;
-      });
-      setTotalWordsRead(prev => Math.max(0, prev - wordCount));
-    } catch (error) {
-      console.error('Failed to unmark section as read:', error);
-    }
+  const handleUnmarkAsRead = () => {
+    setReadPages(prev => {
+      const copy = { ...prev };
+      delete copy[currentSentencePage];
+      return copy;
+    });
   };
 
   // Handler to show Wiktionary popup
@@ -1014,6 +1089,13 @@ export default function ReaderPage() {
     };
   }, [hoveredWord]);
 
+  // Save current page to localStorage on every page change (must be before any return)
+  useEffect(() => {
+    if (book?.id && typeof currentSentencePage === 'number') {
+      localStorage.setItem(`reader-last-page-${book.id}`, String(currentSentencePage));
+    }
+  }, [book?.id, currentSentencePage]);
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
@@ -1030,17 +1112,11 @@ export default function ReaderPage() {
     );
   }
 
-  // Always recalculate section from currentSection
-  const section = book.sections[currentSection];
+  // Always recalculate section from currentSentencePage
+  const section = book.sections[currentSentencePage];
 
-  // Add a derived value for isZeroWordSection
-  const isZeroWordSection = section.wordCount === 0;
-
-  // Helper to split text into sentences (simple regex, can be improved for edge cases)
-  function splitSentences(text: string) {
-    // This regex splits on sentence-ending punctuation followed by a space or end of string
-    return text.match(/[^.!?\n]+[.!?]+["']?(?=\s|$)|[^.!?\n]+$/g) || [];
-  }
+  // Add a derived value for isZeroWordSection - check if current page has content
+  const isZeroWordSection = !sentencePages[currentSentencePage] || sentencePages[currentSentencePage].length === 0;
 
   // Helper to sanitize HTML: remove <a> tags and all event handlers
   function sanitizeHtml(html: string) {
@@ -1073,39 +1149,8 @@ export default function ReaderPage() {
 
   // In scroll-section mode, use WordSpan for all words
   {section.content.split('\n\n').map((paragraph, pIdx) => (
-    <p key={pIdx} style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize }}>
-      {splitSentences(paragraph).map((sentence, sIdx) => (
-        <span key={sIdx} className="sentence-span">
-          {tokenize(sentence).map((token, i) => {
-            const key = `${pIdx}-${sIdx}-${i}`;
-            const lower = token.toLowerCase();
-            const status = wordStatusMap[lower];
-            const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
-            const wordStyle = {
-              borderBottom: disableWordUnderlines ? 'none' : getUnderline(status, hoveredWord === key),
-              color: shiftedWord === key ? '#a78bfa' : undefined,
-              background: hoveredWord === key ? '#f3f4f6' : undefined,
-              fontWeight: status === 'known' ? 700 : 500,
-              padding: '0 2px',
-              borderRadius: 2,
-              position: 'relative' as const,
-              zIndex: 1,
-              fontFamily: readerFont,
-              fontSize: readerFontSize,
-            };
-            return isWord ? (
-              <WordSpan key={key} token={token} wordKey={key} wordStyle={wordStyle} />
-            ) : (
-              <span key={key} onClick={e => {
-                console.log('clicked', token);
-                e.stopPropagation();
-                const rect = (e.target as HTMLElement).getBoundingClientRect();
-                showWiktionaryPopup(token, { x: rect.left + rect.width / 2, y: rect.top });
-              }} style={{ fontFamily: readerFont, fontSize: readerFontSize }}>{token}</span>
-            );
-          })}
-        </span>
-      ))}
+    <p key={pIdx} style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize, fontWeight: 400 }}>
+      {paragraph}
     </p>
   ))}
 
@@ -1143,6 +1188,46 @@ export default function ReaderPage() {
       },
     };
     return parse(sanitized, options);
+  }
+
+  function getReaderContainerClass() {
+    if (readerContainerStyle === 'contained') return 'bg-white rounded-lg border-[0.75] border-black';
+    if (readerContainerStyle === 'border') return 'bg-transparent border border-gray-300 rounded-lg';
+    if (readerContainerStyle === 'full-width') return 'bg-white';
+    return 'bg-transparent';
+  }
+  
+  function getReaderContainerStyle() {
+    if (readerContainerStyle === 'full-width') {
+      return { fontFamily: readerFont, fontSize: '1.1rem', width: '100%', maxWidth: '100%', margin: 0, padding: 0, boxShadow: 'none', border: 'none', background: 'white' };
+    }
+    let style: React.CSSProperties = { 
+      fontFamily: readerFont, 
+      fontSize: '1.1rem', 
+      maxWidth: readerWidth, 
+      width: readerWidth, 
+      margin: '0', 
+      padding: isMobile ? '1.5rem 0.75rem' : '2.5rem 2.5rem',
+    };
+    if (readerContainerStyle === 'none') {
+      style = { ...style, boxShadow: 'none', border: 'none', background: 'transparent' };
+    } else if (readerContainerStyle === 'border') {
+      style = { ...style, boxShadow: 'none', background: 'transparent' };
+    }
+    return style;
+  }
+
+  // Get current section/page content safely
+  const currentSection = book?.sections?.[currentSectionIndex];
+  const currentPages = sectionPages[currentSectionIndex] || [];
+  const currentPageSentences = currentPages[currentPageIndex] || [];
+
+  // Calculate global page number and total pages
+  const flatPages = sectionPages.flat();
+  let globalPageNumber = 1;
+  let totalPages = flatPages.length;
+  if (sectionPages.length && currentSectionIndex < sectionPages.length) {
+    globalPageNumber = sectionPages.slice(0, currentSectionIndex).reduce((acc, arr) => acc + arr.length, 0) + currentPageIndex + 1;
   }
 
   return (
@@ -1195,468 +1280,135 @@ export default function ReaderPage() {
       {/* Header (conditionally rendered) */}
       {showHeader && (
         <div className="bg-white border-[0.75] border-black fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '56px' : '64px', paddingTop: 0, paddingBottom: 0, fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
-          {isMobile ? (
-            <div className="w-full px-2 flex items-center justify-between relative" style={{ minHeight: '56px', height: '56px' }}>
-              {/* Left: Back button */}
-              <div className="flex items-center h-full">
-                <button
-                  onClick={backToLibrary}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                  style={{ minWidth: 32, minHeight: 32, width: 32, height: 32, fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}
-                  aria-label="Back to Library"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                </button>
-              </div>
-              {/* Center: Section navigation */}
-              <div className="flex items-center gap-2 mx-auto" style={{maxWidth: 700}}>
-                <button
-                  onClick={() => prevSection()}
-                  disabled={currentSection === 0}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400"
-                  aria-label="Previous Section"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <input
-                  type="number"
-                  value={currentSection + 1}
-                  min={1}
-                  max={book.sections.length}
-                  onChange={(e) => {
-                    const newSection = Math.max(0, Math.min(Number(e.target.value) - 1, book.sections.length - 1));
-                    setCurrentSection(newSection);
-                    router.replace(`/reader?book=${book.id}&section=${newSection}`);
-                  }}
-                  className="w-12 text-center border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2563eb] transition-colors text-base font-semibold"
-                  style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}
-                />
-                <span className="text-base font-bold text-[#232946]">/ {book.sections.length}</span>
-                <button
-                  onClick={() => nextSection()}
-                  disabled={currentSection === (book.sections.length || 0) - 1}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400"
-                  aria-label="Next Section"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-                <span
-                  className="truncate font-extrabold text-lg ml-4"
-                  style={{
-                    width: isMobile ? 220 : 420,
-                    minWidth: isMobile ? 220 : 420,
-                    maxWidth: isMobile ? 220 : 420,
-                    display: 'inline-block',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    color: '#232946',
-                    fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
-                    verticalAlign: 'middle',
-                  }}
-                >
-                  {(() => {
-                    const title = showEntireBook
-                      ? (book.sections[visibleSection]?.title && book.sections[visibleSection]?.title.trim() !== ''
-                          ? book.sections[visibleSection]?.title
-                          : 'Untitled Section')
-                      : (section.title && section.title.trim() !== '' ? section.title : 'Untitled Section');
-                    return title.length > 80 ? title.slice(0, 80) + '…' : title;
-                  })()}
-                </span>
-              </div>
-              {/* Right: Controls, now to the left of the dropdown icon */}
-              <div className="flex items-center gap-1 h-full pr-10">
-                {!showEntireBook && (
-                  <button
-                    onClick={handleScrapeComprehension}
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                    title="Scrape Comprehension Stats"
-                  >
-                    Scrape
-                  </button>
-                )}
-                {currentViewMode === 'scroll-section' && (
-                  <>
-                    <button
-                      onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-                      className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                      title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
-                    >
-                      {isAutoScrolling ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                    </button>
-                    {/* Speed control: slider on desktop, button on mobile */}
-                    {isMobile ? (
-                      <button
-                        onClick={() => {
-                          const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
-                          setScrollSpeed(next);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                        title="Change scroll speed"
-                      >
-                        {scrollSpeed.toFixed(1)}x
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2 bg-white rounded-md px-3 py-1 border-[0.75] border-[#2563eb]">
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="5"
-                          step="0.1"
-                          value={scrollSpeed}
-                          onChange={(e) => setScrollSpeed(Number(e.target.value))}
-                          className="w-24 accent-[#2563eb]"
-                        />
-                        <span className="text-sm font-bold text-[#2563eb] min-w-[2rem] text-center">
-                          {scrollSpeed.toFixed(1)}x
-                        </span>
-                      </div>
-                    )}
-                  </>
-                )}
-                <button
-                  onClick={() => setShowSettings(true)}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                  title="Reader Settings"
-                  aria-label="Reader Settings"
-                >
-                  {isMobile ? '⚙️' : 'Settings'}
-                </button>
-              </div>
+          <div className="w-full px-8 py-3 flex items-center justify-between relative" style={{ minHeight: '64px' }}>
+            <div className="flex items-center gap-2">
+              <button onClick={backToLibrary} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                {!isMobile && 'Library'}
+              </button>
+              <button onClick={() => setShowSectionSidebar(v => !v)} className="ml-2 px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 font-bold text-sm">
+                {showSectionSidebar ? 'Hide Sections' : 'Show Sections'}
+              </button>
             </div>
-          ) : (
-            <div className="w-full px-8 py-3 flex items-center justify-between relative" style={{ minHeight: '64px' }}>
-              {/* Back to Library (absolute left, with margin) */}
-              <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <button
-                  onClick={backToLibrary}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                  style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
-                >
-                  <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  {!isMobile && 'Library'}
-                </button>
-                {/* Hamburger menu to toggle section sidebar (hide on mobile) */}
-                {!isMobile && (
+            {/* Navigation controls */}
+            <div className="flex items-center gap-2 mx-auto" style={{maxWidth: 700}}>
+              <button onClick={prevPage} disabled={globalPageNumber === 1} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <span className="text-base font-bold text-[#232946]">{globalPageNumber} / {totalPages}</span>
+              <button onClick={nextPage} disabled={globalPageNumber === totalPages} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <span className="ml-4 truncate font-extrabold text-lg" style={{maxWidth: 340, color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', verticalAlign: 'middle'}}>{currentSection?.title || ''}</span>
+            </div>
+            {/* Keep the rest of the top bar controls (autoscroll, fullscreen, settings, etc.) as is */}
+            <div className="flex items-center gap-2">
+              {currentViewMode === 'scroll-section' && (
+                <>
                   <button
-                    onClick={() => setShowSidebar((prev) => !prev)}
+                    onClick={() => setIsAutoScrolling(!isAutoScrolling)}
                     className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                    title="Show/Hide sections"
+                    title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
+                    {isAutoScrolling ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
                   </button>
-                )}
-                {/* Section name to the right of hamburger menu */}
-                {!isMobile && (
-                  <span
-                    className="truncate font-extrabold text-lg ml-4"
-                    style={{
-                      maxWidth: 340,
-                      display: 'inline-block',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      color: '#232946',
-                      fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
-                      verticalAlign: 'middle',
-                    }}
-                  >
-                    {section.title && section.title.trim() !== '' ? section.title : 'Untitled Section'}
-                  </span>
-                )}
-              </div>
-              {/* Section navigation (centered) */}
-              <div className="flex items-center gap-4 mx-auto" style={{ position: 'relative', left: 0, right: 0 }}>
-                <button
-                  onClick={() => showEntireBook ? scrollToSection(Math.max(visibleSection - 1, 0)) : prevSection()}
-                  disabled={showEntireBook ? visibleSection === 0 : currentSection === 0}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400"
-                  style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
-                >
-                  <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <span
-                  className="flex items-center justify-center font-extrabold text-lg"
-                  style={{
-                    width: isMobile ? 80 : 120,
-                    minWidth: isMobile ? 80 : 120,
-                    maxWidth: isMobile ? 80 : 120,
-                    textAlign: 'center',
-                    color: '#232946',
-                    fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  {showEntireBook ? `${visibleSection + 1} / ${book.sections.length}` : `${currentSection + 1} / ${book.sections.length}`}
-                </span>
-                <button
-                  onClick={() => showEntireBook ? scrollToSection(Math.min(visibleSection + 1, book.sections.length - 1)) : nextSection()}
-                  disabled={showEntireBook ? visibleSection === book.sections.length - 1 : currentSection === (book.sections.length || 0) - 1}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400"
-                  style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
-                >
-                  <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-              {/* Right controls (move left, not fully flush right) */}
-              <div className="absolute right-32 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {/* Mark as Read/Unmark Read button, only if not a zero-word section */}
-                {!isZeroWordSection && (
-                  !readSections[book.sections[currentSection]?.id] ? (
+                  {/* Speed control: slider on desktop, button on mobile */}
+                  {isMobile ? (
                     <button
-                      onClick={handleMarkAsRead}
-                      className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-green-500 rounded-full shadow-sm hover:bg-green-600 focus:bg-green-600 border-none transition-colors text-base"
-                      title="Mark section as read"
+                      onClick={() => {
+                        const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
+                        setScrollSpeed(next);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                      title="Change scroll speed"
                     >
-                      <FiCheck className="w-4 h-4" />
-                      Mark Read
+                      {scrollSpeed.toFixed(1)}x
                     </button>
                   ) : (
-                    <button
-                      onClick={handleUnmarkAsRead}
-                      className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-red-500 rounded-full shadow-sm hover:bg-red-600 focus:bg-red-600 border-none transition-colors text-base"
-                      title="Unmark section as read"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                      Unmark Read
-                    </button>
-                  )
-                )}
-                {/* Auto-scroll/play button ... */}
-                {currentViewMode === 'scroll-section' && (
-                  <>
-                    <button
-                      onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-                      className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                      style={isMobile ? { minWidth: 32, minHeight: 32, width: 32, height: 32 } : {}}
-                      title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
-                    >
-                      {isAutoScrolling ? (
-                        <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ) : (
-                        <svg className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                    </button>
-                    {/* Speed control: slider on desktop, button on mobile */}
-                    {isMobile ? (
-                      <button
-                        onClick={() => {
-                          const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
-                          setScrollSpeed(next);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                        title="Change scroll speed"
-                      >
+                    <div className="flex items-center gap-2 bg-white rounded-md px-3 py-1 border-[0.75] border-[#2563eb]">
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="5"
+                        step="0.1"
+                        value={scrollSpeed}
+                        onChange={(e) => setScrollSpeed(Number(e.target.value))}
+                        className="w-24 accent-[#2563eb]"
+                      />
+                      <span className="text-sm font-bold text-[#2563eb] min-w-[2rem] text-center">
                         {scrollSpeed.toFixed(1)}x
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2 bg-white rounded-md px-3 py-1 border border-black">
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="5"
-                          step="0.1"
-                          value={scrollSpeed}
-                          onChange={(e) => setScrollSpeed(Number(e.target.value))}
-                          className="w-24 accent-green-600"
-                        />
-                        <span className="text-sm font-medium text-black min-w-[2rem] text-center">
-                          {scrollSpeed.toFixed(1)}x
-                        </span>
-                      </div>
-                    )}
-                  </>
-                )}
-                {/* Fullscreen */}
-                {!isMobile && (<button
-                  onClick={handleFullscreen}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                  title="Toggle Fullscreen"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M4 4h6M4 4v6M20 20h-6M20 20v-6M4 20v-6M4 20h6M20 4h-6M20 4v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>)}
-                {/* Settings: cog on desktop, emoji on mobile */}
-                <button
-                  onClick={() => setShowSettings(true)}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                  title="Reader Settings"
-                >
-                  {isMobile ? '⚙️' : 'Settings'}
-                </button>
-              </div>
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                title="Reader Settings"
+                aria-label="Reader Settings"
+              >
+                {isMobile ? '⚙️' : 'Settings'}
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
       {/* Layout: sidebar + main content */}
       <div style={{ height: showHeader ? '64px' : isMobile ? '40px' : '0' }} />
-      <div className="flex w-full px-0 py-12" style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Sidebar (persistent, always flush left) */}
-        {showSidebar && !isMobile && (
-          <div
-            className="z-10"
-            style={{
-              position: 'fixed',
-              top: '54%',
-              left: showSidebar ? '2rem' : '-20rem',
-              opacity: showSidebar ? 1 : 0,
-              height: '70vh',
-              minHeight: '400px',
-              display: 'flex',
-              flexDirection: 'column',
-              zIndex: 10,
-              transform: 'translateY(-50%)',
-              pointerEvents: showSidebar ? 'auto' : 'none',
-              background: '#fff',
-              borderRadius: 16,
-              boxShadow: '0 4px 24px 0 rgba(37,99,235,0.08)',
-              border: '1.5px solid #e5e7eb',
-              padding: '0',
-              width: 320,
-              maxWidth: '90vw',
-            }}
-          >
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, background: '#fff' }}>
-              <span className="font-extrabold text-xl text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>Sections</span>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-2" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
-              {book.sections.map((s, idx) => {
-                const isRead = readSections[s.id] || s.wordCount === 0;
-                return (
-                  <button
-                    key={s.id || idx}
-                    onClick={() => {
-                      if (isRead && s.wordCount !== 0) handleUnmarkSection(s.id, s.wordCount);
-                      else if (!isRead && s.wordCount !== 0) handleMarkSection(s.id, s.wordCount, s.title);
-                    }}
-                    className={`block w-full text-left px-4 py-3 rounded-lg mb-1 font-bold transition-all duration-150 flex items-center justify-between ${idx === currentSection ? 'bg-[#e6f0fd] text-[#2563eb]' : 'bg-white text-[#626c91] hover:bg-[#f5f7fa] hover:text-[#2563eb]'}`}
-                    style={{ fontSize: 17, fontWeight: idx === currentSection ? 800 : 600, letterSpacing: '-0.01em' }}
-                  >
-                    <span className="truncate flex-1 min-w-0">{s.title && s.title.trim() !== '' ? s.title : 'Untitled Section'}</span>
-                    <span className="ml-2 flex-shrink-0" style={{ width: 28, display: 'inline-flex', justifyContent: 'center' }}>
-                      {s.wordCount === 0 ? (
-                        <FiCheck className="text-green-500 w-5 h-5" />
-                      ) : (
-                        <SectionCheckButton isRead={isRead} />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+      <div className="flex w-full px-0 py-12" style={{ margin: '0 auto' }}>
+        {/* Section Sidebar, only if showSectionSidebar */}
+        {showSectionSidebar && (
+          <div className="flex flex-col items-start pr-6" style={{ minWidth: 220 }}>
+            <div className="font-bold text-lg mb-4">Sections</div>
+            {book.sections.map((section, idx) => (
+              <button
+                key={section.id || idx}
+                className={`w-full text-left px-4 py-2 rounded mb-1 font-semibold transition-all ${idx === currentSectionIndex ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                style={{ fontWeight: idx === currentSectionIndex ? 700 : 500, fontSize: 16 }}
+                onClick={() => goToPage(idx, 0)}
+              >
+                {section.title || `Section ${idx + 1}`}
+              </button>
+            ))}
           </div>
         )}
-        {/* Main reading area (flex-1, with left margin for gap if sidebar is open) */}
+        {/* Main reading area (centered, text always starts at top) */}
         <div
           className="flex-1 flex justify-center transition-all duration-300"
           style={{
-            marginLeft: showSidebar && !isMobile ? '17rem' : 0,
+            marginLeft: 0,
             padding: isMobile ? '0 0.25rem' : undefined,
-            maxWidth: isMobile ? '100vw' : undefined,
+            maxWidth: '100vw',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
           }}
         >
-          <div className="bg-white rounded-lg border-[0.75] border-black shadow-[0_6px_0px_#d1d5db] p-12 mb-12" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: '1.1rem', maxWidth: readerWidth > 1100 ? readerWidth : 1100, width: readerWidth, margin: '0 auto', padding: isMobile ? '1.5rem 0.5rem' : undefined }} ref={el => {
-            if (el) {
-              console.log('Setting main reading area font size:', readerFontSize, 'and width:', readerWidth);
-            }
-          }}>
-            <>
-              {currentViewMode === 'scroll-section' && (
-                <div
-                  ref={contentRef}
-                  className="epub-html overflow-y-auto scroll-smooth relative"
-                  style={{ scrollBehavior: 'smooth', margin: '0 auto', height: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
-                >
-                  {section.content.split('\n\n').map((paragraph, pIdx) => (
-                    <p key={pIdx} style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize }}>
-                      {splitSentences(paragraph).map((sentence, sIdx) => (
-                        <span key={sIdx} className="sentence-span">
-                          {tokenize(sentence).map((token, i) => {
-                            const key = `${pIdx}-${sIdx}-${i}`;
-                            const lower = token.toLowerCase();
-                            const status = wordStatusMap[lower];
-                            const isWord = /[\p{L}\p{M}\d'-]+/u.test(token);
-                            const wordStyle = {
-                              borderBottom: disableWordUnderlines ? 'none' : getUnderline(status, hoveredWord === key),
-                              color: shiftedWord === key ? '#a78bfa' : undefined,
-                              background: hoveredWord === key ? '#f3f4f6' : undefined,
-                              fontWeight: status === 'known' ? 700 : 500,
-                              padding: '0 2px',
-                              borderRadius: 2,
-                              position: 'relative' as const,
-                              zIndex: 1,
-                              fontFamily: readerFont,
-                              fontSize: readerFontSize,
-                            };
-                            return isWord ? (
-                              <WordSpan key={key} token={token} wordKey={key} wordStyle={wordStyle} />
-                            ) : (
-                              <span key={key} style={{ fontFamily: readerFont, fontSize: readerFontSize }}>{token}</span>
-                            );
-                          })}
-                        </span>
-                      ))}
-                    </p>
-                  ))}
-                  <div style={{ height: '200px' }} />
-                </div>
-              )}
-              {currentViewMode === 'scroll-book' && (
-                <div
-                  className="epub-html scroll-smooth relative"
-                  style={{ scrollBehavior: 'smooth', margin: '0 auto', minHeight: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
-                >
-                  {book.sections.map((sec, secIdx) => (
-                    <div key={sec.id || secIdx} className="mb-12 pt-20">
-                      <h2 className="text-2xl font-bold mb-4 text-[#0B1423]">{sec.title}</h2>
-                      <div>{wrapSentencesAndWordsInHtml(sec.content)}</div>
-                    </div>
-                  ))}
-                  <div style={{ height: '200px' }} />
-                </div>
-              )}
-              {currentViewMode === 'paginated-single' && (
-                <div
-                  className="epub-html scroll-smooth relative flex flex-col items-center justify-center"
-                  style={{ scrollBehavior: 'smooth', margin: '0 auto', minHeight: 'calc(100vh - 260px)', color: '#222', fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}
-                >
-                  <div className="w-full">
-                    <div>{wrapSentencesAndWordsInHtml(section.content)}</div>
-                  </div>
-                </div>
-              )}
-            </>
+          <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
+            <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              {/* Page content, always starts at top */}
+              <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}>
+                <p style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize, fontWeight: 400 }}>
+                  {currentPageSentences.join(' ')}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1680,7 +1432,7 @@ export default function ReaderPage() {
                 max={28}
                 step={1}
                 value={readerFontSize}
-                onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value), disableWordUnderlines, currentTheme, currentViewMode); }}
+                onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value), disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle); }}
                 className="w-full accent-[#2563eb]"
               />
             </div>
@@ -1689,10 +1441,10 @@ export default function ReaderPage() {
               <input
                 type="range"
                 min={500}
-                max={1200}
+                max={1600}
                 step={10}
                 value={readerWidth}
-                onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize, disableWordUnderlines, currentTheme, currentViewMode); }}
+                onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle); }}
                 className="w-full accent-[#2563eb]"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
@@ -1708,7 +1460,7 @@ export default function ReaderPage() {
                 checked={disableWordUnderlines}
                 onChange={e => {
                   setDisableWordUnderlines(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked, currentTheme, currentViewMode, disableWordsReadPopup);
+                  savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -1721,22 +1473,72 @@ export default function ReaderPage() {
                 checked={disableWordsReadPopup}
                 onChange={e => {
                   setDisableWordsReadPopup(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, e.target.checked, readerContainerStyle);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-words-read-popup" className="font-bold text-black select-none cursor-pointer">Disable words read popup</label>
             </div>
             {/* Single example text, black color, all settings applied */}
+           
+            <div className="mb-6">
+              <label className="block font-bold mb-2 text-black">Font Family</label>
+              <select
+                value={readerFont}
+                onChange={e => { setReaderFont(e.target.value); savePreferences(e.target.value, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle); }}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+              >
+                <option value="serif">Serif (default)</option>
+                <option value="sans-serif">Sans-serif</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Arial">Arial</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Noto Sans">Noto Sans</option>
+                <option value="Merriweather">Merriweather</option>
+              </select>
+            </div>
+            <div className="mb-6">
+              <label className="block font-bold mb-2 text-black">Container Mode</label>
+              <select
+                value={readerContainerStyle}
+                onChange={e => {
+                  setReaderContainerStyle(e.target.value as any);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, e.target.value as any);
+                }}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+              >
+                <option value="contained">Contained (default)</option>
+                <option value="border">Border Only</option>
+                <option value="none">None (transparent)</option>
+                <option value="full-width">Full-width (long)</option>
+              </select>
+            </div>
             {(() => {
               // Log font size and width for the settings example text
               console.log('Settings example text font size:', readerFontSize, 'and width:', readerWidth);
               return (
-                <div className="mt-4 p-2 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', fontSize: readerFontSize, maxWidth: readerWidth }}>
+                <div className="mt-4 p-5 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
                   Example: El rápido zorro marrón salta sobre el perro perezoso.
                 </div>
               );
             })()}
+            {/* 5. Settings modal: add sentences per page setting */}
+            <div className="mb-6">
+              <label className="block font-bold mb-2 text-black">Sentences per Page</label>
+              <input
+                type="number"
+                min={10}
+                max={200}
+                step={1}
+                value={sentencesPerPage}
+                onChange={e => {
+                  setSentencesPerPage(Number(e.target.value));
+                  localStorage.setItem('reader-sentences-per-page', e.target.value);
+                }}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -1948,15 +1750,13 @@ export function EpubHtmlStyles() {
 function SectionCheckButton({ isRead }: { isRead: boolean }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <button
-      type="button"
+    <span
       tabIndex={-1}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="transition-colors duration-200 w-6 h-6 flex items-center justify-center rounded focus:outline-none border-none bg-transparent"
-      style={{ padding: 0, minWidth: 24 }}
+      style={{ padding: 0, minWidth: 24, display: 'inline-flex' }}
       aria-label={isRead ? (hovered ? 'Unmark as read' : 'Marked as read') : 'Mark as read'}
-      disabled={!isRead}
     >
       {isRead ? (
         hovered ? (
@@ -1965,6 +1765,8 @@ function SectionCheckButton({ isRead }: { isRead: boolean }) {
           <FiCheck className="text-green-500 w-5 h-5 transition-all duration-200" />
         )
       ) : null}
-    </button>
+    </span>
   );
 }
+
+// 2. Hide autoscroller controls if readerContainerStyle is 'none' or 'border'

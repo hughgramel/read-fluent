@@ -280,10 +280,6 @@ export default function library() {
               }
             }
           }
-          const htmlContent = sectionDoc.body?.innerHTML || '';
-          // Strip HTML tags for word count
-          const textContent = sectionDoc.body?.textContent || '';
-          const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length;
           // Section title: concatenate multiple <a> elements (e.g., chapter number and title)
           let sectionTitle = '';
           // 1. Concatenate <a> elements in main heading container (e.g., <p class*='capitulo'> or first <p> with <a>)
@@ -349,15 +345,62 @@ export default function library() {
           if (!sectionTitle) {
             sectionTitle = sectionDoc.querySelector('title')?.textContent || sectionDoc.querySelector('h3')?.textContent || `${sections.length + 1}`;
           }
-          if (itemId) {
-            sections.push({
-              title: sectionTitle.trim(),
-              content: htmlContent,
-              wordCount: wordCount,
-              id: itemId
+          // Content: always include all <p> tags (and optionally <h1>, <h2>, <h3>) in order
+          let blocks: string[] = [];
+          const blockTags = ['h1', 'h2', 'h3', 'p'];
+          blockTags.forEach(tag => {
+            sectionDoc.querySelectorAll(tag).forEach(el => {
+              if (el.textContent && el.textContent.trim().length > 0) {
+                blocks.push(el.textContent.trim());
+              }
             });
-            totalWords += wordCount;
+          });
+          // Add any direct text nodes under <body> (not inside a block)
+          if (sectionDoc.body) {
+            Array.from(sectionDoc.body.childNodes).forEach(node => {
+              if (node.nodeType === Node.TEXT_NODE && node.textContent && node.textContent.trim().length > 0) {
+                blocks.push(node.textContent.trim());
+              }
+            });
           }
+          const improvedContent = blocks.join('\n\n');
+          function splitSentences(text: string): string[] {
+            // First split by paragraphs (double newlines)
+            const paragraphs = text.split(/\n\n+/g).map(p => p.trim()).filter(Boolean);
+            // Improved regex: avoid splitting after common abbreviations, split on punctuation followed by a capital letter
+            const sentenceRegex = /(?<!\b[A-Z][a-z]\.|Sr\.|Sra\.|Dr\.|Dra\.|etc\.|No\.|N\u00ba)\s*(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/g;
+            // Split each paragraph into sentences, then flatten
+            return paragraphs.flatMap(paragraph => paragraph.split(sentenceRegex).map((s: string) => s.trim()).filter(Boolean));
+          }
+          // Print the first sentence after splitting for verification
+          const sentences = splitSentences(improvedContent);
+          const firstSentence = sentences[0] || '';
+          if (sections.length === 2) {
+            console.log('--- Section 3 RAW CONTENT ---');
+            console.log(improvedContent);
+            console.log('--- Section 3 SPLIT SENTENCES ---');
+            sentences.forEach((s: string, i: number) => console.log(`Sentence ${i + 1}:`, s));
+            if (sentences.length > 0) {
+              console.log('Section 3 FIRST SENTENCE:', sentences[0]);
+            }
+          }
+          const sectionData = {
+            title: sectionTitle.trim(),
+            content: improvedContent,
+            wordCount: improvedContent.split(/\s+/).filter(Boolean).length,
+            id: itemId || `${sections.length + 1}`
+          };
+          // Print section details to console
+          console.log(`=== Section ${sections.length + 1} ===`);
+          console.log('Title:', sectionData.title);
+          console.log('ID:', sectionData.id);
+          console.log('Word Count:', sectionData.wordCount);
+          console.log('Content Preview:', sectionData.content.substring(0, 200) + (sectionData.content.length > 200 ? '...' : ''));
+          console.log('Full Content Length:', sectionData.content.length);
+          console.log('First Sentence:', firstSentence);
+          console.log('========================');
+          sections.push(sectionData);
+          totalWords += sectionData.wordCount;
         }
       }
       // --- Extract all CSS files referenced in the manifest ---
@@ -638,7 +681,7 @@ export default function library() {
             </div>
             <div className="flex justify-between text-xs mt-1 text-[#6b7280]">
               <span>{book.author}</span>
-              <span className="text-right">{wordsRead.toLocaleString()} / {book.totalWords.toLocaleString()} words</span>
+              <span className="text-right">{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()} words</span>
             </div>
           </div>
           {/* Comprehension Progress Bar */}
