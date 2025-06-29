@@ -13,6 +13,7 @@ import Head from 'next/head';
 import { ReadingSessionService } from '@/services/readingSessionService';
 import { FiCheck } from 'react-icons/fi';
 import parse, { HTMLReactParserOptions, Text } from 'html-react-parser';
+import SpeechPlayer from '@/components/SpeechPlayer';
 
 // Types
 interface BookSection {
@@ -139,11 +140,38 @@ export default function ReaderPage() {
   // Add state for read pages per section
   const [readPagesBySection, setReadPagesBySection] = useState<{ [sectionIdx: number]: Set<number> }>({});
 
+  // State for TTS highlighting
+  const [activeSentenceIndex, setActiveSentenceIndex] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('reader-current-sentence-index');
+      if (saved && !isNaN(Number(saved))) {
+        return Number(saved);
+      }
+    }
+    return null;
+  });
+
+  // Add state for TTS settings
+  const [ttsSpeed, setTtsSpeed] = useState(1.0);
+  const [ttsVoice, setTtsVoice] = useState('es-MX-JorgeNeural');
+  const [ttsGender, setTtsGender] = useState('male');
+  const [activeWordIndex, setActiveWordIndex] = useState<number | null>(null);
+  const [isSpeechPlayerActive, setIsSpeechPlayerActive] = useState(false);
+
   // Helper: get total words for a page
   function getPageWordCount(sectionIdx: number, pageIdx: number): number {
     const page = sectionPages[sectionIdx]?.[pageIdx] || [];
     return page.join(' ').split(/\s+/).filter(Boolean).length;
   }
+
+  // Function to handle when current reading sentence ends
+const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
+  console.log(`📖 Current reading sentence ${sentenceIndex} ended - unhighlighting`);
+  setActiveSentenceIndex(null);
+  setActiveWordIndex(null);
+}, []);
+
+
 
   // Helper: robust sentence splitter
   function splitSentences(text: string) {
@@ -1019,13 +1047,18 @@ export default function ReaderPage() {
   useEffect(() => {
     if (user?.uid && book?.id) {
       ReadingSessionService.getBookSessions(user.uid, book.id).then(sessions => {
-        const readMap: { [key: string]: boolean } = {};
+        const readMap: { [sectionIdx: number]: Set<number> } = {};
         let totalWords = 0;
         sessions.forEach(session => {
-          readMap[session.sectionId] = true;
+          // sectionId is in the form 'sectionIdx-pageIdx'
+          const [sectionIdx, pageIdx] = session.sectionId.split('-').map(Number);
+          if (!isNaN(sectionIdx) && !isNaN(pageIdx)) {
+            if (!readMap[sectionIdx]) readMap[sectionIdx] = new Set();
+            readMap[sectionIdx].add(pageIdx);
+          }
           totalWords += session.wordCount;
         });
-        setReadSections(readMap);
+        setReadPagesBySection(readMap);
         setTotalWordsRead(totalWords);
       });
     }
@@ -1117,7 +1150,7 @@ export default function ReaderPage() {
       copy[currentSectionIndex].add(currentPageIndex);
       return copy;
     });
-    // Add to history
+    // Add to history and Firestore
     if (user?.uid && book) {
       const session = {
         userId: user.uid,
@@ -1146,7 +1179,13 @@ export default function ReaderPage() {
         sectionId: `${currentSectionIndex}-${currentPageIndex}`,
       });
     }
-    setTotalWordsRead(wr => Math.max(0, wr - getPageWordCount(currentSectionIndex, currentPageIndex)));
+    setTotalWordsRead(wr => {
+      const newWr = Math.max(0, wr - getPageWordCount(currentSectionIndex, currentPageIndex));
+      if (book) {
+        window.dispatchEvent(new CustomEvent('rf-words-read-updated', { detail: { bookId: book.id, totalWordsRead: newWr } }));
+      }
+      return newWr;
+    });
   };
 
   // (Place all hooks and functions here, do not return early)
@@ -1275,45 +1314,43 @@ export default function ReaderPage() {
     globalPageNumber = sectionPages.slice(0, currentSectionIndex).reduce((acc, arr) => acc + arr.length, 0) + currentPageIndex + 1;
   }
 
-  // Persist readPagesBySection in localStorage
-  // useEffect(() => {
-  //   if (book?.id) {
-  //     localStorage.setItem(`reader-read-pages-${book.id}`, JSON.stringify(
-  //       Object.fromEntries(Object.entries(readPagesBySection).map(([k, v]) => [k, Array.from(v)]))
-  //     ));
-  //   }
-  // }, [book?.id, readPagesBySection]);
-  // Restore on mount
+  // Persist readPagesBySection in localStorage whenever it changes
   useEffect(() => {
     if (book?.id) {
-      const saved = localStorage.getItem(`reader-read-pages-${book.id}`);
-      if (saved) {
-        try {
-          const obj = JSON.parse(saved);
-          setReadPagesBySection(
-            Object.fromEntries(Object.entries(obj).map(([k, v]) => [Number(k), new Set(Array.isArray(v) ? v : [])]))
-          );
-        } catch {}
-      }
+      localStorage.setItem(`reader-read-pages-${book.id}`,
+        JSON.stringify(Object.fromEntries(Object.entries(readPagesBySection).map(([k, v]) => [k, Array.from(v)])))
+      );
     }
-  }, [book?.id]);
+  }, [book?.id, readPagesBySection]);
 
-    // Place early returns for error and !book after all hooks
-    if (error) {
-      return (
-        <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
-          {error}
-        </div>
-      );
-    }
+
+  // Instead of currentPageSentences, create a flat array of all sentences for the page, with global indices
+  const flatSentences: string[] = [];
+  const sentenceToSectionMap: { sentenceIdx: number, sectionIdx: number, localSentenceIdx: number }[] = [];
+  currentPageSentences.forEach((sentence, idx) => {
+    flatSentences.push(sentence);
+    sentenceToSectionMap.push({ sentenceIdx: idx, sectionIdx: currentSectionIndex, localSentenceIdx: idx });
+  });
+
+
+
+      // Place early returns for error and !book after all hooks
+      if (error) {
+        return (
+          <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
+            {error}
+          </div>
+        );
+      }
+    
+      if (!book) {
+        return (
+          <div className="min-h-screen flex items-center justify-center text-gray-600 text-xl">
+            Book not found.
+          </div>
+        );
+      }
   
-    if (!book) {
-      return (
-        <div className="min-h-screen flex items-center justify-center text-gray-600 text-xl">
-          Book not found.
-        </div>
-      );
-    }
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
@@ -1443,6 +1480,16 @@ export default function ReaderPage() {
                 </>
               )}
               <button
+                onClick={() => setIsSpeechPlayerActive(!isSpeechPlayerActive)}
+                className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                title={isSpeechPlayerActive ? 'Hide Speech Player' : 'Show Speech Player'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+                {!isMobile && (isSpeechPlayerActive ? 'Hide TTS' : 'Read Aloud')}
+              </button>
+              <button
                 onClick={() => setShowSettings(true)}
                 className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
                 title="Reader Settings"
@@ -1507,18 +1554,75 @@ export default function ReaderPage() {
             <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               {/* Page content, always starts at top */}
               <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}>
-                <p style={{ margin: '1em 0', fontFamily: readerFont, fontSize: readerFontSize, fontWeight: 400 }}>
-                  {currentPageSentences.join(' ')}
-                </p>
+                {flatSentences.map((sentence, sIdx) => {
+                  const words = sentence.match(/\S+/g) || [];
+                  return (
+                    <span
+                      key={sIdx}
+                      data-sentence-index={sIdx}
+                      className={sIdx === activeSentenceIndex ? 'speaking-highlight' : ''}
+                      style={{ marginRight: 8 }}
+                    >
+                      {words.map((word, wIdx) => (
+                        <span
+                          key={wIdx}
+                          className={sIdx === activeSentenceIndex && wIdx === activeWordIndex ? 'speaking-highlight-word' : ''}
+                          style={{ marginRight: 4 }}
+                        >
+                          {word + ' '}
+                        </span>
+                      ))}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
       </div>
+      {/* Floating TTS Controls at the bottom */}
+      {isSpeechPlayerActive && (
+        <SpeechPlayer
+          sentences={flatSentences}
+          onSentenceChange={setActiveSentenceIndex}
+          onWordChange={setActiveWordIndex}
+          onPlaybackFinish={() => {
+            setActiveSentenceIndex(null);
+            setActiveWordIndex(null);
+            // Only close the popup if we are at the last sentence
+            if (
+              typeof activeSentenceIndex === 'number' &&
+              flatSentences.length > 0 &&
+              activeSentenceIndex >= flatSentences.length - 1
+            ) {
+              setIsSpeechPlayerActive(false);
+            }
+          }}
+          speakingRate={ttsSpeed}
+          voiceName={ttsVoice}
+          onProgress={setActiveSentenceIndex}
+          onCurrentReadingSentenceEnd={onCurrentReadingSentenceEnd}
+        />
+      )}
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
-          <div className="bg-white rounded-2xl p-8 border-[0.75] border-black shadow-lg max-w-md w-full relative" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
+          onClick={() => setShowSettings(false)}
+          style={{ backdropFilter: 'blur(2px)' }}
+        >
+          <div
+            className="bg-white rounded-2xl border-[0.75] border-black shadow-lg w-full relative"
+            style={{
+              fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
+              maxWidth: 400,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '2rem',
+              boxSizing: 'border-box',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
             <button
               onClick={() => setShowSettings(false)}
               className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
@@ -1641,6 +1745,39 @@ export default function ReaderPage() {
                 }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               />
+            </div>
+            <div className="mb-6">
+              <label className="block font-bold mb-2 text-black">TTS Speed ({ttsSpeed}x)</label>
+              <input
+                type="range"
+                min={0.5}
+                max={2}
+                step={0.05}
+                value={ttsSpeed}
+                onChange={e => setTtsSpeed(Number(e.target.value))}
+                className="w-full accent-[#2563eb]"
+              />
+            </div>
+            <div className="mb-6">
+              <label className="block font-bold mb-2 text-black">Voice Gender</label>
+              <select
+                value={ttsGender}
+                onChange={e => setTtsGender(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+              >
+                <option value="male">Male</option>
+                <option value="female" disabled>Female (coming soon)</option>
+              </select>
+            </div>
+            <div className="mb-6">
+              <label className="block font-bold mb-2 text-black">Voice Option</label>
+              <select
+                value={ttsVoice}
+                onChange={e => setTtsVoice(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+              >
+                <option value="es-MX-JorgeNeural">Jorge (Mexico)</option>
+              </select>
             </div>
           </div>
         </div>
@@ -1845,6 +1982,11 @@ export function EpubHtmlStyles() {
       .epub-html ul, .epub-html ol { margin: 1em 0 1em 2em; }
       .epub-html li { margin: 0.3em 0; }
       .epub-html .sentence-span.sentence-hovered { background: rgba(255, 255, 0, 0.18) !important; border-radius: 0.25em; transition: background 0.15s; }
+      .speaking-highlight-word {
+        background-color: rgba(255, 200, 0, 0.5);
+        border-radius: 2px;
+        transition: background-color 0.2s;
+      }
     `}</style>
   );
 } 
@@ -1872,12 +2014,11 @@ function SectionCheckButton({ isRead }: { isRead: boolean }) {
   );
 }
 
-// 2. Hide autoscroller controls if readerContainerStyle is 'none' or 'border'
-
-// Add this helper function:
+// Helper to get section title
 function getSectionTitle(section: BookSection | undefined, idx: number) {
   let title = section?.title?.trim() || '';
   if (!title) title = `Section ${idx + 1}`;
   if (title.length > 100) title = title.slice(0, 100) + '…';
   return title;
 }
+

@@ -102,3 +102,10 @@ body {
   letter-spacing: 0.03em;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
+
+/* --- ADD THIS CLASS FOR TTS HIGHLIGHTING --- */
+.speaking-highlight {
+  background-color: rgba(255, 255, 0, 0.3); /* A simple yellow highlight */
+  border-radius: 3px;
+  transition: background-color 0.3s ease-in-out;
+}

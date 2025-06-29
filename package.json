@@ -18,6 +18,7 @@
     "firebase": "^10.14.1",
     "html-react-parser": "^5.2.5",
     "lucide-react": "^0.503.0",
+    "microsoft-cognitiveservices-speech-sdk": "^1.44.1",
     "next": "^15.3.3",
     "panzoom": "^9.4.3",
     "react": "^19.0.0",

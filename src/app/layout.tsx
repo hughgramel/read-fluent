@@ -61,7 +61,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${cinzelDecorative.variable} ${playfairDisplay.variable} ${merriweather.variable} ${ebGaramond.variable} ${mplusRounded.variable} antialiased`}
-        // The data-theme attribute will be set dynamically by JavaScript (e.g., in reader/page.tsx or a theme context)
       >
         <AuthProvider>
             <Providers>
