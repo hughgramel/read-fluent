@@ -1390,7 +1390,7 @@ export default function ReaderPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              <span className="ml-4 truncate font-extrabold text-lg" style={{maxWidth: 340, color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', verticalAlign: 'middle'}}>{currentSection?.title || ''}</span>
+              <span className="ml-4 truncate font-extrabold text-lg" style={{maxWidth: 340, color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', verticalAlign: 'middle'}}>{getSectionTitle(currentSection, currentSectionIndex)}</span>
             </div>
             {/* Keep the rest of the top bar controls (autoscroll, fullscreen, settings, etc.) as is */}
             <div className="flex items-center gap-2">
@@ -1480,7 +1480,7 @@ export default function ReaderPage() {
                   style={{ fontWeight: idx === currentSectionIndex ? 700 : 500, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                   onClick={() => goToPage(idx, 0)}
                 >
-                  <span>{section.title || `Section ${idx + 1}`}</span>
+                  <span>{getSectionTitle(section, idx)}</span>
                   {allRead ? (
                     <FiCheck className="text-green-500 ml-2" />
                   ) : totalPages > 0 ? (
@@ -1873,3 +1873,11 @@ function SectionCheckButton({ isRead }: { isRead: boolean }) {
 }
 
 // 2. Hide autoscroller controls if readerContainerStyle is 'none' or 'border'
+
+// Add this helper function:
+function getSectionTitle(section: BookSection | undefined, idx: number) {
+  let title = section?.title?.trim() || '';
+  if (!title) title = `Section ${idx + 1}`;
+  if (title.length > 100) title = title.slice(0, 100) + '…';
+  return title;
+}

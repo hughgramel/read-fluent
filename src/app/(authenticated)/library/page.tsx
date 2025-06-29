@@ -64,7 +64,7 @@ export default function library() {
   const [sessions, setSessions] = useState<ReadingSession[]>([]);
   const [dailyGoal, setDailyGoal] = useState(1500);
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [goalInput, setGoalInput] = useState(1500);
+  const [goalInput, setGoalInput] = useState<string>('1500');
 
   // Auto-scroll effect
   useEffect(() => {
@@ -175,7 +175,7 @@ export default function library() {
     const storedGoal = localStorage.getItem('rf-daily-goal');
     if (storedGoal) {
       setDailyGoal(Number(storedGoal));
-      setGoalInput(Number(storedGoal));
+      setGoalInput(storedGoal);
     }
   }, []);
 
@@ -350,14 +350,7 @@ export default function library() {
           }
           // 5. <p>
           if (!sectionTitle) {
-            const firstP = sectionDoc.querySelector('p');
-            if (firstP && firstP.textContent && firstP.textContent.trim().length > 0) {
-              sectionTitle = firstP.textContent.trim();
-            }
-          }
-          // 6. fallback
-          if (!sectionTitle) {
-            sectionTitle = sectionDoc.querySelector('title')?.textContent || sectionDoc.querySelector('h3')?.textContent || `${sections.length + 1}`;
+            sectionTitle = '';
           }
           // Content: always include all <p> tags (and optionally <h1>, <h2>, <h3>) in order
           let blocks: string[] = [];
@@ -1007,12 +1000,33 @@ export default function library() {
                   min={100}
                   max={10000}
                   value={goalInput}
-                  onChange={e => setGoalInput(Number(e.target.value))}
+                  onChange={e => {
+                    let val = e.target.value;
+                    // Remove leading zeros
+                    if (/^0+\d/.test(val)) {
+                      val = val.replace(/^0+/, '');
+                    }
+                    // If the value is just '0', replace with the new digit
+                    if (val === '0') {
+                      val = '';
+                    }
+                    // Only allow numbers
+                    if (/^\d*$/.test(val)) {
+                      setGoalInput(val);
+                    }
+                  }}
                   className="border border-gray-300 rounded-lg px-4 py-2 text-lg text-center focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                  style={{ width: 160 }}
+                  style={{ width: 160, color: '#222' }}
                 />
                 <button
-                  onClick={() => { setDailyGoal(goalInput); setShowGoalModal(false); localStorage.setItem('rf-daily-goal', String(goalInput)); }}
+                  onClick={() => {
+                    const num = Number(goalInput);
+                    if (!isNaN(num) && num >= 100 && num <= 10000) {
+                      setDailyGoal(num);
+                      setShowGoalModal(false);
+                      localStorage.setItem('rf-daily-goal', String(num));
+                    }
+                  }}
                   className="mt-2 px-6 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
                 >Save</button>
               </div>
