@@ -70,10 +70,18 @@ export default function SpeechPlayer({
 
   // --- Core Playback Logic ---
   const playSentences = useCallback(async (startIdx: number) => {
+    console.log("playSentences", startIdx);
+    console.log("currentPlaybackStateRef.current", currentPlaybackStateRef.current);
+    console.log("speechConfigRef.current", speechConfigRef.current);
+    console.log("isMountedRef.current", isMountedRef.current);
     if (currentPlaybackStateRef.current === 'playing' || !speechConfigRef.current || !isMountedRef.current) return;
     setPlaybackState('playing');
+    console.log("entered playSentences");
     for (let i = startIdx; i < sentences.length; i++) {
-      if (isStoppedOrPaused(currentPlaybackStateRef.current)) break;
+      console.log("i", i);
+      console.log("isStoppedOrPaused(currentPlaybackStateRef.current)", isStoppedOrPaused(currentPlaybackStateRef.current));
+      if (currentPlaybackStateRef.current === 'stopped') break;
+      console.log("isMountedRef.current", isMountedRef.current);
       if (!isMountedRef.current) {
         forceStop();
         break;
@@ -106,11 +114,15 @@ export default function SpeechPlayer({
           onWordChange(wordIdx, e.text);
         };
         synth.synthesisCompleted = (s, e) => {
+          console.log("synthesisCompleted", e.result.reason);
           if (e.result.reason === SpeechSDK.ResultReason.Canceled) {
             reject(new Error('Synthesis canceled'));
           }
         };
+
+
         speaker.onAudioEnd = () => {
+          console.log("audioEnd");
           if (isMountedRef.current) {
             console.log(`🎵 Audio ended for sentence ${i}: "${sentence.substring(0, 50)}${sentence.length > 50 ? '...' : ''}"`);
             onWordChange(null);
@@ -137,6 +149,7 @@ export default function SpeechPlayer({
           synthesizerRef.current = null;
         }
       }
+      console.log("bottom")
       if (isStoppedOrPaused(currentPlaybackStateRef.current)) break;
     }
     if (isMountedRef.current && currentPlaybackStateRef.current !== 'paused') {
@@ -164,18 +177,28 @@ export default function SpeechPlayer({
 
   const handlePlay = () => {
     // If paused, resume from where we left off. Otherwise, start from the current index.
+    console.log('handlePlay');
     const startIndex = playbackState === 'paused' ? currentSentenceIdx : lastPlayedIndexRef.current;
+    console.log("startIndex", startIndex);
+    console.log("currentSentenceIdx", currentSentenceIdx);
+    console.log("playbackState", playbackState);
+    console.log("lastPlayedIndexRef.current", lastPlayedIndexRef.current);
+    console.log("sentences", sentences);
+    console.log("sentences.length", sentences.length);
     playSentences(startIndex);
+    setPlaybackState('playing');
   };
 
   const handlePause = () => {
+    console.log('handlePause');
     if (playbackState !== 'playing') return;
     setPlaybackState('paused');
     forceStop();
-    // Keep currentSentenceIdx as is, so we can resume
+    console.log("currentSentenceIdx", currentSentenceIdx);
   };
 
   const handleStop = () => {
+    console.log('handleStop');
     if (playbackState === 'idle' || playbackState === 'stopped') return;
     setPlaybackState('stopped');
     forceStop();
@@ -184,9 +207,11 @@ export default function SpeechPlayer({
     onSentenceChange(null);
     onWordChange(null);
     if (typeof onProgress === 'function') onProgress(0);
+    setTimeout(() => playSentences(0), 50);
   };
   
   const handleNextSentence = () => {
+      console.log('handleNextSentence');
       const nextIdx = Math.min(currentSentenceIdx + 1, sentences.length - 1);
       setPlaybackState('stopped'); // Signal loop to stop
       forceStop();
@@ -194,7 +219,7 @@ export default function SpeechPlayer({
       lastPlayedIndexRef.current = nextIdx;
       if (typeof onProgress === 'function') onProgress(nextIdx);
       // Use a timeout to allow state to update before starting new playback
-      setTimeout(() => playSentences(nextIdx), 50);
+      setTimeout(() => playSentences(currentSentenceIdx), 50);
   };
 
   const handlePrevSentence = () => {
@@ -207,11 +232,6 @@ export default function SpeechPlayer({
       setTimeout(() => playSentences(prevIdx), 50);
   };
   
-  const handleRepeat = () => {
-      setPlaybackState('stopped'); // Signal loop to stop
-      forceStop();
-      setTimeout(() => playSentences(currentSentenceIdx), 50);
-  };
 
   if (!speechKey || !speechRegion) {
     return (
@@ -235,14 +255,6 @@ export default function SpeechPlayer({
           aria-label="Previous Sentence"
         >
           <ChevronsLeft size={24} />
-        </button>
-        <button 
-          onClick={handleRepeat}
-          disabled={!isPlaying}
-          className="w-12 h-12 flex items-center justify-center bg-[#3b355d] text-white rounded-full hover:bg-[#4a417a] disabled:opacity-50 transition-colors"
-          aria-label="Repeat Sentence"
-        >
-          <Repeat size={24} />
         </button>
         <button 
           onClick={isPlaying ? handlePause : handlePlay}

@@ -543,13 +543,7 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     return 'known';
   }
 
-  // Helper: get popup color
-  function getPopupColor(status: WordType | undefined) {
-    if (status === 'known') return '#16a34a'; // green
-    if (status === 'tracking') return '#a78bfa'; // purple
-    if (status === 'ignored') return '#222'; // black
-    return '#f87171'; // red (unknown)
-  }
+
 
   // Helper: get underline style
   function getUnderline(type: WordType | undefined, hovered: boolean) {
@@ -589,181 +583,9 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     }
   }, [wordStatusMap, user]);
 
-  // Handle word click
-  const handleWordClick = async (word: string, event: React.MouseEvent<HTMLSpanElement, MouseEvent>, key: string) => {
-    if (!user?.uid) return;
-    const lower = word.toLowerCase();
-    const current = wordStatusMap[lower];
-    const next = nextStatus(current);
-    // Update backend
-    await WordService.addWord(user.uid, lower, next);
-    // Update local state
-    setWordStatusMap(prev => ({ ...prev, [lower]: next }));
-    // Show popup above only this word span
-    setPopup({ word: key, x: 0, y: 0, status: next });
-    setTimeout(() => setPopup(null), 1200);
-  };
 
-  // Listen for Shift key globally and toggle definition popup for hovered word
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift' && hoveredWord) {
-        setShiftedWord(hoveredWord);
-        const el = document.querySelector(`[data-word-key='${hoveredWord}']`);
-        if (el) {
-          const rect = (el as HTMLElement).getBoundingClientRect();
-          showDefinitionPopup((el as HTMLElement).innerText, { x: rect.left + rect.width / 2, y: rect.top });
-        }
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') setShiftedWord(null);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [hoveredWord]);
 
-  // Helper to fetch Wiktionary definitions, and if any definition is a reference to another word, fetch that too (recursively, no duplicates, and only merge real definitions)
-  async function fetchWiktionaryDefinition(word: string, lang: string, seen: Set<string> = new Set()) {
-    try {
-      if (seen.has(word.toLowerCase())) return null; // prevent infinite loop
-      seen.add(word.toLowerCase());
-      const url = `https://${lang}.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('No definition found');
-      const data = await res.json();
-      // Find all referenced words in all definitions
-      let referencedWords: string[] = [];
-      Object.values(data).forEach((entries: any) => {
-        entries.forEach((entry: any) => {
-          if (entry.definitions && entry.definitions.length > 0) {
-            entry.definitions.forEach((def: any) => {
-              // Look for 'of <i>word</i>' or 'of <a ...>word</a>'
-              const matches = [
-                ...def.definition.matchAll(/of <i>([\wáéíóúüñç]+)<\/i>/gi),
-                ...def.definition.matchAll(/of <a [^>]+>([\wáéíóúüñç]+)<\/a>/gi)
-              ];
-              matches.forEach(match => {
-                if (match[1]) referencedWords.push(match[1]);
-              });
-            });
-          }
-        });
-      });
-      // Fetch referenced definitions and merge, but only add real definitions (not just more references)
-      let referencedDefs: any[] = [];
-      for (const refWord of referencedWords) {
-        const refData = await fetchWiktionaryDefinition(refWord, lang, seen);
-        if (refData) referencedDefs.push(refData);
-      }
-      // Merge referenced definitions into the main data, but only if they have at least one non-reference definition
-      if (referencedDefs.length > 0) {
-        referencedDefs.forEach(refData => {
-          Object.entries(refData).forEach(([langKey, entries]: any) => {
-            if (!data[langKey]) data[langKey] = [];
-            // Only add entries that have at least one definition not matching the reference pattern
-            const realEntries = entries.filter((entry: any) =>
-              entry.definitions && entry.definitions.some((def: any) =>
-                !/of <i>[\wáéíóúüñç]+<\/i>|of <a [^>]+>[\wáéíóúüñç]+<\/a>/i.test(def.definition)
-              )
-            );
-            data[langKey] = data[langKey].concat(realEntries);
-          });
-        });
-      }
-      return data;
-    } catch (e: any) {
-      return { error: e.message || 'No definition found' };
-    }
-  }
 
-  // Handler to show definition popup
-  const showDefinitionPopup = async (word: string, anchor: { x: number; y: number }) => {
-    setDefPopup({ word, anchor, loading: true, data: null, error: null });
-    const data = await fetchWiktionaryDefinition(word, nativeLanguage);
-    setDefPopup(prev => prev && prev.word === word ? { ...prev, loading: false, data, error: data.error || null } : prev);
-  };
-
-  // Handler to hide definition popup
-  const hideDefinitionPopup = () => {
-    setDefPopup(null);
-    if (defPopupTimeout.current) clearTimeout(defPopupTimeout.current);
-  };
-
-  // Restore 1/2/3/4 shortcuts for word status toggling
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if (!hoveredWord || !user?.uid) return;
-      const [pIdx, i] = hoveredWord.split('-');
-      let wordToken = '';
-      const section = book?.sections?.[currentSentencePage];
-      if (section) {
-        outer: for (const [paraIdx, paragraph] of section.content.split('\n\n').entries()) {
-          if (String(paraIdx) === pIdx) {
-            for (const [tokIdx, token] of tokenize(paragraph).entries()) {
-              if (String(tokIdx) === i) {
-                wordToken = token;
-                break outer;
-              }
-            }
-          }
-        }
-      }
-      if (!wordToken) return;
-      const lower = wordToken.toLowerCase();
-      let newStatus: WordType | undefined;
-      if (e.key === '1') newStatus = undefined; // unknown
-      if (e.key === '2') newStatus = 'tracking';
-      if (e.key === '3') newStatus = 'known';
-      if (e.key === '4') newStatus = 'ignored';
-      if (newStatus === undefined && e.key === '1') {
-        await WordService.addWord(user.uid, lower, 'tracking');
-        setWordStatusMap(prev => {
-          const copy = { ...prev };
-          delete copy[lower];
-          return copy;
-        });
-        // No popup
-        return;
-      }
-      if (newStatus) {
-        await WordService.addWord(user.uid, lower, newStatus);
-        setWordStatusMap(prev => ({ ...prev, [lower]: newStatus }));
-        // No popup
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hoveredWord, user, book, currentSentencePage, sentencePages.length]);
-
-  // Remove shadow from definition popup, limit definitions to 5, and close on outside click, esc, or hover another word
-  useEffect(() => {
-    if (!defPopup) return;
-    const handleClick = (e: MouseEvent) => {
-      const popup = document.getElementById('definition-popup');
-      if (popup && !popup.contains(e.target as Node)) {
-        hideDefinitionPopup();
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') hideDefinitionPopup();
-    };
-    window.addEventListener('mousedown', handleClick);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('mousedown', handleClick);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [defPopup]);
-  useEffect(() => {
-    if (defPopup && hoveredWord && defPopup.word !== (tokenize(sentencePages[currentSentencePage]?.join(' ')).find((t, idx) => String(idx) === defPopup.word.split('-')[1]) || '')) {
-      hideDefinitionPopup();
-    }
-  }, [hoveredWord]);
 
   // Memoize tokenized section content for smoother rendering
   const tokenizedSections = useMemo(() =>
@@ -772,28 +594,6 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
   );
   const currentTokenizedSection = tokenizedSections[currentSentencePage] || [];
 
-  // Throttle setHoveredWord to avoid rapid state updates
-  const throttledSetHoveredWord = useCallback(
-    (() => {
-      let last = 0;
-      let timeout: NodeJS.Timeout | null = null;
-      return (key: string | null) => {
-        const now = Date.now();
-        if (timeout) clearTimeout(timeout);
-        if (!key) {
-          setHoveredWord(null);
-          return;
-        }
-        if (now - last > 40) {
-          setHoveredWord(key);
-          last = now;
-        } else {
-          timeout = setTimeout(() => setHoveredWord(key), 40);
-        }
-      };
-    })(),
-    []
-  );
 
   // Scroll handler for entire book mode
   useEffect(() => {
@@ -834,103 +634,6 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
       setVisibleSection(idx);
     }
   };
-
-  // Add scrapeComprehension handler
-  const handleScrapeComprehension = () => {
-    let retryCount = 0;
-    const maxRetries = 10; // 30 seconds / 3 seconds = 10 retries
-    const retryDelay = 3000; // 3 seconds
-
-    const attemptScrape = () => {
-        // Find all elements that might have shadow roots
-        const potentialHosts = document.querySelectorAll('*');
-        let shadowRoots = [];
-
-        // Collect all shadow roots that contain our target elements
-        for (let element of potentialHosts) {
-            if (element.shadowRoot) {
-                const targets = element.shadowRoot.querySelectorAll('.ComprehensionStatsChart__infoItem');
-                if (targets.length > 0) {
-                    shadowRoots.push(element.shadowRoot);
-                }
-            }
-        }
-
-        const infoItems = Array.from(document.querySelectorAll('#MigakuShadowDom'));
-        console.log(infoItems);
-        const result: any = { known: 0, unknown: 0, ignored: 0 };
-        let hasUndefinedValues = false;
-
-        // Process each shadow root found
-        shadowRoots.forEach((shadowRoot) => {
-            const infoItems = shadowRoot.querySelectorAll('.ComprehensionStatsChart__infoItem');
-            
-            infoItems.forEach((infoItem, itemIndex) => {
-                // Find all elements with -emphasis class within this infoItem
-                const emphasisElements = infoItem.querySelectorAll('.UiTypo.UiTypo__caption.-emphasis');
-                
-                if (emphasisElements.length > 0) {
-                    // Get the last element
-                    const lastElement = emphasisElements[emphasisElements.length - 1];
-                    const textContent = lastElement?.textContent?.trim() || '';
-                    
-                    // Extract number from text like "40 words", "1428 words", etc.
-                    const numberMatch = textContent.match(/(\d+)/);
-                    
-                    if (numberMatch) {
-                        const number = parseInt(numberMatch[1], 10);
-                        
-                        // Try to determine the category from the label
-                        const labelElement = infoItem.querySelector('.ComprehensionStatsChart__infoItem__label p');
-                        const category = labelElement ? labelElement?.textContent?.trim().toLowerCase() : `item${itemIndex + 1}`;
-                        
-                        result[category as keyof typeof result] = number;
-                    } else {
-                        // No number found, mark as having undefined values
-                        hasUndefinedValues = true;
-                    }
-                } else {
-                    // No emphasis elements found, mark as having undefined values
-                    hasUndefinedValues = true;
-                }
-            });
-        });
-
-        // Check if any of the expected values are undefined or 0 (assuming 0 means not found)
-        const hasValidData = result.known !== undefined && result.unknown !== undefined && result.ignored !== undefined &&
-                           (result.known > 0 || result.unknown > 0 || result.ignored > 0);
-
-        if (!hasValidData && retryCount < maxRetries) {
-            retryCount++;
-            console.log(`Attempt ${retryCount} failed, retrying in 3 seconds...`);
-            setTimeout(attemptScrape, retryDelay);
-            return;
-        }
-
-        if (!hasValidData && retryCount >= maxRetries) {
-            console.log('Max retries reached, proceeding with current data');
-        }
-
-        console.log(result);
-
-        const now = new Date().toISOString();
-        const key = `comprehension-${book?.id || 'unknown'}-${currentSentencePage}`;
-        
-        const data = {
-            book: book?.id,
-            section: currentSentencePage,
-            known_words: result.known || 0,
-            unknown_words: result.unknown || 0,
-            ignored_words: result.ignored || 0,
-            date: now,
-        };
-        localStorage.setItem(key, JSON.stringify(data));
-        console.log('Scraped comprehension:', data);
-    };
-
-    // Start the first attempt
-    attemptScrape();
-};
 
   // Inject book CSS into the DOM, scoped to .epub-html
   React.useEffect(() => {
@@ -986,17 +689,6 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
                   wordSpan.style.cursor = 'pointer';
                   wordSpan.style.zIndex = '10';
                   wordSpan.style.pointerEvents = 'auto';
-                  wordSpan.onmouseenter = (e) => {
-                    if (e.shiftKey) {
-                      const rect = (e.target as HTMLElement).getBoundingClientRect();
-                      showWiktionaryPopup(word, { x: rect.left + rect.width / 2, y: rect.top });
-                    }
-                  };
-                  wordSpan.onclick = (e) => {
-                    e.stopPropagation();
-                    const rect = (e.target as HTMLElement).getBoundingClientRect();
-                    showWiktionaryPopup(word, { x: rect.left + rect.width / 2, y: rect.top });
-                  };
                   wordSpan.textContent = word;
                   sentenceSpan.appendChild(wordSpan);
                 } else if (word) {
@@ -1064,7 +756,7 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     }
   }, [user, book]);
 
-  // 3. Navigation handlers for sentence pages
+  // Navigation handlers for sentence pages
   const nextSentencePage = () => {
     if (currentSentencePage < sentencePages.length - 1) {
       const newPage = currentSentencePage + 1;
@@ -1072,6 +764,8 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
       router.push(`/reader?book=${book?.id}&page=${newPage}`, { scroll: false });
     }
   };
+
+  // Previous sentence page
   const prevSentencePage = () => {
     if (currentSentencePage > 0) {
       const newPage = currentSentencePage - 1;
@@ -1080,7 +774,7 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     }
   };
 
-  // 4. Mark as read logic (by sentence page)
+  // Mark as read
   const handleMarkAsRead = () => {
     setReadPages(prev => {
       const newRead = { ...prev };
@@ -1090,6 +784,8 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
       return newRead;
     });
   };
+
+  // Unmark as read
   const handleUnmarkAsRead = () => {
     setReadPages(prev => {
       const copy = { ...prev };
@@ -1098,40 +794,7 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     });
   };
 
-  // Handler to show Wiktionary popup
-  const showWiktionaryPopup = async (word: string, anchor: { x: number; y: number }) => {
-    setWiktionaryPopup({ word, anchor, loading: true, data: null, error: null });
-    const data = await fetchWiktionaryDefinition(word, nativeLanguage);
-    setWiktionaryPopup(prev => prev && prev.word === word ? { ...prev, loading: false, data, error: data.error || null } : prev);
-  };
 
-  // Handler to hide Wiktionary popup
-  const hideWiktionaryPopup = () => {
-    setWiktionaryPopup(null);
-    if (wiktionaryPopupTimeout.current) clearTimeout(wiktionaryPopupTimeout.current);
-  };
-
-  // Listen for Shift key globally and toggle Wiktionary popup for hovered word (all modes)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift' && hoveredWord) {
-        const el = document.querySelector(`[data-word-key='${hoveredWord}']`);
-        if (el) {
-          const rect = (el as HTMLElement).getBoundingClientRect();
-          showWiktionaryPopup((el as HTMLElement).innerText, { x: rect.left + rect.width / 2, y: rect.top });
-        }
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') hideWiktionaryPopup();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [hoveredWord]);
 
   // Save current page to localStorage on every page change (must be before any return)
   useEffect(() => {
@@ -1140,8 +803,10 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     }
   }, [book?.id, currentSentencePage]);
 
-  // Mark/unmark logic
+  // Mark page complete
   const isPageRead = !!readPagesBySection[currentSectionIndex]?.has(currentPageIndex);
+
+  // Mark page complete
   const handleMarkPageComplete = async () => {
     if (isPageRead) return;
     setReadPagesBySection(prev => {
@@ -1165,6 +830,8 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     }
     setTotalWordsRead(wr => wr + getPageWordCount(currentSectionIndex, currentPageIndex));
   };
+
+  // Unmark page complete
   const handleUnmarkPageComplete = async () => {
     if (!isPageRead) return;
     setReadPagesBySection(prev => {
@@ -1187,11 +854,6 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
       return newWr;
     });
   };
-
-  // (Place all hooks and functions here, do not return early)
-
-  // (Continue with the main render logic)
-
 
 
   // Always recalculate section from currentSentencePage
@@ -1217,12 +879,6 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
         data-word-key={wordKey}
         className={"inline-block cursor-pointer transition-colors duration-150 word-span"}
         style={wordStyle}
-        onClick={e => {
-          const rect = (e.target as HTMLElement).getBoundingClientRect();
-          showWiktionaryPopup(token, { x: rect.left + rect.width / 2, y: rect.top });
-        }}
-        onMouseEnter={() => throttledSetHoveredWord(wordKey)}
-        onMouseLeave={() => throttledSetHoveredWord(null)}
       >
         {token}
       </span>
@@ -1274,6 +930,7 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     return parse(sanitized, options);
   }
 
+  // Get reader container class
   function getReaderContainerClass() {
     if (readerContainerStyle === 'contained') return 'bg-white rounded-lg border-[0.75] border-black';
     if (readerContainerStyle === 'border') return 'bg-transparent border border-gray-300 rounded-lg';
@@ -1281,6 +938,7 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
     return 'bg-transparent';
   }
   
+  // Get reader container style
   function getReaderContainerStyle() {
     if (readerContainerStyle === 'full-width') {
       return { fontFamily: readerFont, fontSize: '1.1rem', width: '100%', maxWidth: '100%', margin: 0, padding: 0, boxShadow: 'none', border: 'none', background: 'white' };
@@ -1782,162 +1440,8 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
           </div>
         </div>
       )}
-      {defPopup && defPopup.anchor && (
-        (() => {
-          let left = defPopup.anchor.x;
-          let top = defPopup.anchor.y - 12;
-          let transform = 'translate(-50%, -100%)';
-          const popupWidth = 340;
-          const popupHeight = 400;
-          const margin = 8;
-          if (isMobile) {
-            // Clamp left/right
-            left = Math.max(margin + popupWidth / 2, Math.min(window.innerWidth - margin - popupWidth / 2, left));
-            // If too close to top, show below the word
-            if (top - popupHeight < 0) {
-              top = defPopup.anchor.y + 24;
-              transform = 'translate(-50%, 0)';
-            }
-          }
-          return (
-            <div
-              id="definition-popup"
-              style={{
-                position: 'fixed',
-                left,
-                top,
-                transform,
-                zIndex: 200,
-                background: '#fff',
-                borderRadius: '1em',
-                border: '2px solid #d1d5db',
-                minWidth: 260,
-                maxWidth: 340,
-                padding: '1.2em 1.2em 1em 1.2em',
-                fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
-                color: '#0B1423',
-                pointerEvents: 'auto',
-                maxHeight: 400,
-                overflowY: 'auto',
-              }}
-              onMouseLeave={hideDefinitionPopup}
-            >
-              <button
-                onClick={hideDefinitionPopup}
-                style={{ position: 'absolute', top: 8, right: 12, background: 'none', border: 'none', fontSize: 22, color: '#bbb', cursor: 'pointer' }}
-                aria-label="Close"
-              >×</button>
-              <div className="font-bold text-lg mb-2">{defPopup.word}</div>
-              {defPopup.loading && <div className="text-gray-400">Loading...</div>}
-              {defPopup.error && <div className="text-red-500">{defPopup.error}</div>}
-              {defPopup.data && !defPopup.error && (
-                <>
-                  {Object.entries(defPopup.data).map(([lang, entries]: any, idx) => (
-                    <div key={lang + idx}>
-                      {entries.map((entry: any, j: number) => (
-                        <div key={j} className="mb-3">
-                          <div className="text-xs font-bold text-purple-400 mb-1">{entry.partOfSpeech}</div>
-                          {entry.inflections && (
-                            <div className="mb-1 text-xs text-gray-500 flex flex-wrap gap-2">
-                              {entry.inflections.map((inf: any, k: number) => (
-                                <span key={k} className="bg-purple-100 text-purple-700 rounded px-2 py-0.5 text-xs font-semibold">{inf}</span>
-                              ))}
-                            </div>
-                          )}
-                          <div className="text-sm font-semibold mb-1">Definitions</div>
-                          <ul className="list-disc pl-5">
-                            {entry.definitions && entry.definitions.slice(0, 5).map((d: any, k: number) => (
-                              <li key={k} className="mb-1 text-sm" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(d.definition) }} />
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          );
-        })()
-      )}
-      {wiktionaryPopup && wiktionaryPopup.anchor && (
-        (() => {
-          let left = wiktionaryPopup.anchor.x;
-          let top = wiktionaryPopup.anchor.y - 12;
-          let transform = 'translate(-50%, -100%)';
-          const popupWidth = 340;
-          const popupHeight = 400;
-          const margin = 8;
-          if (isMobile) {
-            // Clamp left/right
-            left = Math.max(margin + popupWidth / 2, Math.min(window.innerWidth - margin - popupWidth / 2, left));
-            // If too close to top, show below the word
-            if (top - popupHeight < 0) {
-              top = wiktionaryPopup.anchor.y + 24;
-              transform = 'translate(-50%, 0)';
-            }
-          }
-          return (
-            <div
-              id="wiktionary-popup"
-              style={{
-                position: 'fixed',
-                left,
-                top,
-                transform,
-                zIndex: 200,
-                background: '#fff',
-                borderRadius: '1em',
-                border: '2px solid #d1d5db',
-                minWidth: 260,
-                maxWidth: 340,
-                padding: '1.2em 1.2em 1em 1.2em',
-                fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
-                color: '#0B1423',
-                pointerEvents: 'auto',
-                maxHeight: 400,
-                overflowY: 'auto',
-              }}
-              onMouseLeave={hideWiktionaryPopup}
-            >
-              <button
-                onClick={hideWiktionaryPopup}
-                style={{ position: 'absolute', top: 8, right: 12, background: 'none', border: 'none', fontSize: 22, color: '#bbb', cursor: 'pointer' }}
-                aria-label="Close"
-              >×</button>
-              <div className="font-bold text-lg mb-2">{wiktionaryPopup.word}</div>
-              {wiktionaryPopup.loading && <div className="text-gray-400">Loading...</div>}
-              {wiktionaryPopup.error && <div className="text-red-500">{wiktionaryPopup.error}</div>}
-              {wiktionaryPopup.data && !wiktionaryPopup.error && (
-                <>
-                  {Object.entries(wiktionaryPopup.data).map(([lang, entries]: any, idx) => (
-                    <div key={lang + idx}>
-                      {entries.map((entry: any, j: number) => (
-                        <div key={j} className="mb-3">
-                          <div className="text-xs font-bold text-purple-400 mb-1">{entry.partOfSpeech}</div>
-                          {entry.inflections && (
-                            <div className="mb-1 text-xs text-gray-500 flex flex-wrap gap-2">
-                              {entry.inflections.map((inf: any, k: number) => (
-                                <span key={k} className="bg-purple-100 text-purple-700 rounded px-2 py-0.5 text-xs font-semibold">{inf}</span>
-                              ))}
-                            </div>
-                          )}
-                          <div className="text-sm font-semibold mb-1">Definitions</div>
-                          <ul className="list-disc pl-5">
-                            {entry.definitions && entry.definitions.slice(0, 5).map((d: any, k: number) => (
-                              <li key={k} className="mb-1 text-sm" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(d.definition) }} />
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          );
-        })()
-      )}
+     
+     
       {/* Add words read popup in bottom right */}
       {showWordsReadPopup.visible && (
         <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1000 }} className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg text-lg font-bold animate-fade-in">
