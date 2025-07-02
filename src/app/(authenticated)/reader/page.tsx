@@ -150,6 +150,8 @@ export default function ReaderPage() {
     }
     return null;
   });
+  const [isSentenceSelectMode, setIsSentenceSelectMode] = useState(false);
+  const [forcedSpeechStartIndex, setForcedSpeechStartIndex] = useState<number | null>(null);
 
   // Add state for TTS settings
   const [ttsSpeed, setTtsSpeed] = useState(1.0);
@@ -165,13 +167,11 @@ export default function ReaderPage() {
   }
 
   // Function to handle when current reading sentence ends
-const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
-  console.log(`📖 Current reading sentence ${sentenceIndex} ended - unhighlighting`);
-  setActiveSentenceIndex(null);
-  setActiveWordIndex(null);
-}, []);
-
-
+  const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
+    console.log('[ReaderPage] onCurrentReadingSentenceEnd called for sentence', sentenceIndex);
+    setActiveSentenceIndex(null);
+    setActiveWordIndex(null);
+  }, []);
 
   // Helper: robust sentence splitter
   function splitSentences(text: string) {
@@ -758,6 +758,7 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
 
   // Navigation handlers for sentence pages
   const nextSentencePage = () => {
+    console.log('[ReaderPage] nextSentencePage called');
     if (currentSentencePage < sentencePages.length - 1) {
       const newPage = currentSentencePage + 1;
       setCurrentSentencePage(newPage);
@@ -767,6 +768,7 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
 
   // Previous sentence page
   const prevSentencePage = () => {
+    console.log('[ReaderPage] prevSentencePage called');
     if (currentSentencePage > 0) {
       const newPage = currentSentencePage - 1;
       setCurrentSentencePage(newPage);
@@ -1060,36 +1062,41 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
       {/* Header (conditionally rendered) */}
       {showHeader && (
         <div className="bg-white border-[0.75] border-black fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '56px' : '64px', paddingTop: 0, paddingBottom: 0, fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
-          <div className="w-full px-8 py-3 flex items-center justify-between relative" style={{ minHeight: '64px' }}>
-            <div className="flex items-center gap-2">
+          <div className="w-full px-8 py-3 grid grid-cols-3 items-center gap-4" style={{ minHeight: '64px' }}>
+            {/* Left section: Library button + Section toggle + Section title */}
+            <div className="flex items-center gap-2 justify-start">
               <button onClick={backToLibrary} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 {!isMobile && 'Library'}
               </button>
-              <button onClick={() => setShowSectionSidebar(v => !v)} className="ml-2 px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 font-bold text-sm">
+              <button onClick={() => setShowSectionSidebar(v => !v)} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 font-bold text-sm">
                 {showSectionSidebar ? 'Hide Sections' : 'Show Sections'}
               </button>
+              <span className="truncate font-extrabold text-lg ml-2" style={{maxWidth: '240px', color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif'}}>
+                {getSectionTitle(currentSection, currentSectionIndex)}
+              </span>
             </div>
-            {/* Navigation controls */}
-            <div className="flex items-center gap-2 mx-auto" style={{maxWidth: 700}}>
+            
+            {/* Center section: Navigation controls (always centered) */}
+            <div className="flex items-center gap-2 justify-center">
               <button onClick={prevPage} disabled={globalPageNumber === 1} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <span className="text-base font-bold text-[#232946]">{globalPageNumber} / {totalPages}</span>
+              <span className="text-base font-bold text-[#232946] whitespace-nowrap">{globalPageNumber} / {totalPages}</span>
               <button onClick={nextPage} disabled={globalPageNumber === totalPages} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              <span className="ml-4 truncate font-extrabold text-lg" style={{maxWidth: 340, color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', verticalAlign: 'middle'}}>{getSectionTitle(currentSection, currentSectionIndex)}</span>
             </div>
-            {/* Keep the rest of the top bar controls (autoscroll, fullscreen, settings, etc.) as is */}
-            <div className="flex items-center gap-2">
-              {currentViewMode === 'scroll-section' && (
+            
+            {/* Right section: Audio controls, settings, and page completion */}
+            <div className="flex items-center gap-2 justify-end">
+              {currentViewMode === 'scroll-section' && false && (
                 <>
                   <button
                     onClick={() => setIsAutoScrolling(!isAutoScrolling)}
@@ -1155,13 +1162,10 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
               >
                 {isMobile ? '⚙️' : 'Settings'}
               </button>
-            </div>
-            {/* Add new control for marking/unmarking page */}
-            <div className="flex items-center gap-2 ml-6">
               {isPageRead ? (
-                <button onClick={handleUnmarkPageComplete} className="px-4 py-2 rounded bg-green-500 text-white font-bold">Unmark Complete</button>
+                <button onClick={handleUnmarkPageComplete} className="px-4 py-2 rounded bg-green-500 text-white font-bold whitespace-nowrap">Unmark Complete</button>
               ) : (
-                <button onClick={handleMarkPageComplete} className="px-4 py-2 rounded bg-blue-500 text-white font-bold">Mark Complete</button>
+                <button onClick={handleMarkPageComplete} className="px-4 py-2 rounded bg-blue-500 text-white font-bold whitespace-nowrap">Mark Complete</button>
               )}
             </div>
           </div>
@@ -1218,8 +1222,14 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
                     <span
                       key={sIdx}
                       data-sentence-index={sIdx}
-                      className={sIdx === activeSentenceIndex ? 'speaking-highlight' : ''}
-                      style={{ marginRight: 8 }}
+                      className={`${sIdx === activeSentenceIndex ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
+                      style={{ marginRight: 8, cursor: isSentenceSelectMode ? 'pointer' : 'default' }}
+                      onClick={() => {
+                        if (isSentenceSelectMode) {
+                          setForcedSpeechStartIndex(sIdx);
+                          setIsSentenceSelectMode(false);
+                        }
+                      }}
                     >
                       {words.map((word, wIdx) => (
                         <span
@@ -1260,6 +1270,9 @@ const onCurrentReadingSentenceEnd = useCallback((sentenceIndex: number) => {
           voiceName={ttsVoice}
           onProgress={setActiveSentenceIndex}
           onCurrentReadingSentenceEnd={onCurrentReadingSentenceEnd}
+          onSelectModeToggle={setIsSentenceSelectMode}
+          forceStartAt={forcedSpeechStartIndex}
+          onForceStartProcessed={() => setForcedSpeechStartIndex(null)}
         />
       )}
       {/* Settings Modal */}
@@ -1490,6 +1503,9 @@ export function EpubHtmlStyles() {
         background-color: rgba(255, 200, 0, 0.5);
         border-radius: 2px;
         transition: background-color 0.2s;
+      }
+      .sentence-selectable:hover {
+        background-color: rgba(0, 123, 255, 0.2);
       }
     `}</style>
   );

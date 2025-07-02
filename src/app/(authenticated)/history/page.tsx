@@ -7,13 +7,14 @@ import { ReadingSessionService, ReadingSession } from '@/services/readingSession
 import { getBooks } from '@/services/epubService';
 import { FiTrash2 } from 'react-icons/fi';
 
-export default function SavedPage() {
+export default function HistoryPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [sessions, setSessions] = useState<ReadingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookTitles, setBookTitles] = useState<{ [key: string]: string }>({});
-  const [tab, setTab] = useState<'sessions' | 'statistics'>('sessions');
+  const [sortColumn, setSortColumn] = useState<'timestamp' | 'book' | 'wordCount'>('timestamp');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (!user) {
@@ -57,58 +58,57 @@ export default function SavedPage() {
     }
   };
 
-  // Helper to aggregate words read per week/month
-  function aggregateWordsByPeriod(sessions: ReadingSession[], period: 'week' | 'month'): Record<string, number> {
-    const map: Record<string, number> = {};
-    sessions.forEach((session: ReadingSession & { type?: string }) => {
-      if (session.type === 'book-complete') return;
-      const date = new Date(session.timestamp);
-      let key: string;
-      if (period === 'week') {
-        const d = new Date(date);
-        d.setDate(d.getDate() - d.getDay());
-        key = d.toISOString().slice(0, 10);
-      } else if (period === 'month') key = date.toISOString().slice(0, 7);
-      else key = date.toISOString().slice(0, 10);
-      map[key] = (map[key] || 0) + session.wordCount;
-    });
-    return map;
-  }
+  const handleSort = (column: 'timestamp' | 'book' | 'wordCount') => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
 
-  // Helper to count books completed
-  function countBooksCompleted(sessions: (ReadingSession & { type?: string })[]): number {
-    return sessions.filter(s => s.type === 'book-complete').length;
-  }
+  // Helper function to format date
+  const formatDate = (date: Date) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${date.getDate()}-${months[date.getMonth()]}`;
+  };
 
-  // Helper to get total words read
-  function getTotalWordsRead(sessions: (ReadingSession & { type?: string })[]): number {
-    return sessions.filter(s => s.type !== 'book-complete').reduce((sum, s) => sum + s.wordCount, 0);
-  }
+  const sortedSessions = [...sessions].sort((a, b) => {
+    let aValue: string | number;
+    let bValue: string | number;
 
-  // Add a simple bar chart for words read per day
-  function WordsReadChart({ sessions, period }: { sessions: ReadingSession[]; period: 'day' | 'week' | 'month' }) {
-    const data = aggregateWordsByPeriod(sessions, period as 'week' | 'month');
-    const keys = Object.keys(data).sort();
-    const max = Math.max(...Object.values(data), 1);
-    return (
-      <div className="my-8">
-        <div className="font-bold mb-2 text-[#232946]">Words Read per {period.charAt(0).toUpperCase() + period.slice(1)}</div>
-        <div className="flex items-end gap-1 h-32 border-b border-gray-200">
-          {keys.map(key => (
-            <div key={key} className="flex flex-col items-center" style={{ width: 18 }}>
-              <div style={{ height: `${(data[key] / max) * 100}%` }} className="bg-blue-400 w-3 rounded-t" />
-              <div className="text-[10px] text-gray-400 mt-1 rotate-45" style={{ width: 32 }}>{key.slice(5)}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+    switch (sortColumn) {
+      case 'book':
+        aValue = bookTitles[a.bookId] || 'Unknown Book';
+        bValue = bookTitles[b.bookId] || 'Unknown Book';
+        break;
+      case 'wordCount':
+        aValue = a.wordCount;
+        bValue = b.wordCount;
+        break;
+      case 'timestamp':
+      default:
+        aValue = a.timestamp.getTime();
+        bValue = b.timestamp.getTime();
+        break;
+    }
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+    } else {
+      return sortDirection === 'asc' ? (aValue as number) - (bValue as number) : (bValue as number) - (aValue as number);
+    }
+  });
+
+  // Calculate statistics
+  const totalWords = sessions.reduce((sum, session) => sum + session.wordCount, 0);
+  const totalSessions = sessions.length;
+  const averageWordsPerSession = totalSessions > 0 ? Math.round(totalWords / totalSessions) : 0;
 
   if (!user) {
     return (
       <div className="flex items-center justify-center pt-16">
-        <div className="text-[#0B1423] text-xl [font-family:var(--font-mplus-rounded)]">
+        <div className="text-[#232946] text-xl font-semibold">
           Loading...
         </div>
       </div>
@@ -118,7 +118,7 @@ export default function SavedPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center pt-16">
-        <div className="text-[#0B1423] text-xl [font-family:var(--font-mplus-rounded)]">
+        <div className="text-[#232946] text-xl font-semibold">
           Loading reading history...
         </div>
       </div>
@@ -126,78 +126,127 @@ export default function SavedPage() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-8">
-      <div className="flex flex-col gap-8">
-        <div className="w-full">
-          <div className="mb-6">
-            <h1 className="text-4xl font-extrabold text-[#222] tracking-tight" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
-              Reading History
-            </h1>
-            <div className="flex gap-6 border-b border-gray-200 pt-4">
-              <button
-                className={`px-4 py-2 font-semibold rounded-t-lg border-b-2 transition-colors duration-150 bg-transparent ${tab === 'sessions' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-blue-500'}`}
-                onClick={() => setTab('sessions')}
-              >
-                Sessions
-              </button>
-              <button
-                className={`px-4 py-2 font-semibold rounded-t-lg border-b-2 transition-colors duration-150 bg-transparent ${tab === 'statistics' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-blue-500'}`}
-                onClick={() => setTab('statistics')}
-              >
-                Statistics
-              </button>
-            </div>
-          </div>
-          {tab === 'sessions' ? (
-            <>
-              {sessions.length === 0 ? (
-                <div className="text-gray-500 text-center py-8">
-                  No reading sessions yet. Start reading a book to track your progress!
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {sessions.map((session) => (
-                    <div
-                      key={session.id}
-                      className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-500 transition-colors flex items-center justify-between gap-4"
-                    >
-                      <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-lg text-[#232946] truncate">
-                            {bookTitles[session.bookId] || 'Unknown Book'}
-                          </h3>
-                          <p className="text-gray-600 mt-1 truncate">{session.sectionTitle}</p>
-                        </div>
-                        <div className="flex flex-col sm:items-end sm:text-right mt-2 sm:mt-0">
-                          <div className="text-sm text-gray-500 whitespace-nowrap">
-                            {session.timestamp.toLocaleDateString()} at {session.timestamp.toLocaleTimeString()}
-                          </div>
-                          <div className="text-lg font-semibold text-blue-600 mt-1 whitespace-nowrap">
-                            {session.wordCount.toLocaleString()} words
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteSession(session)}
-                        className="ml-4 text-gray-400 hover:text-red-500 transition-colors p-2 rounded flex-shrink-0 self-center"
-                        title="Delete session"
-                        style={{ alignSelf: 'center' }}
-                      >
-                        <FiTrash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            // Statistics tab
-            <div className="max-w-xl mx-auto mt-8 text-center text-2xl text-gray-500 font-semibold">
-              Coming soon
-            </div>
-          )}
+    <div className="w-full max-w-7xl mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-[#232946] mb-2">Reading History</h1>
+        <div className="flex gap-8 text-sm text-gray-600">
+          <span><strong>{totalSessions}</strong> sessions</span>
+          <span><strong>{totalWords.toLocaleString()}</strong> total words</span>
+          <span><strong>{averageWordsPerSession.toLocaleString()}</strong> avg words/session</span>
         </div>
       </div>
+
+      {sessions.length === 0 ? (
+        <div className="text-center py-16 text-gray-500">
+          <div className="text-lg mb-2">No reading sessions yet</div>
+          <div className="text-sm">Start reading a book to track your progress!</div>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+            {/* Table Header */}
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-gray-700">
+                <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
+                <th 
+                  className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('book')}
+                  style={{ width: '35%' }}
+                >
+                  <div className="flex items-center gap-2">
+                    Book Title
+                    {sortColumn === 'book' && (
+                      <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('timestamp')}
+                  style={{ width: '15%' }}
+                >
+                  <div className="flex items-center gap-2">
+                    Date
+                    {sortColumn === 'timestamp' && (
+                      <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('wordCount')}
+                  style={{ width: '15%' }}
+                >
+                  <div className="flex items-center gap-2">
+                    Words
+                    {sortColumn === 'wordCount' && (
+                      <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </th>
+                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Time (min)</th>
+                <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
+              </tr>
+            </thead>
+
+            {/* Table Body */}
+            <tbody className="divide-y divide-gray-200">
+              {sortedSessions.map((session, index) => (
+                <tr
+                  key={session.id}
+                  className="text-base hover:bg-gray-50 transition-colors select-text"
+                  style={{ userSelect: 'text' }}
+                >
+                  {/* Row Number */}
+                  <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
+                    {index + 1}
+                  </td>
+
+                  {/* Book Title */}
+                  <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                    <span className="font-medium text-[#232946]">
+                      {bookTitles[session.bookId] || 'Unknown Book'}
+                    </span>
+                  </td>
+
+                  {/* Date */}
+                  <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                    <span className="text-gray-700">
+                      {formatDate(session.timestamp)}
+                    </span>
+                  </td>
+
+                  {/* Word Count */}
+                  <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                    <span className="font-medium text-[#2563eb]">
+                      {session.wordCount.toLocaleString()}
+                    </span>
+                  </td>
+
+                  {/* Time (minutes) - empty for now */}
+                  <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                    <span className="text-gray-500">
+                      —
+                    </span>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="py-2 px-3 text-center whitespace-nowrap">
+                    <button
+                      onClick={() => handleDeleteSession(session)}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+                      title="Delete session"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 } 
