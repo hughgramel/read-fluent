@@ -1361,14 +1361,15 @@ useEffect(() => {
           }}
         >
           <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
-            <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.01)' : undefined }}>
+            <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.001)' : undefined }}>
               {/* Page content, always starts at top */}
               <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%', color: invisibleText ? 'rgba(0,0,0,0.01)' : undefined }}>
                 {flatSentences.map((sentence, sIdx) => {
                   const words = sentence.match(/\S+/g) || [];
                   const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
-                  // If invisibleText is on, and 'w' is held, and this is the currently-being-read sentence, show as black
-                  const forceVisible = invisibleText && isWHeld && isSentenceHighlighted;
+                  // If invisibleText is on and 'w' is held, show all sentences in black
+                  const showAllVisible = invisibleText && isWHeld;
+                  const forceVisible = showAllVisible || (invisibleText && isWHeld && isSentenceHighlighted);
                   return (
                     <span
                       key={sIdx}
@@ -1377,7 +1378,9 @@ useEffect(() => {
                       style={{
                         marginRight: 8,
                         cursor: isSentenceSelectMode ? 'pointer' : 'default',
-                        color: forceVisible ? '#232946' : (invisibleText ? 'rgba(0,0,0,0.01)' : undefined),
+                        color: showAllVisible
+                          ? '#232946'
+                          : (invisibleText ? 'rgba(0,0,0,0.001)' : undefined),
                       }}
                       onClick={() => {
                         if (isSentenceSelectMode) {
@@ -1394,11 +1397,13 @@ useEffect(() => {
                             className={isWordHighlighted ? 'speaking-highlight-word' : ''}
                             style={{
                               marginRight: 4,
-                              color: (invisibleText
-                                ? (showCurrentWordWhenInvisible && isWordHighlighted
-                                    ? '#232946'
-                                    : 'rgba(0,0,0,0.01)')
-                                : undefined),
+                              color: showAllVisible
+                                ? '#232946'
+                                : (invisibleText
+                                    ? (showCurrentWordWhenInvisible && isWordHighlighted
+                                        ? '#232946'
+                                        : 'rgba(0,0,0,0.001)')
+                                    : undefined),
                             }}
                           >
                             {word + ' '}
@@ -1682,11 +1687,17 @@ export function EpubHtmlStyles() {
       .epub-html blockquote { border-left: 4px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #555; background: #fafafa; }
       .epub-html ul, .epub-html ol { margin: 1em 0 1em 2em; }
       .epub-html li { margin: 0.3em 0; }
-      .epub-html .sentence-span.sentence-hovered { background: rgba(255, 255, 0, 0.18) !important; border-radius: 0.25em; transition: background 0.15s; }
+      .epub-html .sentence-span.sentence-hovered, .speaking-highlight {
+        background: rgba(255, 255, 0, 0.18) !important;
+        border-radius: 0.25em;
+        transition: background 0.15s;
+        box-shadow: 0 1px 0 0 rgba(255, 255, 0, 0.18);
+      }
       .speaking-highlight-word {
         background-color: rgba(255, 200, 0, 0.5);
         border-radius: 2px;
         transition: background-color 0.2s;
+        box-shadow: 0 1px 0 0 rgba(255, 200, 0, 0.5);
       }
       .sentence-selectable:hover {
         background-color: rgba(0, 123, 255, 0.2);
