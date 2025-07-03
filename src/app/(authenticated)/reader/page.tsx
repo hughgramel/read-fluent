@@ -14,6 +14,7 @@ import { ReadingSessionService } from '@/services/readingSessionService';
 import { FiCheck } from 'react-icons/fi';
 import parse, { HTMLReactParserOptions, Text } from 'html-react-parser';
 import SpeechPlayer from '@/components/SpeechPlayer.jsx';
+import { Settings, Maximize2 } from 'lucide-react';
 
 // Types
 interface BookSection {
@@ -257,6 +258,48 @@ export default function ReaderPage() {
       localStorage.setItem(`reader-last-pos-${book.id}`, JSON.stringify({ sectionIndex: sectionIdx, pageIndex: pageIdx }));
     }
   }, [book?.id, currentSectionIndex, currentPageIndex, sectionPages]);
+
+  // Helper to get section title
+  function getSectionTitle(section: BookSection | undefined, idx: number) {
+    let title = section?.title?.trim() || '';
+    if (!title) title = `Section ${idx + 1}`;
+    if (title.length > 100) title = title.slice(0, 100) + '…';
+    return title;
+  }
+
+    const [invisibleText, setInvisibleText] = useState<boolean>(() => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('reader-invisible-text');
+        return stored === 'true';
+      }
+      return false;
+    });
+
+    // Persist invisibleText in localStorage whenever it changes
+    useEffect(() => {
+      localStorage.setItem('reader-invisible-text', String(invisibleText));
+    }, [invisibleText]);
+
+    const [disableWordHighlighting, setDisableWordHighlighting] = useState<boolean>(() => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('reader-disable-word-highlighting');
+        return stored === 'true';
+      }
+      return false;
+    });
+    const [disableSentenceHighlighting, setDisableSentenceHighlighting] = useState<boolean>(() => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('reader-disable-sentence-highlighting');
+        return stored === 'true';
+      }
+      return false;
+    });
+    useEffect(() => {
+      localStorage.setItem('reader-disable-word-highlighting', String(disableWordHighlighting));
+    }, [disableWordHighlighting]);
+    useEffect(() => {
+      localStorage.setItem('reader-disable-sentence-highlighting', String(disableSentenceHighlighting));
+    }, [disableSentenceHighlighting]);
 
   // Navigation helpers
   const goToPage = (sectionIdx: number, pageIdx: number) => {
@@ -1040,7 +1083,7 @@ export default function ReaderPage() {
       {/* Mobile: Dropdown icon is in the bar when header is visible, floating when hidden */}
       {isMobile ? (
         showHeader ? (
-          <div className="fixed top-0 left-0 w-full z-50 pointer-events-none" style={{ height: '56px' }}>
+          <div className="fixed top-0 left-10 w-full z-50 pointer-events-none" style={{ height: '56px' }}>
             <div className="relative w-full h-full flex items-center justify-end pr-2">
               <button
                 onClick={() => setShowHeader((prev) => !prev)}
@@ -1057,7 +1100,7 @@ export default function ReaderPage() {
         ) : (
           <button
             onClick={() => setShowHeader((prev) => !prev)}
-            className="fixed top-4 z-50 bg-white border-2 border-black shadow-lg rounded-full p-1 hover:bg-gray-100 transition-all mr-2"
+            className="fixed top-4 z-50 bg-white border-2 border-black shadow-lg rounded-full p-1 hover:bg-gray-100 transition-all mr-1"
             title={showHeader ? 'Hide top bar' : 'Show top bar'}
             style={{ right: '0.5rem' }}
           >
@@ -1069,7 +1112,7 @@ export default function ReaderPage() {
       ) : (
         <button
           onClick={() => setShowHeader((prev) => !prev)}
-          className="fixed top-4 right-6 z-50 bg-white border-2 border-gray-300 shadow-lg rounded-full p-2 hover:bg-gray-100 transition-all"
+          className="fixed top-3 right-4 z-50 bg-white border-2 border-gray-300 shadow-lg rounded-full p-2 hover:bg-gray-100 transition-all"
           title={showHeader ? 'Hide top bar' : 'Show top bar'}
         >
           <svg className="w-6 h-6" fill="none" stroke="black" viewBox="0 0 24 24">
@@ -1091,7 +1134,7 @@ export default function ReaderPage() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                {!isMobile && 'Library'}
+
               </button>
               <button onClick={() => setShowSectionSidebar(v => !v)} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 font-bold text-sm">
                 {showSectionSidebar ? 'Hide Sections' : 'Show Sections'}
@@ -1117,7 +1160,7 @@ export default function ReaderPage() {
             </div>
             
             {/* Right section: Audio controls, settings, and page completion */}
-            <div className="flex items-center gap-2 justify-end">
+            <div className="flex items-center gap-2 justify-end mr-10">
               {currentViewMode === 'scroll-section' && false && (
                 <>
                   <button
@@ -1182,12 +1225,20 @@ export default function ReaderPage() {
                 title="Reader Settings"
                 aria-label="Reader Settings"
               >
-                {isMobile ? '⚙️' : 'Settings'}
+                <Settings className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleFullscreen}
+                className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                title="Fullscreen"
+                aria-label="Fullscreen"
+              >
+                <Maximize2 className="w-5 h-5" />
               </button>
               {isPageRead ? (
-                <button onClick={handleUnmarkPageComplete} className="px-4 py-2 rounded bg-green-500 text-white font-bold whitespace-nowrap">Unmark Complete</button>
+                <button onClick={handleUnmarkPageComplete} className="px-4 py-2 rounded bg-green-500 text-white font-bold whitespace-nowrap">Uncomplete</button>
               ) : (
-                <button onClick={handleMarkPageComplete} className="px-4 py-2 rounded bg-blue-500 text-white font-bold whitespace-nowrap">Mark Complete</button>
+                <button onClick={handleMarkPageComplete} className="px-4 py-2 rounded bg-blue-500 text-white font-bold whitespace-nowrap">Complete</button>
               )}
             </div>
           </div>
@@ -1240,12 +1291,18 @@ export default function ReaderPage() {
               <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}>
                 {flatSentences.map((sentence, sIdx) => {
                   const words = sentence.match(/\S+/g) || [];
+                  const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
                   return (
                     <span
                       key={sIdx}
                       data-sentence-index={sIdx}
-                      className={`${sIdx === activeSentenceIndex ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
-                      style={{ marginRight: 8, cursor: isSentenceSelectMode ? 'pointer' : 'default' }}
+                      className={`${isSentenceHighlighted ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
+                      style={{
+                        marginRight: 8,
+                        cursor: isSentenceSelectMode ? 'pointer' : 'default',
+                        color: invisibleText && isSentenceHighlighted ? '#b59a00' : undefined,
+                        // #b59a00 is a readable yellow for text on yellow bg
+                      }}
                       onClick={() => {
                         if (isSentenceSelectMode) {
                           setForcedSpeechStartIndex(sIdx);
@@ -1253,15 +1310,21 @@ export default function ReaderPage() {
                         }
                       }}
                     >
-                      {words.map((word, wIdx) => (
-                        <span
-                          key={wIdx}
-                          className={sIdx === activeSentenceIndex && wIdx === activeWordIndex ? 'speaking-highlight-word' : ''}
-                          style={{ marginRight: 4 }}
-                        >
-                          {word + ' '}
-                        </span>
-                      ))}
+                      {words.map((word, wIdx) => {
+                        const isWordHighlighted = isSentenceHighlighted && wIdx === activeWordIndex && !disableWordHighlighting;
+                        return (
+                          <span
+                            key={wIdx}
+                            className={isWordHighlighted ? 'speaking-highlight-word' : ''}
+                            style={{
+                              marginRight: 4,
+                              color: invisibleText && isWordHighlighted ? '#b59a00' : (invisibleText && isSentenceHighlighted ? '#b59a00' : undefined)
+                            }}
+                          >
+                            {word + ' '}
+                          </span>
+                        );
+                      })}
                     </span>
                   );
                 })}
@@ -1586,12 +1649,3 @@ function SectionCheckButton({ isRead }: { isRead: boolean }) {
     </span>
   );
 }
-
-// Helper to get section title
-function getSectionTitle(section: BookSection | undefined, idx: number) {
-  let title = section?.title?.trim() || '';
-  if (!title) title = `Section ${idx + 1}`;
-  if (title.length > 100) title = title.slice(0, 100) + '…';
-  return title;
-}
-

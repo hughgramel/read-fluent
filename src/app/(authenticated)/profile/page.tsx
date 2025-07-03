@@ -298,11 +298,11 @@ interface StatCardProps {
   icon: string;
 }
 const StatCard: React.FC<StatCardProps> = ({ label, value, icon }) => (
-  <div className="bg-white rounded-lg p-4 border-2 border-gray-300 shadow-[0_4px_0px] shadow-gray-300 flex items-center">
-    <span className="text-3xl mr-3">{icon}</span>
+  <div className="bg-white rounded-lg p-4 border border-gray-200 flex items-center" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', boxShadow: 'none' }}>
+    <span className="text-2xl mr-3" style={{ color: '#2563eb' }}>{icon}</span>
     <div>
-      <div className="text-[#0B1423] font-bold text-xl">{value}</div>
-      <div className="text-[#0B1423]/70 text-sm">{label}</div>
+      <div className="text-[#232946] font-bold text-lg" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>{value}</div>
+      <div className="text-[#0B1423]/70 text-sm" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>{label}</div>
     </div>
   </div>
 );

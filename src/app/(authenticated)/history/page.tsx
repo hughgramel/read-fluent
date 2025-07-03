@@ -15,6 +15,12 @@ export default function HistoryPage() {
   const [bookTitles, setBookTitles] = useState<{ [key: string]: string }>({});
   const [sortColumn, setSortColumn] = useState<'timestamp' | 'book' | 'wordCount'>('timestamp');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [mergeRows, setMergeRows] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('history-merge-rows') === 'true';
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (!user) {
@@ -23,6 +29,10 @@ export default function HistoryPage() {
       loadSessions();
     }
   }, [user, router]);
+
+  useEffect(() => {
+    localStorage.setItem('history-merge-rows', String(mergeRows));
+  }, [mergeRows]);
 
   const loadSessions = async () => {
     if (!user?.uid) return;
@@ -34,7 +44,7 @@ export default function HistoryPage() {
       const books = await getBooks(user.uid);
       const titles: { [key: string]: string } = {};
       books.forEach(book => {
-        titles[book.bookId] = book.title;
+        titles[book.bookId ?? ''] = book.title;
       });
       setBookTitles(titles);
     } catch (error) {
@@ -73,10 +83,32 @@ export default function HistoryPage() {
     return `${date.getDate()}-${months[date.getMonth()]}`;
   };
 
-  const sortedSessions = [...sessions].sort((a, b) => {
+  // Helper to get a string key for merging: book title + date
+  const getMergeKey = (session: ReadingSession) => {
+    const title = bookTitles[session.bookId] || 'Unknown Book';
+    const date = formatDate(session.timestamp);
+    return `${title}__${date}`;
+  };
+
+  let displaySessions: any[] = [];
+  if (mergeRows) {
+    const merged: { [key: string]: { session: ReadingSession, wordCount: number, count: number, ids: string[] } } = {};
+    sessions.forEach(session => {
+      const key = getMergeKey(session);
+      if (!merged[key]) {
+        merged[key] = { session, wordCount: 0, count: 0, ids: [] };
+      }
+      merged[key].wordCount += session.wordCount;
+      merged[key].count += 1;
+      merged[key].ids.push(session.id);
+    });
+    displaySessions = Object.values(merged).map(m => ({ ...m.session, wordCount: m.wordCount, mergedIds: m.ids }));
+  } else {
+    displaySessions = sessions;
+  }
+  const sortedDisplaySessions = [...displaySessions].sort((a, b) => {
     let aValue: string | number;
     let bValue: string | number;
-
     switch (sortColumn) {
       case 'book':
         aValue = bookTitles[a.bookId] || 'Unknown Book';
@@ -92,7 +124,6 @@ export default function HistoryPage() {
         bValue = b.timestamp.getTime();
         break;
     }
-
     if (typeof aValue === 'string' && typeof bValue === 'string') {
       return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
     } else {
@@ -130,19 +161,28 @@ export default function HistoryPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-[#232946] mb-2">Reading History</h1>
-        <div className="flex gap-8 text-sm text-gray-600">
+        <div className="flex gap-8 text-sm text-gray-600 items-center">
           <span><strong>{totalSessions}</strong> sessions</span>
           <span><strong>{totalWords.toLocaleString()}</strong> total words</span>
           <span><strong>{averageWordsPerSession.toLocaleString()}</strong> avg words/session</span>
-            </div>
-          </div>
+          <label className="flex items-center gap-2 ml-2 select-none cursor-pointer">
+            <input
+              type="checkbox"
+              checked={mergeRows}
+              onChange={e => setMergeRows(e.target.checked)}
+              className="accent-[#2563eb] h-4 w-4 border-2 border-gray-300 rounded"
+            />
+            Merge sessions
+          </label>
+        </div>
+      </div>
 
-              {sessions.length === 0 ? (
+      {sessions.length === 0 ? (
         <div className="text-center py-16 text-gray-500">
           <div className="text-lg mb-2">No reading sessions yet</div>
           <div className="text-sm">Start reading a book to track your progress!</div>
-                </div>
-              ) : (
+        </div>
+      ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
             {/* Table Header */}
@@ -159,7 +199,7 @@ export default function HistoryPage() {
                     {sortColumn === 'book' && (
                       <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                     )}
-                        </div>
+                  </div>
                 </th>
                 <th 
                   className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
@@ -171,7 +211,7 @@ export default function HistoryPage() {
                     {sortColumn === 'timestamp' && (
                       <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                     )}
-                          </div>
+                  </div>
                 </th>
                 <th 
                   className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
@@ -183,7 +223,7 @@ export default function HistoryPage() {
                     {sortColumn === 'wordCount' && (
                       <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                     )}
-                          </div>
+                  </div>
                 </th>
                 <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Time (min)</th>
                 <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
@@ -192,9 +232,9 @@ export default function HistoryPage() {
 
             {/* Table Body */}
             <tbody className="divide-y divide-gray-200">
-              {sortedSessions.map((session, index) => (
+              {sortedDisplaySessions.map((session, index) => (
                 <tr
-                  key={session.id}
+                  key={session.id || (session.mergedIds ? session.mergedIds.join('-') : undefined)}
                   className="text-base hover:bg-gray-50 transition-colors select-text"
                   style={{ userSelect: 'text' }}
                 >
@@ -219,7 +259,7 @@ export default function HistoryPage() {
 
                   {/* Word Count */}
                   <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                    <span className="font-medium text-[#2563eb]">
+                    <span className="font-medium text-black">
                       {session.wordCount.toLocaleString()}
                     </span>
                   </td>
@@ -233,16 +273,16 @@ export default function HistoryPage() {
 
                   {/* Actions */}
                   <td className="py-2 px-3 text-center whitespace-nowrap">
-                      <button
-                        onClick={() => handleDeleteSession(session)}
+                    <button
+                      onClick={() => handleDeleteSession(session)}
                       className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                        title="Delete session"
-                      >
+                      title="Delete session"
+                    >
                       <FiTrash2 className="w-4 h-4" />
-                      </button>
+                    </button>
                   </td>
                 </tr>
-                  ))}
+              ))}
             </tbody>
           </table>
         </div>
