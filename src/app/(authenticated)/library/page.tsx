@@ -953,7 +953,6 @@ export default function library() {
                 );
               })()}
               <div className="text-gray-500 text-sm text-center mb-4">Read {dailyGoal} words from any imported text.</div>
-              <button className="text-[#2563eb] font-semibold text-base w-full text-center cursor-pointer bg-transparent border-none p-0 hover:underline">Library</button>
             </div>
 
             {/* Card 3: New Words */}

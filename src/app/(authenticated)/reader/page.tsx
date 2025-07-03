@@ -164,6 +164,22 @@ export default function ReaderPage() {
   const [availableVoices, setAvailableVoices] = useState<{ Name: string; LocalName?: string; Locale?: string }[]>([]);
   const [isFetchingVoices, setIsFetchingVoices] = useState(false);
 
+  // Add state for tracking if 'w' is held
+  const [isWHeld, setIsWHeld] = useState(false);
+
+  // Add state for showing the currently-being-read word when invisible text is enabled
+  const [showCurrentWordWhenInvisible, setShowCurrentWordWhenInvisible] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('reader-show-current-word-when-invisible');
+      return stored === 'true';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('reader-show-current-word-when-invisible', String(showCurrentWordWhenInvisible));
+  }, [showCurrentWordWhenInvisible]);
+
   // Fetch voices from Azure
   const fetchVoices = useCallback(async () => {
     setIsFetchingVoices(true);
@@ -1030,11 +1046,30 @@ useEffect(() => {
       prevPage();
     } else if (e.key === 'ArrowRight') {
       nextPage();
+    } else if (e.key === 'Enter') {
+      if (isPageRead) {
+        handleUnmarkPageComplete();
+      } else {
+        handleMarkPageComplete();
+      }
+    } else if (e.key === 'w' || e.key === 'W') {
+      setIsWHeld(true);
+    } else if (e.key === 'i' || e.key === 'I') {
+      setInvisibleText(v => !v);
+    }
+  };
+  const handleKeyUp = (e: KeyboardEvent) => {
+    if (e.key === 'w' || e.key === 'W') {
+      setIsWHeld(false);
     }
   };
   window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [prevPage, nextPage]);
+  window.addEventListener('keyup', handleKeyUp);
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keyup', handleKeyUp);
+  };
+}, [prevPage, nextPage, isPageRead, handleMarkPageComplete, handleUnmarkPageComplete]);
 
 
   // Get reader container class
@@ -1326,12 +1361,14 @@ useEffect(() => {
           }}
         >
           <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
-            <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', color: invisibleText ? '#f9fafb' : undefined }}>
+            <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.01)' : undefined }}>
               {/* Page content, always starts at top */}
-              <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}>
+              <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%', color: invisibleText ? 'rgba(0,0,0,0.01)' : undefined }}>
                 {flatSentences.map((sentence, sIdx) => {
                   const words = sentence.match(/\S+/g) || [];
                   const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
+                  // If invisibleText is on, and 'w' is held, and this is the currently-being-read sentence, show as black
+                  const forceVisible = invisibleText && isWHeld && isSentenceHighlighted;
                   return (
                     <span
                       key={sIdx}
@@ -1340,8 +1377,7 @@ useEffect(() => {
                       style={{
                         marginRight: 8,
                         cursor: isSentenceSelectMode ? 'pointer' : 'default',
-                        color: invisibleText && isSentenceHighlighted ? '#b59a00' : undefined,
-                        // #b59a00 is a readable yellow for text on yellow bg
+                        color: forceVisible ? '#232946' : (invisibleText ? 'rgba(0,0,0,0.01)' : undefined),
                       }}
                       onClick={() => {
                         if (isSentenceSelectMode) {
@@ -1358,7 +1394,11 @@ useEffect(() => {
                             className={isWordHighlighted ? 'speaking-highlight-word' : ''}
                             style={{
                               marginRight: 4,
-                              color: invisibleText && isWordHighlighted ? '#b59a00' : (invisibleText && isSentenceHighlighted ? '#b59a00' : undefined)
+                              color: (invisibleText
+                                ? (showCurrentWordWhenInvisible && isWordHighlighted
+                                    ? '#232946'
+                                    : 'rgba(0,0,0,0.01)')
+                                : undefined),
                             }}
                           >
                             {word + ' '}
@@ -1456,32 +1496,7 @@ useEffect(() => {
                 <span>Wide (~95 char)</span>
               </div>
             </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-underlines"
-                type="checkbox"
-                checked={disableWordUnderlines}
-                onChange={e => {
-                  setDisableWordUnderlines(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, e.target.checked, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle);
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="disable-underlines" className="font-bold text-black select-none cursor-pointer">Disable word underlines & popups</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-words-read-popup"
-                type="checkbox"
-                checked={disableWordsReadPopup}
-                onChange={e => {
-                  setDisableWordsReadPopup(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, e.target.checked, readerContainerStyle);
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="disable-words-read-popup" className="font-bold text-black select-none cursor-pointer">Disable words read popup</label>
-            </div>
+            
             {/* Single example text, black color, all settings applied */}
            
             <div className="mb-6">
@@ -1517,15 +1532,7 @@ useEffect(() => {
                 <option value="full-width">Full-width (long)</option>
               </select>
             </div>
-            {(() => {
-              // Log font size and width for the settings example text
-              console.log('Settings example text font size:', readerFontSize, 'and width:', readerWidth);
-              return (
-                <div className="mt-4 p-5 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
-                  Example: El rápido zorro marrón salta sobre el perro perezoso.
-                </div>
-              );
-            })()}
+            
             {/* 5. Settings modal: add sentences per page setting */}
             <div className="mb-6">
               <label className="block font-bold mb-2 text-black">Sentences per Page</label>
@@ -1606,10 +1613,27 @@ useEffect(() => {
               />
               <label htmlFor="invisible-text" className="font-bold text-black select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
             </div>
-            {/* Example sentence moved to the very bottom */}
-            <div className="mt-4 p-5 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
-              Example: El rápido zorro marrón salta sobre el perro perezoso.
+            <div className="mb-6 flex items-center">
+              <input
+                id="show-current-word-when-invisible"
+                type="checkbox"
+                checked={showCurrentWordWhenInvisible}
+                onChange={e => setShowCurrentWordWhenInvisible(e.target.checked)}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                disabled={!invisibleText}
+              />
+              <label htmlFor="show-current-word-when-invisible" className="font-bold text-black select-none cursor-pointer">Show currently-being-read word when invisible</label>
             </div>
+            {/* Example sentence moved to the very bottom */}
+            {(() => {
+              // Log font size and width for the settings example text
+              console.log('Settings example text font size:', readerFontSize, 'and width:', readerWidth);
+              return (
+                <div className="mt-4 p-5 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
+                  Example: El rápido zorro marrón salta sobre el perro perezoso.
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
