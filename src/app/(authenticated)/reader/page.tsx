@@ -13,7 +13,7 @@ import Head from 'next/head';
 import { ReadingSessionService } from '@/services/readingSessionService';
 import { FiCheck } from 'react-icons/fi';
 import parse, { HTMLReactParserOptions, Text } from 'html-react-parser';
-import SpeechPlayer from '@/components/SpeechPlayer';
+import SpeechPlayer from '@/components/SpeechPlayer.jsx';
 
 // Types
 interface BookSection {
@@ -156,9 +156,31 @@ export default function ReaderPage() {
   // Add state for TTS settings
   const [ttsSpeed, setTtsSpeed] = useState(1.0);
   const [ttsVoice, setTtsVoice] = useState('es-MX-JorgeNeural');
-  const [ttsGender, setTtsGender] = useState('male');
   const [activeWordIndex, setActiveWordIndex] = useState<number | null>(null);
   const [isSpeechPlayerActive, setIsSpeechPlayerActive] = useState(false);
+
+  // Add state for available TTS voices
+  const [availableVoices, setAvailableVoices] = useState<{ Name: string; LocalName?: string; Locale?: string }[]>([]);
+  const [isFetchingVoices, setIsFetchingVoices] = useState(false);
+
+  // Fetch voices from Azure
+  const fetchVoices = useCallback(async () => {
+    setIsFetchingVoices(true);
+    try {
+      const region = process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION || 'eastus';
+      const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`;
+      const headers: Record<string, string> = {};
+      if (process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY) headers['Ocp-Apim-Subscription-Key'] = process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY;
+      const response = await fetch(endpoint, { headers });
+      if (response.ok) {
+        const voices = await response.json();
+        setAvailableVoices(voices);
+      }
+    } catch {}
+    setIsFetchingVoices(false);
+  }, []);
+
+  useEffect(() => { fetchVoices(); }, [fetchVoices]);
 
   // Helper: get total words for a page
   function getPageWordCount(sectionIdx: number, pageIdx: number): number {
@@ -633,7 +655,7 @@ export default function ReaderPage() {
       });
       setVisibleSection(idx);
     }
-  };
+};
 
   // Inject book CSS into the DOM, scoped to .epub-html
   React.useEffect(() => {
@@ -1213,7 +1235,7 @@ export default function ReaderPage() {
           }}
         >
           <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
-            <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+            <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', color: invisibleText ? '#f9fafb' : undefined }}>
               {/* Page content, always starts at top */}
               <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%' }}>
                 {flatSentences.map((sentence, sIdx) => {
@@ -1429,26 +1451,57 @@ export default function ReaderPage() {
                 className="w-full accent-[#2563eb]"
               />
             </div>
-            <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Voice Gender</label>
-              <select
-                value={ttsGender}
-                onChange={e => setTtsGender(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-              >
-                <option value="male">Male</option>
-                <option value="female" disabled>Female (coming soon)</option>
-              </select>
-            </div>
+
             <div className="mb-6">
               <label className="block font-bold mb-2 text-black">Voice Option</label>
-              <select
-                value={ttsVoice}
-                onChange={e => setTtsVoice(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-              >
-                <option value="es-MX-JorgeNeural">Jorge (Mexico)</option>
-              </select>
+              <div className="flex gap-2 items-center">
+                <select
+                  value={ttsVoice}
+                  onChange={e => setTtsVoice(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                >
+                  {availableVoices.length === 0 ? (
+                    <option>Loading voices...</option>
+                  ) : (
+                    availableVoices.map(v => (
+                      <option key={v.Name} value={v.Name}>{v.LocalName || v.Name} ({v.Locale})</option>
+                    ))
+                  )}
+                </select>
+                <button type="button" onClick={fetchVoices} disabled={isFetchingVoices} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-xs font-bold">
+                  {isFetchingVoices ? 'Updating...' : 'Update List'}
+                </button>
+              </div>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="disable-word-highlighting"
+                type="checkbox"
+                checked={disableWordHighlighting}
+                onChange={e => setDisableWordHighlighting(e.target.checked)}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="disable-word-highlighting" className="font-bold text-black select-none cursor-pointer">Disable word highlighting</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="disable-sentence-highlighting"
+                type="checkbox"
+                checked={disableSentenceHighlighting}
+                onChange={e => setDisableSentenceHighlighting(e.target.checked)}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="disable-sentence-highlighting" className="font-bold text-black select-none cursor-pointer">Disable sentence highlighting</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="invisible-text"
+                type="checkbox"
+                checked={invisibleText}
+                onChange={e => setInvisibleText(e.target.checked)}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="invisible-text" className="font-bold text-black select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
             </div>
           </div>
         </div>

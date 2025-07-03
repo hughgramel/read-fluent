@@ -134,15 +134,15 @@ export default function HistoryPage() {
           <span><strong>{totalSessions}</strong> sessions</span>
           <span><strong>{totalWords.toLocaleString()}</strong> total words</span>
           <span><strong>{averageWordsPerSession.toLocaleString()}</strong> avg words/session</span>
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {sessions.length === 0 ? (
+              {sessions.length === 0 ? (
         <div className="text-center py-16 text-gray-500">
           <div className="text-lg mb-2">No reading sessions yet</div>
           <div className="text-sm">Start reading a book to track your progress!</div>
-        </div>
-      ) : (
+                </div>
+              ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
             {/* Table Header */}
@@ -159,7 +159,7 @@ export default function HistoryPage() {
                     {sortColumn === 'book' && (
                       <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                     )}
-                  </div>
+                        </div>
                 </th>
                 <th 
                   className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
@@ -171,7 +171,7 @@ export default function HistoryPage() {
                     {sortColumn === 'timestamp' && (
                       <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                     )}
-                  </div>
+                          </div>
                 </th>
                 <th 
                   className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
@@ -183,7 +183,7 @@ export default function HistoryPage() {
                     {sortColumn === 'wordCount' && (
                       <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                     )}
-                  </div>
+                          </div>
                 </th>
                 <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Time (min)</th>
                 <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
@@ -233,16 +233,16 @@ export default function HistoryPage() {
 
                   {/* Actions */}
                   <td className="py-2 px-3 text-center whitespace-nowrap">
-                    <button
-                      onClick={() => handleDeleteSession(session)}
+                      <button
+                        onClick={() => handleDeleteSession(session)}
                       className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                      title="Delete session"
-                    >
+                        title="Delete session"
+                      >
                       <FiTrash2 className="w-4 h-4" />
-                    </button>
+                      </button>
                   </td>
                 </tr>
-              ))}
+                  ))}
             </tbody>
           </table>
         </div>

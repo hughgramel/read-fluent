@@ -3,7 +3,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { uploadBookJson, saveBookMetadata } from '@/services/epubService';
 import EPub from 'epub-parser';
-import * as cheerio from 'cheerio';
 
 // Define the types needed for this server-side operation
 interface BookSection {

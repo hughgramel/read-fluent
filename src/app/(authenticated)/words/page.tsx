@@ -297,40 +297,40 @@ export default function WordsPage() {
       )}
 
       {/* Add Word Modal */}
-      {showAdd && (
+          {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" style={{ backdropFilter: 'blur(2px)' }}>
           <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-lg max-w-md w-full relative">
-            <button
-              onClick={() => setShowAdd(false)}
+                <button
+                  onClick={() => setShowAdd(false)}
               className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
-              style={{ lineHeight: 1 }}
-              aria-label="Close"
-            >×</button>
+                  style={{ lineHeight: 1 }}
+                  aria-label="Close"
+                >×</button>
             <h2 className="text-2xl font-bold mb-6 text-[#232946] text-center">Add Word</h2>
-            {!langLoaded ? (
+                {!langLoaded ? (
               <div className="text-gray-500 text-center">Loading language...</div>
-            ) : (
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                if (addMultiple) {
-                  // Parse words: split by spaces/commas, but keep quoted phrases
-                  const regex = /"([^"]+)"|'([^']+)'|\S+/g;
-                  const matches = Array.from(addMultiText.matchAll(regex));
-                  const words = matches.map(m => m[1] || m[2] || m[0]).map(w => w.trim()).filter(Boolean);
-                  if (user && words.length > 0) {
-                    await WordService.addWords(user.uid, words, addType);
-                    setShowAdd(false);
-                    setAddMultiText('');
-                    setAddType('tracking');
-                    setAddLang(profileLang || 'en');
-                    const updated = await WordService.getWords(user.uid);
-                    setWords(updated);
-                  }
-                } else {
-                  await handleAddWord(e);
-                }
-              }} className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
+                ) : (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (addMultiple) {
+                      // Parse words: split by spaces/commas, but keep quoted phrases
+                      const regex = /"([^"]+)"|'([^']+)'|\S+/g;
+                      const matches = Array.from(addMultiText.matchAll(regex));
+                      const words = matches.map(m => m[1] || m[2] || m[0]).map(w => w.trim()).filter(Boolean);
+                      if (user && words.length > 0) {
+                        await WordService.addWords(user.uid, words, addType);
+                        setShowAdd(false);
+                        setAddMultiText('');
+                        setAddType('tracking');
+                        setAddLang(profileLang || 'en');
+                        const updated = await WordService.getWords(user.uid);
+                        setWords(updated);
+                      }
+                    } else {
+                      await handleAddWord(e);
+                    }
+                  }} className="flex flex-col gap-4">
+                    <div className="flex items-center gap-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-[#232946]">
                     <input 
                       type="checkbox" 
@@ -339,61 +339,61 @@ export default function WordsPage() {
                       className="w-4 h-4 text-[#2563eb] border-gray-300 rounded focus:ring-[#2563eb]"
                     />
                     Add multiple words
-                  </label>
-                </div>
-                {addMultiple ? (
-                  <textarea
+                      </label>
+                    </div>
+                    {addMultiple ? (
+                      <textarea
                     className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none min-h-[100px] transition-all"
                     placeholder='Enter words separated by spaces or commas, or use quotes for phrases (e.g. banana fruit "to be")'
-                    value={addMultiText}
-                    onChange={e => setAddMultiText(e.target.value)}
-                    required
-                  />
-                ) : (
-                  <input
+                        value={addMultiText}
+                        onChange={e => setAddMultiText(e.target.value)}
+                        required
+                      />
+                    ) : (
+                      <input
                     className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all"
                     placeholder="Enter word"
-                    value={addWord}
-                    onChange={e => setAddWord(e.target.value)}
-                    required
-                  />
-                )}
+                        value={addWord}
+                        onChange={e => setAddWord(e.target.value)}
+                        required
+                      />
+                    )}
                 <div className="flex gap-3">
-                  <select
+                      <select
                     className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all flex-1"
-                    value={addType}
-                    onChange={e => setAddType(e.target.value as WordType)}
-                  >
-                    <option value="known">Known</option>
-                    <option value="tracking">Tracking</option>
-                    <option value="ignored">Ignored</option>
-                  </select>
-                  <select
+                        value={addType}
+                        onChange={e => setAddType(e.target.value as WordType)}
+                      >
+                        <option value="known">Known</option>
+                        <option value="tracking">Tracking</option>
+                        <option value="ignored">Ignored</option>
+                      </select>
+                      <select
                     className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all flex-1"
-                    value={addLang}
-                    onChange={e => setAddLang(e.target.value)}
-                  >
-                    {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                  </select>
-                </div>
-                <button
-                  type="submit"
+                        value={addLang}
+                        onChange={e => setAddLang(e.target.value)}
+                      >
+                        {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                      </select>
+                    </div>
+                    <button
+                      type="submit"
                   className="rounded-lg bg-[#2563eb] text-white font-bold px-6 py-3 hover:bg-[#1749b1] transition-all text-base"
                 >
                   Add {addMultiple ? 'Words' : 'Word'}
                 </button>
-                <button
-                  type="button"
+                    <button
+                      type="button"
                   className="rounded-lg bg-gray-100 text-gray-400 font-medium px-6 py-3 cursor-not-allowed text-base"
-                  disabled
+                      disabled
                 >
                   Import Migaku .db file (Coming Soon)
                 </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
     </div>
   );
 } 
