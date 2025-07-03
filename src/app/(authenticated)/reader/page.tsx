@@ -997,6 +997,46 @@ export default function ReaderPage() {
     return parse(sanitized, options);
   }
 
+  
+// Add minimal CSS for .epub-html to ensure images, headings, and footnotes display well
+
+// Add SectionCheckButton component
+function SectionCheckButton({ isRead }: { isRead: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <span
+      tabIndex={-1}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="transition-colors duration-200 w-6 h-6 flex items-center justify-center rounded focus:outline-none border-none bg-transparent"
+      style={{ padding: 0, minWidth: 24, display: 'inline-flex' }}
+      aria-label={isRead ? (hovered ? 'Unmark as read' : 'Marked as read') : 'Mark as read'}
+    >
+      {isRead ? (
+        hovered ? (
+          <svg className="w-5 h-5 text-red-500 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        ) : (
+          <FiCheck className="text-green-500 w-5 h-5 transition-all duration-200" />
+        )
+      ) : null}
+    </span>
+  );
+}
+
+// Keyboard navigation for page turning
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') {
+      prevPage();
+    } else if (e.key === 'ArrowRight') {
+      nextPage();
+    }
+  };
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [prevPage, nextPage]);
+
+
   // Get reader container class
   function getReaderContainerClass() {
     if (readerContainerStyle === 'contained') return 'bg-white rounded-lg border-[0.75] border-black';
@@ -1566,6 +1606,10 @@ export default function ReaderPage() {
               />
               <label htmlFor="invisible-text" className="font-bold text-black select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
             </div>
+            {/* Example sentence moved to the very bottom */}
+            <div className="mt-4 p-5 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
+              Example: El rápido zorro marrón salta sobre el perro perezoso.
+            </div>
           </div>
         </div>
       )}
@@ -1586,7 +1630,7 @@ export default function ReaderPage() {
   );
 }
 
-// Add minimal CSS for .epub-html to ensure images, headings, and footnotes display well
+
 export function EpubHtmlStyles() {
   return (
     <style jsx global>{`
@@ -1626,26 +1670,3 @@ export function EpubHtmlStyles() {
     `}</style>
   );
 } 
-
-// Add SectionCheckButton component
-function SectionCheckButton({ isRead }: { isRead: boolean }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <span
-      tabIndex={-1}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="transition-colors duration-200 w-6 h-6 flex items-center justify-center rounded focus:outline-none border-none bg-transparent"
-      style={{ padding: 0, minWidth: 24, display: 'inline-flex' }}
-      aria-label={isRead ? (hovered ? 'Unmark as read' : 'Marked as read') : 'Mark as read'}
-    >
-      {isRead ? (
-        hovered ? (
-          <svg className="w-5 h-5 text-red-500 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-        ) : (
-          <FiCheck className="text-green-500 w-5 h-5 transition-all duration-200" />
-        )
-      ) : null}
-    </span>
-  );
-}
