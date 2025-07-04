@@ -182,6 +182,27 @@ export default function ReaderPage() {
 
   const [showSectionWordCount, setShowSectionWordCount] = useState(false);
 
+  // Add state for sentence hover highlighting
+  const [highlightSentenceOnHover, setHighlightSentenceOnHover] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('reader-highlight-sentence-on-hover') === 'true';
+    }
+    return false;
+  });
+  // Add state for currently hovered sentence
+  const [currentlyHighlightedSentence, setCurrentlyHighlightedSentence] = useState<number | null>(null);
+  // Add state for line spacing
+  const [lineSpacing, setLineSpacing] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('reader-line-spacing');
+      return stored ? Number(stored) : 1.5;
+    }
+    return 1.5;
+  });
+  useEffect(() => {
+    localStorage.setItem('reader-line-spacing', String(lineSpacing));
+  }, [lineSpacing]);
+
   useEffect(() => {
     localStorage.setItem('reader-show-current-word-when-invisible', String(showCurrentWordWhenInvisible));
   }, [showCurrentWordWhenInvisible]);
@@ -1336,10 +1357,11 @@ useEffect(() => {
           <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
             <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.001)' : undefined }}>
               {/* Page content, always starts at top */}
-              <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%', color: invisibleText ? 'rgba(0,0,0,0.01)' : undefined }}>
+              <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%', color: invisibleText ? 'rgba(0,0,0,0.01)' : undefined, lineHeight: lineSpacing }}>
                 {flatSentences.map((sentence, sIdx) => {
                   const words = sentence.match(/\S+/g) || [];
                   const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
+                  const isSentenceHovered = highlightSentenceOnHover && sIdx === currentlyHighlightedSentence;
                   // If invisibleText is on and 'w' is held, show only the currently-being-read sentence
                   const showCurrentSentence = invisibleText && isWHeld && isSentenceHighlighted;
                   const forceVisible = showCurrentSentence || (invisibleText && isWHeld && isSentenceHighlighted);
@@ -1350,10 +1372,17 @@ useEffect(() => {
                       className={`${isSentenceHighlighted ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
                       style={{
                         marginRight: 8,
-                        cursor: isSentenceSelectMode ? 'pointer' : 'default',
+                        cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'default'),
                         color: showCurrentSentence
                           ? '#232946'
                           : (invisibleText ? 'rgba(0,0,0,0.001)' : undefined),
+                        background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined, // light blue
+                        borderRadius: isSentenceHovered ? '0.25em' : undefined,
+                        transition: 'background 0.15s',
+                        boxShadow: isSentenceHovered ? '0 -4px 0 0 rgba(56, 189, 248, 0.18)' : undefined,
+                        display: 'inline',
+                        verticalAlign: 'baseline',
+                        // Remove marginBottom for line spacing
                       }}
                       onClick={() => {
                         if (isSentenceSelectMode) {
@@ -1361,6 +1390,8 @@ useEffect(() => {
                           setIsSentenceSelectMode(false);
                         }
                       }}
+                      onMouseEnter={highlightSentenceOnHover ? () => setCurrentlyHighlightedSentence(sIdx) : undefined}
+                      onMouseLeave={highlightSentenceOnHover ? () => setCurrentlyHighlightedSentence(null) : undefined}
                     >
                       {words.map((word, wIdx) => {
                         const isWordHighlighted = isSentenceHighlighted && wIdx === activeWordIndex && !disableWordHighlighting;
@@ -1496,6 +1527,16 @@ useEffect(() => {
                 <option value="Merriweather">Merriweather</option>
               </select>
             </div>
+            {/* Example sentence moved to the very bottom */}
+            {(() => {
+              // Log font size and width for the settings example text
+              console.log('Settings example text font size:', readerFontSize, 'and width:', readerWidth);
+              return (
+                <div className="mt-4 mb-4 p-5 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
+                  Example: El rápido zorro marrón salta sobre el perro perezoso.
+                </div>
+              );
+            })()}
             <div className="mb-6">
               <label className="block font-bold mb-2 text-black">Container Mode</label>
               <select
@@ -1604,16 +1645,35 @@ useEffect(() => {
               />
               <label htmlFor="show-current-word-when-invisible" className="font-bold text-black select-none cursor-pointer">Show currently-being-read word when invisible</label>
             </div>
-            {/* Example sentence moved to the very bottom */}
-            {(() => {
-              // Log font size and width for the settings example text
-              console.log('Settings example text font size:', readerFontSize, 'and width:', readerWidth);
-              return (
-                <div className="mt-4 p-5 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
-                  Example: El rápido zorro marrón salta sobre el perro perezoso.
-                </div>
-              );
-            })()}
+            
+            {/* Settings Modal */}
+            <div className="mb-6 flex items-center">
+              <input
+                id="highlight-sentence-on-hover"
+                type="checkbox"
+                checked={highlightSentenceOnHover}
+                onChange={e => setHighlightSentenceOnHover(e.target.checked)}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="highlight-sentence-on-hover" className="font-bold text-black select-none cursor-pointer">Highlight sentences on hover</label>
+            </div>
+            <div className="mb-6">
+              <label className="block font-bold mb-2 text-black">Line Spacing</label>
+              <input
+                type="range"
+                min={1.0}
+                max={2.5}
+                step={0.05}
+                value={lineSpacing}
+                onChange={e => setLineSpacing(Number(e.target.value))}
+                className="w-full accent-[#2563eb]"
+              />
+              <div className="flex justify-between text-sm text-gray-600 mt-1">
+                <span>1.0</span>
+                <span>1.5</span>
+                <span>2.5</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
