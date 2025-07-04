@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, SkipBack, SkipForward, MousePointerClick } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { Play, Pause, SkipBack, SkipForward, MousePointerClick, Repeat } from 'lucide-react';
 
-const SpeechPlayer = ({
+const SpeechPlayer = forwardRef(({
   sentences,
   onSentenceChange,
   onWordChange,
@@ -15,10 +15,19 @@ const SpeechPlayer = ({
   onForceStartProcessed,
   disableWordHighlighting = false,
   disableSentenceHighlighting = false,
-}) => {
+  onSentenceSelect,
+}, ref) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('reader-current-sentence-index');
+      if (saved && !isNaN(Number(saved))) {
+        return Number(saved);
+      }
+    }
+    return 0;
+  });
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [authToken, setAuthToken] = useState(null);
@@ -31,6 +40,8 @@ const SpeechPlayer = ({
   const highlightIntervalRef = useRef(null);
   const isCurrentlyPlayingRef = useRef(false);
   const autoAdvanceRef = useRef(false);
+  const shouldResumeAfterIndexChange = useRef(false);
+  const skipInProgress = useRef(false);
 
   // Load Speech SDK dynamically
   useEffect(() => {
@@ -81,9 +92,12 @@ const SpeechPlayer = ({
   useEffect(() => {
     if (forceStartAt !== null && forceStartAt !== undefined) {
       setCurrentSentenceIndex(forceStartAt);
+      if (typeof onSentenceSelect === 'function') {
+        onSentenceSelect(forceStartAt);
+      }
       if (onForceStartProcessed) onForceStartProcessed();
     }
-  }, [forceStartAt, onForceStartProcessed]);
+  }, [forceStartAt, onForceStartProcessed, onSentenceSelect]);
 
   // Initialize speech config once
   useEffect(() => {
@@ -175,6 +189,11 @@ const SpeechPlayer = ({
     };
     player.onAudioEnd = () => {
       setIsPlaying(false); setIsPaused(false); isCurrentlyPlayingRef.current = false; stopWordHighlighting(); wordBoundaryListRef.current = [];
+      // Prevent auto-advance if skipInProgress is set (user pressed next/prev)
+      if (skipInProgress.current) {
+        skipInProgress.current = false;
+        return;
+      }
       // Auto-advance to next sentence if enabled
       if (autoAdvanceRef.current && currentSentenceIndex < sentences.length - 1) {
         setTimeout(() => {
@@ -221,29 +240,81 @@ const SpeechPlayer = ({
   const handlePlay = () => {
     playCurrentSentence(true);
   };
+  // Pause only
   const handlePause = () => {
     if (playerRef.current && isPlaying) { playerRef.current.pause(); setIsPaused(true); setIsPlaying(false); isCurrentlyPlayingRef.current = false; stopWordHighlighting(); }
   };
+  // Stop (optionally reset index if you want a true reset elsewhere)
   const handleStop = () => {
-    if (synthesizerRef.current) {
-      try {
-        synthesizerRef.current.close();
-      } catch (e) {}
-      synthesizerRef.current = null;
-    }
-    setIsPlaying(false); setIsPaused(false); isCurrentlyPlayingRef.current = false; stopWordHighlighting(); wordBoundaryListRef.current = [];
-    if (onWordChange) onWordChange(null);
+    if (playerRef.current && isPlaying) { playerRef.current.pause(); setIsPaused(true); setIsPlaying(false); isCurrentlyPlayingRef.current = false; stopWordHighlighting(); }
+    // Do not reset currentSentenceIndex here unless you want a true reset
   };
   const handlePrevious = () => {
-    if (currentSentenceIndex > 0) { handleStop(); setCurrentSentenceIndex(idx => idx - 1); }
+    if (currentSentenceIndex > 0) {
+      if (isPlaying) {
+        handlePause();
+        skipInProgress.current = true;
+        shouldResumeAfterIndexChange.current = true;
+        setCurrentSentenceIndex(idx => idx - 1);
+      } else {
+        setCurrentSentenceIndex(idx => idx - 1);
+      }
+    }
   };
   const handleNext = () => {
-    if (currentSentenceIndex < sentences.length - 1) { handleStop(); setCurrentSentenceIndex(idx => idx + 1); }
+    if (currentSentenceIndex < sentences.length - 1) {
+      if (isPlaying) {
+        handlePause();
+        skipInProgress.current = true;
+        shouldResumeAfterIndexChange.current = true;
+        setCurrentSentenceIndex(idx => idx + 1);
+      } else {
+        setCurrentSentenceIndex(idx => idx + 1);
+      }
+    }
   };
   const toggleSelectMode = () => { if (onSelectModeToggle) onSelectModeToggle(prev => !prev); };
 
+  // Repeat current sentence (replay without advancing)
+  const repeatCurrentSentence = useCallback(() => {
+    handlePause();
+    setTimeout(() => playCurrentSentence(false), 50);
+  }, [playCurrentSentence]);
+
+  useImperativeHandle(ref, () => ({
+    repeatCurrentSentence,
+  }));
+
   // Cleanup on unmount
   useEffect(() => { return () => { handleStop(); }; }, []);
+
+  // Resume playback after index change if needed
+  useEffect(() => {
+    if (shouldResumeAfterIndexChange.current) {
+      shouldResumeAfterIndexChange.current = false;
+      playCurrentSentence(true);
+    }
+  }, [currentSentenceIndex, playCurrentSentence]);
+
+  // Save currentSentenceIndex to localStorage on every change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reader-current-sentence-index', String(currentSentenceIndex));
+    }
+  }, [currentSentenceIndex]);
+
+  // Keyboard shortcuts for previous/next (a/d)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'a' || e.key === 'A') {
+        handlePrevious();
+      } else if (e.key === 'd' || e.key === 'D') {
+        handleNext();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePrevious, handleNext]);
 
   if (!isSDKLoaded) {
     return (<div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg shadow-lg p-4"><div className="text-sm text-gray-600">Loading Speech SDK...</div></div>);
@@ -254,7 +325,7 @@ const SpeechPlayer = ({
   return (
     <div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg shadow-lg p-4 min-w-[220px] flex flex-col items-center">
       <div className="flex items-center gap-2 justify-center">
-        <button onClick={handlePrevious} disabled={currentSentenceIndex === 0 || isPlaying} className="p-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-full" title="Previous">
+        <button onClick={handlePrevious} disabled={currentSentenceIndex === 0} className="p-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-full" title="Previous">
           <SkipBack size={22} />
         </button>
         {isPlaying && !isPaused ? (
@@ -266,8 +337,11 @@ const SpeechPlayer = ({
             <Play size={28} />
           </button>
         )}
-        <button onClick={handleNext} disabled={currentSentenceIndex === sentences.length - 1 || isPlaying} className="p-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-full" title="Next">
+        <button onClick={handleNext} disabled={currentSentenceIndex === sentences.length - 1} className="p-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-full" title="Next">
           <SkipForward size={22} />
+        </button>
+        <button onClick={repeatCurrentSentence} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full" title="Repeat current sentence">
+          <Repeat size={22} />
         </button>
         <button onClick={toggleSelectMode} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full" title="Select active sentence">
           <MousePointerClick size={22} />
@@ -275,6 +349,6 @@ const SpeechPlayer = ({
       </div>
     </div>
   );
-};
+});
 
 export default SpeechPlayer; 

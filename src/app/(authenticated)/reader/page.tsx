@@ -13,7 +13,9 @@ import Head from 'next/head';
 import { ReadingSessionService } from '@/services/readingSessionService';
 import { FiCheck } from 'react-icons/fi';
 import parse, { HTMLReactParserOptions, Text } from 'html-react-parser';
-import SpeechPlayer from '@/components/SpeechPlayer.jsx';
+// @ts-ignore
+import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
+const SpeechPlayer: any = SpeechPlayerImport;
 import { Settings, Maximize2 } from 'lucide-react';
 
 // Types
@@ -136,7 +138,7 @@ export default function ReaderPage() {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
-  const [showSectionSidebar, setShowSectionSidebar] = useState(true);
+  const [showSectionSidebar, setShowSectionSidebar] = useState(false);
 
   // Add state for read pages per section
   const [readPagesBySection, setReadPagesBySection] = useState<{ [sectionIdx: number]: Set<number> }>({});
@@ -158,7 +160,7 @@ export default function ReaderPage() {
   const [ttsSpeed, setTtsSpeed] = useState(1.0);
   const [ttsVoice, setTtsVoice] = useState('es-MX-JorgeNeural');
   const [activeWordIndex, setActiveWordIndex] = useState<number | null>(null);
-  const [isSpeechPlayerActive, setIsSpeechPlayerActive] = useState(false);
+  const [isSpeechPlayerActive, setIsSpeechPlayerActive] = useState(true);
 
   // Add state for available TTS voices
   const [availableVoices, setAvailableVoices] = useState<{ Name: string; LocalName?: string; Locale?: string }[]>([]);
@@ -176,9 +178,20 @@ export default function ReaderPage() {
     return false;
   });
 
+  const speechPlayerRef = React.useRef(null);
+
+  const [showSectionWordCount, setShowSectionWordCount] = useState(false);
+
   useEffect(() => {
     localStorage.setItem('reader-show-current-word-when-invisible', String(showCurrentWordWhenInvisible));
   }, [showCurrentWordWhenInvisible]);
+
+  // Persist activeSentenceIndex in localStorage whenever it changes
+  useEffect(() => {
+    if (activeSentenceIndex !== null && typeof window !== 'undefined') {
+      localStorage.setItem('reader-current-sentence-index', String(activeSentenceIndex));
+    }
+  }, [activeSentenceIndex]);
 
   // Fetch voices from Azure
   const fetchVoices = useCallback(async () => {
@@ -214,8 +227,9 @@ export default function ReaderPage() {
 
   // Helper: robust sentence splitter
   function splitSentences(text: string) {
-    // Handles .!? plus newlines, and avoids splitting on abbreviations (basic)
-    return text.match(/[^.!?\n]+[.!?]+["']?(?=\s|$)|[^.!?\n]+$/g) || [];
+    // Split after ., !, ?, ¿, ¡, even if no space after, and include closing punctuation
+    // Handles Spanish and English sentence boundaries robustly
+    return text.match(/[^.!?¿¡]+[.!?¿¡]+["']?(?=\s|$|[A-ZÁÉÍÓÚÑ¿¡])/g) || [];
   }
 
   // Build sectionPages on book or sentencesPerPage change
@@ -737,73 +751,6 @@ export default function ReaderPage() {
         return `${brace} ${scoped} {`;
       });
       styleTag.textContent = scopedCss;
-
-      // After CSS injection, wrap each sentence and word in spans
-      console.log('Wrapping sentences and words in spans');
-      const wrapSentencesAndWordsInSpans = () => {
-        const contentDiv = document.querySelector('.epub-html');
-        if (!contentDiv) return;
-
-        // Helper function to wrap text nodes in sentence and word spans
-        const wrapTextNode = (node: Node) => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            const text = node.textContent || '';
-            // Split into sentences based on periods, exclamation, or question marks (not newlines)
-            const sentences = text.match(/[^.!?]+[.!?]+["']?(?=\s|$)|[^.!?]+$/g) || [];
-            const fragment = document.createDocumentFragment();
-            sentences.forEach((sentence) => {
-              const sentenceSpan = document.createElement('span');
-              sentenceSpan.className = 'sentence-span';
-              // Add hover effect for sentence highlighting
-              sentenceSpan.onmouseenter = () => {
-                sentenceSpan.classList.add('sentence-hovered');
-              };
-              sentenceSpan.onmouseleave = () => {
-                sentenceSpan.classList.remove('sentence-hovered');
-              };
-              // Now split sentence into words
-              const words = sentence.split(/(\s+|[.,!?;:"()\[\]{}…—–])/);
-              words.forEach((word) => {
-                if (word.trim()) {
-                  const wordSpan = document.createElement('span');
-                  wordSpan.className = 'word-span';
-                  wordSpan.style.cursor = 'pointer';
-                  wordSpan.style.zIndex = '10';
-                  wordSpan.style.pointerEvents = 'auto';
-                  wordSpan.textContent = word;
-                  sentenceSpan.appendChild(wordSpan);
-                } else if (word) {
-                  sentenceSpan.appendChild(document.createTextNode(word));
-                }
-              });
-              fragment.appendChild(sentenceSpan);
-            });
-            if (node.parentNode) {
-              node.parentNode.replaceChild(fragment, node);
-            }
-          }
-        };
-
-        // Recursively process all text nodes
-        const processNode = (node: Node) => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            wrapTextNode(node);
-          } else if (node.nodeType === Node.ELEMENT_NODE) {
-            // Skip if it's already a word or sentence span or a button
-            if (
-              (node as Element).classList.contains('word-span') ||
-              (node as Element).classList.contains('sentence-span') ||
-              (node as Element).tagName === 'BUTTON'
-            ) {
-              return;
-            }
-            Array.from(node.childNodes).forEach(processNode);
-          }
-        };
-        Array.from(contentDiv.childNodes).forEach(processNode);
-      };
-
-      wrapSentencesAndWordsInSpans();
     }
     return () => {
       const styleTag = document.getElementById('epub-book-css');
@@ -1056,6 +1003,14 @@ useEffect(() => {
       setIsWHeld(true);
     } else if (e.key === 'i' || e.key === 'I') {
       setInvisibleText(v => !v);
+    } else if (e.key === 's' || e.key === 'S') {
+      setShowSectionSidebar(v => !v);
+    } else if (e.key === 'r' || e.key === 'R') {
+      // @ts-ignore
+      if (speechPlayerRef.current && typeof speechPlayerRef.current.repeatCurrentSentence === 'function') {
+        // @ts-ignore
+        speechPlayerRef.current.repeatCurrentSentence();
+      }
     }
   };
   const handleKeyUp = (e: KeyboardEvent) => {
@@ -1292,7 +1247,7 @@ useEffect(() => {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                 </svg>
-                {!isMobile && (isSpeechPlayerActive ? 'Hide TTS' : 'Read Aloud')}
+                {!isMobile && (isSpeechPlayerActive ? 'Hide' : 'Read Aloud')}
               </button>
               <button
                 onClick={() => setShowSettings(true)}
@@ -1325,25 +1280,43 @@ useEffect(() => {
         {/* Section Sidebar, only if showSectionSidebar */}
         {showSectionSidebar && (
           <div className="flex flex-col items-start pr-6" style={{ minWidth: 220 }}>
-            <div className="font-bold text-lg mb-4">Sections</div>
+            <div className="font-bold text-lg mb-2 flex items-center gap-2">
+              <span>Sections</span>
+              <label className="flex items-center gap-1 text-xs font-normal ml-2">
+                <input
+                  type="checkbox"
+                  checked={showSectionWordCount}
+                  onChange={e => setShowSectionWordCount(e.target.checked)}
+                  className="accent-[#2563eb] h-4 w-4 border-gray-300 rounded"
+                  style={{ marginRight: 4 }}
+                />
+                <span>Show word count</span>
+              </label>
+            </div>
             {book.sections.map((section, idx) => {
               const totalPages = sectionPages[idx]?.length || 0;
               const readPages = readPagesBySection[idx]?.size || 0;
               const allRead = totalPages > 0 && readPages === totalPages;
               return (
-                <button
-                  key={section.id || idx}
-                  className={`w-full text-left px-4 py-2 rounded mb-1 font-semibold transition-all ${idx === currentSectionIndex ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
-                  style={{ fontWeight: idx === currentSectionIndex ? 700 : 500, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                  onClick={() => goToPage(idx, 0)}
-                >
-                  <span>{getSectionTitle(section, idx)}</span>
-                  {allRead ? (
-                    <FiCheck className="text-green-500 ml-2" />
-                  ) : totalPages > 0 ? (
-                    <span className="ml-2 text-green-600 font-bold">{readPages} / {totalPages}</span>
-                  ) : null}
-                </button>
+                <div key={section.id || idx} className="w-full mb-1">
+                  <button
+                    className={`w-full text-left px-4 py-2 rounded font-semibold transition-all ${idx === currentSectionIndex ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                    style={{ fontWeight: idx === currentSectionIndex ? 700 : 500, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                    onClick={() => goToPage(idx, 0)}
+                  >
+                    <span>{getSectionTitle(section, idx)}</span>
+                    {allRead ? (
+                      <FiCheck className="text-green-500 ml-2" />
+                    ) : totalPages > 0 ? (
+                      <span className="ml-2 text-green-600 font-bold">{readPages} / {totalPages}</span>
+                    ) : null}
+                  </button>
+                  {showSectionWordCount && (
+                    <div className="pl-4 pb-1 text-xs text-gray-400" style={{ fontSize: 12 }}>
+                      {section.wordCount?.toLocaleString() || 0} words
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -1367,9 +1340,9 @@ useEffect(() => {
                 {flatSentences.map((sentence, sIdx) => {
                   const words = sentence.match(/\S+/g) || [];
                   const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
-                  // If invisibleText is on and 'w' is held, show all sentences in black
-                  const showAllVisible = invisibleText && isWHeld;
-                  const forceVisible = showAllVisible || (invisibleText && isWHeld && isSentenceHighlighted);
+                  // If invisibleText is on and 'w' is held, show only the currently-being-read sentence
+                  const showCurrentSentence = invisibleText && isWHeld && isSentenceHighlighted;
+                  const forceVisible = showCurrentSentence || (invisibleText && isWHeld && isSentenceHighlighted);
                   return (
                     <span
                       key={sIdx}
@@ -1378,7 +1351,7 @@ useEffect(() => {
                       style={{
                         marginRight: 8,
                         cursor: isSentenceSelectMode ? 'pointer' : 'default',
-                        color: showAllVisible
+                        color: showCurrentSentence
                           ? '#232946'
                           : (invisibleText ? 'rgba(0,0,0,0.001)' : undefined),
                       }}
@@ -1397,7 +1370,7 @@ useEffect(() => {
                             className={isWordHighlighted ? 'speaking-highlight-word' : ''}
                             style={{
                               marginRight: 4,
-                              color: showAllVisible
+                              color: showCurrentSentence
                                 ? '#232946'
                                 : (invisibleText
                                     ? (showCurrentWordWhenInvisible && isWordHighlighted
@@ -1421,9 +1394,11 @@ useEffect(() => {
       {/* Floating TTS Controls at the bottom */}
       {isSpeechPlayerActive && (
         <SpeechPlayer
+          ref={speechPlayerRef}
           sentences={flatSentences}
           onSentenceChange={setActiveSentenceIndex}
           onWordChange={setActiveWordIndex}
+          onSentenceSelect={setActiveSentenceIndex}
           onPlaybackFinish={() => {
             setActiveSentenceIndex(null);
             setActiveWordIndex(null);
@@ -1691,13 +1666,13 @@ export function EpubHtmlStyles() {
         background: rgba(255, 255, 0, 0.18) !important;
         border-radius: 0.25em;
         transition: background 0.15s;
-        box-shadow: 0 1px 0 0 rgba(255, 255, 0, 0.18);
+        box-shadow: 0 -4px 0 0 rgba(255, 255, 0, 0.18);
       }
       .speaking-highlight-word {
         background-color: rgba(255, 200, 0, 0.5);
-        border-radius: 2px;
+        border-radius: 0.25em;
         transition: background-color 0.2s;
-        box-shadow: 0 1px 0 0 rgba(255, 200, 0, 0.5);
+        box-shadow: 0 -8px 0 0 rgba(255, 200, 0, 0.5);
       }
       .sentence-selectable:hover {
         background-color: rgba(0, 123, 255, 0.2);

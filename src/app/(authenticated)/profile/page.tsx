@@ -92,7 +92,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="flex items-center justify-center pt-16">
-        <div className="text-[#0B1423] text-xl [font-family:var(--font-mplus-rounded)]">
+        <div className="text-[#232946] text-xl font-semibold">
           Loading...
         </div>
       </div>
@@ -100,27 +100,27 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="w-full max-w-6xl" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="w-full max-w-6xl mx-auto px-6 py-8" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
       <div className="flex flex-col gap-8">
         <div className="w-full">
-          <div className="mb-6">
-            <h1 className="text-4xl font-extrabold text-[#222] tracking-tight" style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>
+          <div className="mb-8">
+            <h1 className="text-3xl font-extrabold text-[#232946] tracking-tight mb-2" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>
               {user.displayName || 'User'}
             </h1>
-            <p className="text-sm text-[#222]/70 mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <p className="text-sm text-gray-600">
               Joined {formatJoinDate(user.createdAt)}
             </p>
           </div>
           
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-[#0B1423] mb-4">Statistics</h2>
-            <div className="mb-4 flex items-center gap-4">
-              <label className="font-semibold text-[#0B1423]">Learning Language:</label>
+            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>Statistics</h2>
+            <div className="mb-6 flex items-center gap-4">
+              <label className="font-semibold text-[#232946]">Learning Language:</label>
               {!languageLoaded ? (
                 <span className="text-gray-400">Loading...</span>
               ) : (
                 <select
-                  className="rounded-lg border-2 border-gray-300 px-3 py-1 text-base font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-base font-semibold text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                   value={language || 'en'}
                   onChange={handleLanguageChange}
                   style={{ minWidth: 160 }}
@@ -129,13 +129,13 @@ export default function ProfilePage() {
                 </select>
               )}
             </div>
-            <div className="mb-4 flex items-center gap-4">
-              <label className="font-semibold text-[#0B1423]">Native Language:</label>
+            <div className="mb-6 flex items-center gap-4">
+              <label className="font-semibold text-[#232946]">Native Language:</label>
               {!languageLoaded ? (
                 <span className="text-gray-400">Loading...</span>
               ) : (
                 <select
-                  className="rounded-lg border-2 border-gray-300 px-3 py-1 text-base font-semibold text-[#0B1423] bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-base font-semibold text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
                   value={nativeLanguage}
                   onChange={async (e) => {
                     setNativeLanguage(e.target.value);
@@ -256,31 +256,43 @@ export default function ProfilePage() {
               )}
             </div>
             {loadingStats ? (
-              <div className="text-center py-8 text-[#0B1423]/50">Loading stats...</div>
+              <div className="text-center py-8 text-gray-500">Loading stats...</div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <StatCard label="Books Completed" value={booksCompleted} icon="📚" />
-                <StatCard label="Words Read" value={totalWordsRead} icon="📖" />
+              <div className="flex gap-6">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📚</span>
+                  <div>
+                    <div className="text-[#232946] font-bold text-lg">{booksCompleted}</div>
+                    <div className="text-gray-600 text-sm">Books Completed</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📖</span>
+                  <div>
+                    <div className="text-[#232946] font-bold text-lg">{totalWordsRead.toLocaleString()}</div>
+                    <div className="text-gray-600 text-sm">Words Read</div>
+                  </div>
+                </div>
               </div>
             )}
           </section>
 
           {error && (
-            <div className="bg-red-50 border-2 border-red-300 text-red-700 px-6 py-3 rounded-lg mb-6 text-center">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
               {error}
             </div>
           )}
 
-          <div className="mt-8 text-center">
+          <div className="flex gap-4">
             <Link
               href="/profile/manage"
-              className="inline-block px-6 py-3 font-semibold rounded-lg border-2 border-gray-300 bg-white text-[#0B1423] shadow-[0_4px_0px] shadow-gray-300 hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px] shadow-gray-300/50 transition-all duration-150 mr-4"
+              className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
             >
               Manage Account
             </Link>
             <button
               onClick={handleLogout}
-              className="px-6 py-3 font-semibold rounded-lg border-2 border-gray-300 bg-white text-[#0B1423] shadow-[0_4px_0px] shadow-gray-300 hover:bg-gray-50 active:translate-y-[1px] active:shadow-[0_2px_0px] shadow-gray-300/50 transition-all duration-150"
+              className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
             >
               Sign Out
             </button>
@@ -290,19 +302,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-// Helper component for Statistic Cards
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  icon: string;
-}
-const StatCard: React.FC<StatCardProps> = ({ label, value, icon }) => (
-  <div className="bg-white rounded-lg p-4 border border-gray-200 flex items-center" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', boxShadow: 'none' }}>
-    <span className="text-2xl mr-3" style={{ color: '#2563eb' }}>{icon}</span>
-    <div>
-      <div className="text-[#232946] font-bold text-lg" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>{value}</div>
-      <div className="text-[#0B1423]/70 text-sm" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>{label}</div>
-    </div>
-  </div>
-);
