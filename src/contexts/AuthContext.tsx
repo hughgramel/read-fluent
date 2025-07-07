@@ -7,7 +7,6 @@ import {
   ReactNode
 } from 'react';
 import {
-  User as FirebaseUser,
   UserCredential,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -24,8 +23,6 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { AuthService } from '@/services/authService';
-import { UserService } from '@/services/userService';
 import { createNewUserDocument } from '@/types/user';
 
 interface UserProfile {
@@ -56,17 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Convert Firebase user to UserProfile
-  const createUserProfile = (firebaseUser: FirebaseUser, additionalData?: { createdAt?: Date }): UserProfile => {
-    return {
-      uid: firebaseUser.uid,
-      email: firebaseUser.email,
-      displayName: firebaseUser.displayName,
-      photoURL: firebaseUser.photoURL,
-      createdAt: additionalData?.createdAt || new Date(),
-      lastLogin: new Date(),
-    };
-  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {

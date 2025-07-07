@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Target, Brain, BarChart2, Clock, Zap, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
-import { SiDiscord } from "react-icons/si";
+import { BookOpen, Target, Brain, BarChart2, Clock, Zap, CheckCircle2, Sparkles } from 'lucide-react';
 
 // Feature interface
 interface Feature {

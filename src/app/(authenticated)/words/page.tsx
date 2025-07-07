@@ -176,7 +176,7 @@ export default function WordsPage() {
             <select
               className="rounded-lg border border-gray-200 px-3 py-2 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none transition-all"
               value={filter}
-              onChange={e => setFilter(e.target.value as any)}
+              onChange={e => setFilter(e.target.value as 'all' | 'known' | 'tracking' | 'ignored')}
             >
               {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
             </select>

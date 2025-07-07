@@ -475,7 +475,7 @@ export default function library() {
         css: bookCss,
         cover: coverUrl,
       };
-      const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook);
+      const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as unknown as Record<string, unknown>);
       const savedMeta = await saveBookMetadata(user.uid, bookId, {
         title: newBook.title,
         author: newBook.author,

@@ -1,21 +1,20 @@
-import { useNavigate } from 'react-router-dom';
-import { FcGoogle } from "react-icons/fc";
+import { useRouter } from 'next/navigation';
 
 export default function Landing() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4 [font-family:var(--font-mplus-rounded)]">
       {/* Navigation */}
       <div className="absolute top-5 right-5 flex gap-4">
         <button
-          onClick={() => navigate('/signin')}
+          onClick={() => router.push('/signin')}
           className="text-sm font-semibold text-gray-600 hover:text-[#67b9e7] transition-colors"
         >
           Log In
         </button>
         <button
-          onClick={() => navigate('/signup')}
+          onClick={() => router.push('/signup')}
           className="text-sm font-semibold text-[#67b9e7] hover:text-[#4792ba] transition-colors"
         >
           Sign Up
@@ -52,13 +51,13 @@ export default function Landing() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
-            onClick={() => navigate('/signup')}
+            onClick={() => router.push('/signup')}
             className="px-8 py-3 bg-[#67b9e7] text-white rounded-lg shadow-[0_4px_0_#4792ba] hover:bg-[#4792ba] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#67b9e7] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_0_#4792ba] transition-all"
           >
             Get Started
           </button>
           <button
-            onClick={() => navigate('/signin')}
+            onClick={() => router.push('/signin')}
             className="px-8 py-3 border border-gray-300 text-[#0B1423] bg-white rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#67b9e7] transition-colors"
           >
             Sign In

@@ -100,7 +100,7 @@ export default function HistoryPage() {
       }
       merged[key].wordCount += session.wordCount;
       merged[key].count += 1;
-      merged[key].ids.push(session.id);
+      merged[key].ids.push(session.id ?? '');
     });
     displaySessions = Object.values(merged).map(m => ({ ...m.session, wordCount: m.wordCount, mergedIds: m.ids }));
   } else {

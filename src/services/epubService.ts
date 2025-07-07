@@ -20,7 +20,7 @@ export interface BookMetadata {
   completed?: boolean; // Optional, for completed status
 }
 
-export async function uploadEpub(userId: string, file: File, metadata: any) {
+export async function uploadEpub(userId: string, file: File, metadata: Record<string, unknown>) {
   console.log('[epubService] uploadEpub called:', { userId, fileName: file.name, metadata });
   try {
     const storageRef = ref(storage, `epubs/${userId}/${file.name}`);
@@ -71,7 +71,7 @@ export async function deleteEpub(epubId: string, storagePath: string) {
 }
 
 // Upload the full book JSON to Firebase Storage
-export async function uploadBookJson(userId: string, bookId: string, bookObj: any) {
+export async function uploadBookJson(userId: string, bookId: string, bookObj: Record<string, unknown>) {
   const json = JSON.stringify(bookObj);
   const storageRef = ref(storage, `books/${userId}/${bookId}.json`);
   await uploadBytes(storageRef, new Blob([json], { type: 'application/json' }));
@@ -80,7 +80,7 @@ export async function uploadBookJson(userId: string, bookId: string, bookObj: an
 }
 
 // Save book metadata to Firestore
-export async function saveBookMetadata(userId: string, bookId: string, metadata: any) {
+export async function saveBookMetadata(userId: string, bookId: string, metadata: Record<string, unknown>) {
   const docRef = await addDoc(collection(db, 'books'), {
     ...metadata,
     userId,

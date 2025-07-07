@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FaBookOpen, FaRegSave, FaUser, FaInfoCircle, FaThumbtack } from 'react-icons/fa';
+import { FaBookOpen, FaRegSave, FaUser, FaInfoCircle } from 'react-icons/fa';
 import { PiTextAaBold } from 'react-icons/pi';
 
 // Sidebar Navigation Items
@@ -24,9 +24,6 @@ const ICON_BOX = 48;
 
 export default function Sidebar() {
   const pathname = usePathname();
-  // Sidebar is always expanded
-  const expanded = true;
-  const pinned = true;
 
   return (
     <aside
@@ -58,7 +55,7 @@ export default function Sidebar() {
       {/* Navigation icons */}
       <nav className="flex flex-col items-center flex-1 w-full">
         <ul className="flex flex-col items-center w-full" style={{ gap: 4 }}>
-          {navigation.map((item, idx) => {
+          {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
               <li key={item.name} style={{ width: '100%' }}>
