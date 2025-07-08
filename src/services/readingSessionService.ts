@@ -2,7 +2,7 @@ import { getFirestore, collection, getDocs, addDoc, query, where, orderBy, delet
 
 export interface ReadingSession {
   id?: string;
-  bookId: string;
+  bookId?: string; // Optional for backward compatibility
   bookTitle: string;
   sectionId: string;
   sectionTitle: string;
@@ -30,11 +30,15 @@ export const ReadingSessionService = {
       orderBy('timestamp', 'desc')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      timestamp: doc.data().timestamp.toDate(),
-    } as ReadingSession));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp.toDate(),
+        // bookId may be missing in old sessions
+      } as ReadingSession;
+    });
   },
 
   async getBookSessions(userId: string, bookId: string): Promise<ReadingSession[]> {
@@ -46,21 +50,33 @@ export const ReadingSessionService = {
       orderBy('timestamp', 'desc')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      timestamp: doc.data().timestamp.toDate(),
-    } as ReadingSession));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp.toDate(),
+      } as ReadingSession;
+    });
   },
 
-  async removeSession({ userId, bookId, sectionId }: { userId: string; bookId: string; sectionId: string }): Promise<void> {
+  async removeSession({ userId, bookId, sectionId }: { userId: string; bookId?: string; sectionId: string }): Promise<void> {
     const sessionsRef = collection(db, 'readingSessions');
-    const q = query(
-      sessionsRef,
-      where('userId', '==', userId),
-      where('bookId', '==', bookId),
-      where('sectionId', '==', sectionId)
-    );
+    let q;
+    if (bookId) {
+      q = query(
+        sessionsRef,
+        where('userId', '==', userId),
+        where('bookId', '==', bookId),
+        where('sectionId', '==', sectionId)
+      );
+    } else {
+      q = query(
+        sessionsRef,
+        where('userId', '==', userId),
+        where('sectionId', '==', sectionId)
+      );
+    }
     const snapshot = await getDocs(q);
     const batchDeletes = snapshot.docs.map(docSnap => deleteDoc(doc(db, 'readingSessions', docSnap.id)));
     await Promise.all(batchDeletes);

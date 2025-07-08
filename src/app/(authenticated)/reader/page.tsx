@@ -871,6 +871,7 @@ export default function ReaderPage() {
     if (user?.uid && book) {
       const session = {
         userId: user.uid,
+        // bookId is optional for new sessions, but include for backward compatibility
         bookId: book.id,
         bookTitle: book.title || '',
         sectionId: `${currentSectionIndex}-${currentPageIndex}`,

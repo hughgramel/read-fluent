@@ -97,18 +97,10 @@ export async function getBooks(userId: string): Promise<BookMetadata[]> {
     const q = query(collection(db, 'books'), where('userId', '==', userId));
     const snapshot = await getDocs(q);
     console.log('[epubService] getBooks snapshot size:', snapshot.size);
-    if (snapshot.size === 0) {
-      // Try fetching all books for debugging
-      const allSnapshot = await getDocs(collection(db, 'books'));
-      console.log('[epubService] getBooks ALL snapshot size:', allSnapshot.size);
-      allSnapshot.forEach(doc => {
-        console.log('[epubService] ALL doc:', doc.id, doc.data());
-      });
-    } else {
-      snapshot.forEach(doc => {
-        console.log('[epubService] doc:', doc.id, doc.data());
-      });
-    }
+    // Removed fallback that fetched all books for debugging
+    snapshot.forEach(doc => {
+      console.log('[epubService] doc:', doc.id, doc.data());
+    });
     return snapshot.docs.map(doc => {
       const data = doc.data() as Omit<BookMetadata, 'id'>;
       return { ...data, id: doc.id };

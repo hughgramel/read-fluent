@@ -85,7 +85,8 @@ export default function HistoryPage() {
 
   // Helper to get a string key for merging: book title + date
   const getMergeKey = (session: ReadingSession) => {
-    const title = bookTitles[session.bookId] || 'Unknown Book';
+    // Prefer session.bookTitle, fallback to bookTitles[session.bookId]
+    const title = session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book';
     const date = formatDate(session.timestamp);
     return `${title}__${date}`;
   };
@@ -246,7 +247,8 @@ export default function HistoryPage() {
                   {/* Book Title */}
                   <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
                     <span className="font-medium text-[#232946]">
-                      {bookTitles[session.bookId] || 'Unknown Book'}
+                      {/* Prefer session.bookTitle, fallback to bookTitles[session.bookId] */}
+                      {session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}
                     </span>
                   </td>
 

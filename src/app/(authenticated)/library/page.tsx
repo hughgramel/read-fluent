@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata } from '@/services/epubService';
 import { useAuth } from '@/hooks/useAuth';
-import { FiTrash2, FiBarChart2, FiCheckCircle } from 'react-icons/fi';
+import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus } from 'react-icons/fi';
 import { uploadFileAndGetUrl } from '@/lib/firebase';
 import '@fontsource/inter';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
@@ -65,6 +65,13 @@ export default function library() {
   const [dailyGoal, setDailyGoal] = useState(1500);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalInput, setGoalInput] = useState<string>('1500');
+  const [showTextModal, setShowTextModal] = useState(false);
+  const [textTitle, setTextTitle] = useState('');
+  const [textAuthor, setTextAuthor] = useState('');
+  const [textContent, setTextContent] = useState('');
+  const [textError, setTextError] = useState('');
+  const [textLoading, setTextLoading] = useState(false);
+  const [textFile, setTextFile] = useState<File | null>(null);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -163,7 +170,7 @@ export default function library() {
     ReadingSessionService.getUserSessions(user.uid).then(sessions => {
       const wordsRead: { [key: string]: number } = {};
       sessions.forEach(session => {
-        wordsRead[session.bookId] = (wordsRead[session.bookId] || 0) + session.wordCount;
+        wordsRead[String(session.bookId)] = (wordsRead[String(session.bookId)] || 0) + session.wordCount;
       });
       setBookWordsRead(wordsRead);
       setSessions(sessions);
@@ -662,13 +669,113 @@ export default function library() {
         .reduce((sum: number, s: any) => sum + (s.wordCount || 0), 0)
     : 0;
 
+  // Add handler for text book creation
+  const handleCreateTextBook = async () => {
+    setTextError('');
+    if (!textTitle.trim() || !textAuthor.trim() || !textContent.trim()) {
+      setTextError('Please fill in all fields.');
+      return;
+    }
+    if (!user?.uid) {
+      setTextError('You must be signed in.');
+      return;
+    }
+    setTextLoading(true);
+    try {
+      // Create a single-section book
+      const bookId = Date.now().toString();
+      const newBook = {
+        id: bookId,
+        title: textTitle.trim(),
+        author: textAuthor.trim(),
+        description: '',
+        sections: [{
+          title: textTitle.trim(),
+          content: textContent.trim(),
+          wordCount: textContent.trim().split(/\s+/).filter(Boolean).length,
+          id: '1',
+        }],
+        totalWords: textContent.trim().split(/\s+/).filter(Boolean).length,
+        fileName: `${textTitle.trim().replace(/\s+/g, '_')}.txt`,
+        dateAdded: new Date().toISOString(),
+        css: '',
+        cover: '',
+      };
+      // Upload JSON to storage
+      const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
+      // Save metadata
+      await saveBookMetadata(user.uid, bookId, {
+        title: newBook.title,
+        author: newBook.author,
+        fileName: newBook.fileName,
+        totalWords: newBook.totalWords,
+        storagePath,
+        downloadURL,
+        currentSection: 0,
+      });
+      // Add to local state
+      setBooks(prevBooks => [
+        ...prevBooks,
+        {
+          ...newBook,
+          storagePath,
+          downloadURL,
+          completed: false,
+        }
+      ]);
+      setShowTextModal(false);
+      setTextTitle('');
+      setTextAuthor('');
+      setTextContent('');
+    } catch (err) {
+      setTextError('Failed to create book.');
+    } finally {
+      setTextLoading(false);
+    }
+  };
+
+  // Add handler for .txt file upload in the popup
+  const handleTextFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.name.endsWith('.txt')) {
+      setTextFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setTextContent(e.target?.result as string || '');
+      };
+      reader.readAsText(file);
+    } else {
+      setTextError('Please select a valid .txt file.');
+    }
+  };
+
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (showTextModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [showTextModal]);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!showTextModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTextModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTextModal]);
+
   // Book Card
   function BookCard({ book }: { book: Book }) {
     const knownPct = 94.6;
     const trackingPct = 3.5;
     const unknownPct = 1.8;
     const completed = book.completed;
-    const wordsRead = bookWordsRead[book.id] || 0;
+    const wordsRead = bookWordsRead[String(book.id)] || 0;
     const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
     return (
       <div
@@ -887,22 +994,34 @@ export default function library() {
             <h1 className="text-3xl font-extrabold text-[#232946] tracking-tight" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>My Library</h1>
             <div style={{ height: 4, width: 48, background: '#2563eb', borderRadius: 2 }} />
           </div>
-          <button
-            className="px-7 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
-            disabled={isUploading}
-            onClick={() => document.getElementById('epub-upload-input')?.click()}
-            style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)' }}
-          >
-            {isUploading ? 'Uploading...' : 'Upload EPUB'}
-          </button>
-          <input
-            id="epub-upload-input"
-            type="file"
-            accept=".epub"
-            onChange={handleFileSelect}
-            className="hidden"
-            disabled={isUploading}
-          />
+          <div className="flex items-center gap-3">
+            {/* Add Text Button */}
+            <button
+              className="flex items-center justify-center rounded-full bg-[#2563eb] hover:bg-[#1749b1] text-white w-11 h-11 shadow-sm transition-colors border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
+              style={{ fontSize: 24, marginRight: 0 }}
+              title="Add Text Book"
+              onClick={() => setShowTextModal(true)}
+            >
+              <FiPlus />
+            </button>
+            {/* Upload EPUB Button */}
+            <button
+              className="px-7 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
+              disabled={isUploading}
+              onClick={() => document.getElementById('epub-upload-input')?.click()}
+              style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)' }}
+            >
+              {isUploading ? 'Uploading...' : 'Upload EPUB'}
+            </button>
+            <input
+              id="epub-upload-input"
+              type="file"
+              accept=".epub"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={isUploading}
+            />
+          </div>
         </div>
         {error && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -1028,6 +1147,83 @@ export default function library() {
                   }}
                   className="mt-2 px-6 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
                 >Save</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showTextModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.10)', backdropFilter: 'blur(1.5px)' }}
+            onClick={() => setShowTextModal(true)}
+          >
+            <div
+              className="bg-white rounded-2xl p-12 border border-gray-200 shadow-xl max-w-2xl w-full relative"
+              style={{ fontFamily: 'Inter, sans-serif', color: 'black', minWidth: 400 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowTextModal(false)}
+                className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
+                style={{ background: 'none', border: 'none', lineHeight: 1 }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h2 className="text-2xl font-extrabold mb-4 text-[#222] tracking-tight text-center">Add Text Book</h2>
+              <div className="text-gray-700 text-base space-y-3 px-2">
+                <div className="flex flex-col mb-2">
+                  <label className="font-semibold mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={textTitle}
+                    onChange={e => setTextTitle(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                    style={{ color: 'black' }}
+                  />
+                </div>
+                <div className="flex flex-col mb-2">
+                  <label className="font-semibold mb-1">Author</label>
+                  <input
+                    type="text"
+                    value={textAuthor}
+                    onChange={e => setTextAuthor(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                    style={{ color: 'black' }}
+                  />
+                </div>
+                <div className="flex flex-col mb-2">
+                  <label className="font-semibold mb-1">Text Content</label>
+                  <textarea
+                    value={textContent}
+                    onChange={e => setTextContent(e.target.value)}
+                    rows={16}
+                    className="border border-gray-300 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                    style={{ color: 'black', minHeight: 220 }}
+                  />
+                </div>
+                <div className="flex flex-col mb-2">
+                  <label className="font-semibold mb-1">Or upload .txt file</label>
+                  <label htmlFor="text-upload-input" className="inline-block w-fit px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors cursor-pointer text-base mb-2">
+                    Choose .txt File
+                    <input
+                      id="text-upload-input"
+                      type="file"
+                      accept=".txt"
+                      onChange={handleTextFileSelect}
+                      className="hidden"
+                    />
+                  </label>
+                  {textFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{textFile.name}</span></div>}
+                </div>
+                {textError && <div className="text-red-600 text-sm mb-2">{textError}</div>}
+                <button
+                  onClick={handleCreateTextBook}
+                  className="w-full mt-4 py-3 px-4 rounded-lg bg-[#2563eb] text-white font-bold text-base shadow-sm hover:bg-[#1749b1] transition-colors border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
+                  disabled={textLoading}
+                >
+                  {textLoading ? 'Adding...' : 'Add Book'}
+                </button>
               </div>
             </div>
           </div>
