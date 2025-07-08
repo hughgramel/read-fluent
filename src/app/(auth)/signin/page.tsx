@@ -124,7 +124,7 @@ export default function SignInPage() {
 
     try {
       await signInWithGoogle();
-      router.push('/library');
+      // router.push('/library'); // Removed to let layout handle redirect
     } catch (err) {
       console.error('Google sign-in error:', err);
       if (err instanceof FirebaseError) {
