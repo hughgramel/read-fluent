@@ -803,7 +803,8 @@ export default function library() {
       reader.onload = async (e) => {
         const text = e.target?.result as string || '';
         // Parse Markdown
-        const lines = text.split(/\r?\n/);
+        const cleanText = text.replace(/&ZeroWidthSpace;|\u200B|&#8203;/g, ' ');
+        const lines = cleanText.split(/\r?\n/);
         let bookTitle = '';
         let sections: { title: string; content: string; wordCount: number; id: string }[] = [];
         let currentSectionTitle = '';
@@ -926,7 +927,8 @@ export default function library() {
       try {
         const text = await file.text();
         // Parse Markdown (reuse logic from handleMdFileSelect)
-        const lines = text.split(/\r?\n/);
+        const cleanText = text.replace(/&ZeroWidthSpace;|\u200B|&#8203;/g, ' ');
+        const lines = cleanText.split(/\r?\n/);
         let bookTitle = '';
         let sections: { title: string; content: string; wordCount: number; id: string }[] = [];
         let currentSectionTitle = '';
@@ -1119,7 +1121,7 @@ export default function library() {
       >
         <div className="flex justify-end p-2 gap-2">
           {archived ? (
-            <button
+          <button
               onClick={e => { e.stopPropagation(); deleteArchivedBookHandler(book.id); }}
               className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
               title="Delete archived book"
@@ -1141,13 +1143,13 @@ export default function library() {
               </button>
               <button
                 onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, (book as Book).storagePath); }}
-                className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
-                title="Delete book"
-                tabIndex={-1}
-                style={{ background: 'none', border: 'none' }}
-              >
-                <FiTrash2 className="w-5 h-5" />
-              </button>
+            className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
+            title="Delete book"
+            tabIndex={-1}
+            style={{ background: 'none', border: 'none' }}
+          >
+            <FiTrash2 className="w-5 h-5" />
+          </button>
             </>
           )}
         </div>
@@ -1177,22 +1179,22 @@ export default function library() {
           </div>
           {/* Actions */}
           {!archived && (
-            <div className="flex gap-2 mt-2">
-              <button
+          <div className="flex gap-2 mt-2">
+            <button
                 onClick={e => { e.stopPropagation(); setDataModalBook(book as Book); }}
-                className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1.5 px-2 text-sm transition-colors"
-                tabIndex={-1}
-              >
-                <FiBarChart2 className="w-4 h-4" /> Data
-              </button>
-              <button
+              className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1.5 px-2 text-sm transition-colors"
+              tabIndex={-1}
+            >
+              <FiBarChart2 className="w-4 h-4" /> Data
+            </button>
+            <button
                 onClick={e => { e.stopPropagation(); toggleCompleted(book as Book); }}
                 className={`flex-1 flex items-center justify-center gap-1 rounded-lg border ${(book as Book).completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1.5 px-2 text-sm transition-colors`}
-                tabIndex={-1}
-              >
+              tabIndex={-1}
+            >
                 <FiCheckCircle className="w-4 h-4" /> {(book as Book).completed ? 'Uncomplete' : 'Complete'}
-              </button>
-            </div>
+            </button>
+          </div>
           )}
         </div>
       </div>
@@ -1361,22 +1363,22 @@ export default function library() {
               <FiPlus />
             </button>
             {/* Upload EPUB Button */}
-            <button
-              className="px-7 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
-              disabled={isUploading}
-              onClick={() => document.getElementById('epub-upload-input')?.click()}
-              style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)' }}
-            >
-              {isUploading ? 'Uploading...' : 'Upload EPUB'}
-            </button>
-            <input
-              id="epub-upload-input"
-              type="file"
-              accept=".epub"
-              onChange={handleFileSelect}
-              className="hidden"
-              disabled={isUploading}
-            />
+          <button
+            className="px-7 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
+            disabled={isUploading}
+            onClick={() => document.getElementById('epub-upload-input')?.click()}
+            style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)' }}
+          >
+            {isUploading ? 'Uploading...' : 'Upload EPUB'}
+          </button>
+          <input
+            id="epub-upload-input"
+            type="file"
+            accept=".epub"
+            onChange={handleFileSelect}
+            className="hidden"
+            disabled={isUploading}
+          />
             
           </div>
         </div>

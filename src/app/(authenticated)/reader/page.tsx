@@ -159,6 +159,16 @@ export default function ReaderPage() {
     }
     return null;
   });
+  const [disableSentenceSpans, setDisableSentenceSpans] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('reader-disable-sentence-spans');
+      return stored === 'true';
+    }
+    return false;
+  });
+  useEffect(() => {
+    localStorage.setItem('reader-disable-sentence-spans', String(disableSentenceSpans));
+  }, [disableSentenceSpans]);
   const [isSentenceSelectMode, setIsSentenceSelectMode] = useState(false);
   const [forcedSpeechStartIndex, setForcedSpeechStartIndex] = useState<number | null>(null);
 
@@ -816,6 +826,18 @@ export default function ReaderPage() {
     }
   }, [user, book]);
 
+
+  const [disableWordSpans, setDisableWordSpans] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('reader-disable-word-spans');
+      return stored === 'true';
+    }
+    return false;
+  });
+  useEffect(() => {
+    localStorage.setItem('reader-disable-word-spans', String(disableWordSpans));
+  }, [disableWordSpans]);
+  
   // Navigation handlers for sentence pages
   const nextSentencePage = () => {
     console.log('[ReaderPage] nextSentencePage called');
@@ -1370,65 +1392,69 @@ useEffect(() => {
             <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.001)' : undefined }}>
               {/* Page content, always starts at top */}
               <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%', color: invisibleText ? 'rgba(0,0,0,0.01)' : undefined, lineHeight: lineSpacing }}>
-                {flatSentences.map((sentence, sIdx) => {
-                  const words = sentence.match(/\S+/g) || [];
-                  const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
-                  const isSentenceHovered = highlightSentenceOnHover && sIdx === currentlyHighlightedSentence;
-                  // If invisibleText is on and 'w' is held, show only the currently-being-read sentence
-                  const showCurrentSentence = invisibleText && isWHeld && isSentenceHighlighted;
-                  const forceVisible = showCurrentSentence || (invisibleText && isWHeld && isSentenceHighlighted);
-                  return (
-                    <span
-                      key={sIdx}
-                      data-sentence-index={sIdx}
-                      className={`${isSentenceHighlighted ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
-                      style={{
-                        marginRight: 8,
-                        cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'default'),
-                        color: showCurrentSentence
-                          ? '#232946'
-                          : (invisibleText ? 'rgba(0,0,0,0.001)' : undefined),
-                        background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined, // light blue
-                        borderRadius: isSentenceHovered ? '0.25em' : undefined,
-                        transition: 'background 0.15s',
-                        boxShadow: isSentenceHovered ? '0 -4px 0 0 rgba(56, 189, 248, 0.18)' : undefined,
-                        display: 'inline',
-                        verticalAlign: 'baseline',
-                        // Remove marginBottom for line spacing
-                      }}
-                      onClick={() => {
-                        if (isSentenceSelectMode) {
-                          setForcedSpeechStartIndex(sIdx);
-                          setIsSentenceSelectMode(false);
-                        }
-                      }}
-                      onMouseEnter={highlightSentenceOnHover ? () => setCurrentlyHighlightedSentence(sIdx) : undefined}
-                      onMouseLeave={highlightSentenceOnHover ? () => setCurrentlyHighlightedSentence(null) : undefined}
-                    >
-                      {words.map((word, wIdx) => {
-                        const isWordHighlighted = isSentenceHighlighted && wIdx === activeWordIndex && !disableWordHighlighting;
-                        return (
-                          <span
-                            key={wIdx}
-                            className={isWordHighlighted ? 'speaking-highlight-word' : ''}
-                            style={{
-                              marginRight: 4,
-                              color: showCurrentSentence
-                                ? '#232946'
-                                : (invisibleText
-                                    ? (showCurrentWordWhenInvisible && isWordHighlighted
-                                        ? '#232946'
-                                        : 'rgba(0,0,0,0.001)')
-                                    : undefined),
-                            }}
-                          >
-                            {word + ' '}
-                          </span>
-                        );
-                      })}
-                    </span>
-                  );
-                })}
+                {disableSentenceSpans ? (
+                  <div>{flatSentences.join(' ') + ' '}</div>
+                ) : (
+                  flatSentences.map((sentence, sIdx) => {
+                    const words = sentence.match(/\S+/g) || [];
+                    const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
+                    const isSentenceHovered = highlightSentenceOnHover && sIdx === currentlyHighlightedSentence;
+                    const showCurrentSentence = invisibleText && isWHeld && isSentenceHighlighted;
+                    const forceVisible = showCurrentSentence || (invisibleText && isWHeld && isSentenceHighlighted);
+                    return (
+                      <span
+                        key={sIdx}
+                        data-sentence-index={sIdx}
+                        className={`${isSentenceHighlighted ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
+                        style={{
+                          marginRight: 8,
+                          cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'default'),
+                          color: showCurrentSentence
+                            ? '#232946'
+                            : (invisibleText ? 'rgba(0,0,0,0.001)' : undefined),
+                          background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
+                          borderRadius: isSentenceHovered ? '0.25em' : undefined,
+                          transition: 'background 0.15s',
+                          boxShadow: isSentenceHovered ? '0 -4px 0 0 rgba(56, 189, 248, 0.18)' : undefined,
+                          display: 'inline',
+                          verticalAlign: 'baseline',
+                        }}
+                        onClick={() => {
+                          if (isSentenceSelectMode) {
+                            setForcedSpeechStartIndex(sIdx);
+                            setIsSentenceSelectMode(false);
+                          }
+                        }}
+                        onMouseEnter={highlightSentenceOnHover ? () => setCurrentlyHighlightedSentence(sIdx) : undefined}
+                        onMouseLeave={highlightSentenceOnHover ? () => setCurrentlyHighlightedSentence(null) : undefined}
+                      >
+                        {disableWordSpans
+                          ? sentence + ' '
+                          : words.map((word, wIdx) => {
+                              const isWordHighlighted = isSentenceHighlighted && wIdx === activeWordIndex && !disableWordHighlighting;
+                              return (
+                                <span
+                                  key={wIdx}
+                                  className={isWordHighlighted ? 'speaking-highlight-word' : ''}
+                                  style={{
+                                    marginRight: 4,
+                                    color: showCurrentSentence
+                                      ? '#232946'
+                                      : (invisibleText
+                                          ? (showCurrentWordWhenInvisible && isWordHighlighted
+                                              ? '#232946'
+                                              : 'rgba(0,0,0,0.001)')
+                                          : undefined),
+                                  }}
+                                >
+                                  {word + ' '}
+                                </span>
+                              );
+                            })}
+                      </span>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -1685,6 +1711,26 @@ useEffect(() => {
                 <span>1.5</span>
                 <span>2.5</span>
               </div>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="disable-word-spans"
+                type="checkbox"
+                checked={disableWordSpans}
+                onChange={e => setDisableWordSpans(e.target.checked)}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="disable-word-spans" className="font-bold text-black select-none cursor-pointer">Disable word-level spans (only wrap sentences)</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="disable-sentence-spans"
+                type="checkbox"
+                checked={disableSentenceSpans}
+                onChange={e => setDisableSentenceSpans(e.target.checked)}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="disable-sentence-spans" className="font-bold text-black select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
             </div>
           </div>
         </div>
