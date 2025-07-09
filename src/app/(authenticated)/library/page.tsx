@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata, archiveBook, getArchivedBooks, deleteArchivedBook, ArchivedBookMetadata } from '@/services/epubService';
 import { useAuth } from '@/hooks/useAuth';
+import { UserService } from '@/services/userService';
 import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus, FiArchive } from 'react-icons/fi';
 import { uploadFileAndGetUrl } from '@/lib/firebase';
 import '@fontsource/inter';
@@ -195,14 +196,19 @@ export default function library() {
     });
   }, [user]);
 
-  // On mount, load daily goal from localStorage if present
+  // On mount, load daily goal from Firebase
   useEffect(() => {
-    const storedGoal = localStorage.getItem('rf-daily-goal');
-    if (storedGoal) {
-      setDailyGoal(Number(storedGoal));
-      setGoalInput(storedGoal);
-    }
-  }, []);
+    if (!user?.uid) return;
+    UserService.getDailyGoal(user.uid).then(goal => {
+      setDailyGoal(goal);
+      setGoalInput(String(goal));
+    }).catch(err => {
+      console.error('Failed to load daily goal:', err);
+      // Fallback to default
+      setDailyGoal(1500);
+      setGoalInput('1500');
+    });
+  }, [user]);
 
   // Fetch archived books on mount
   useEffect(() => {
@@ -698,11 +704,39 @@ export default function library() {
     const d = new Date();
     return d.toISOString().slice(0, 10);
   }
-  // Helper: get words read today
-  const wordsReadToday = sessions
-    ? sessions.filter((s: any) => s.timestamp && new Date(s.timestamp).toISOString().slice(0, 10) === getToday())
-        .reduce((sum: number, s: any) => sum + (s.wordCount || 0), 0)
-    : 0;
+  // Helper: get words read today (fix: compare only date part of each session's timestamp)
+  const todayStr = getToday();
+  console.log('Today string:', todayStr);
+  // Helper: compare two dates by local year, month, and day
+  function isSameLocalDay(dateA: Date, dateB: Date) {
+    return (
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate()
+    );
+  }
+  const today = new Date();
+  const sessionsToday = sessions
+    ? sessions.filter((s, idx) => {
+        if (!s.timestamp) return false;
+        let sessionDate: Date;
+        if (typeof s.timestamp === 'string') {
+          sessionDate = new Date(s.timestamp);
+        } else if (s.timestamp instanceof Date) {
+          sessionDate = s.timestamp;
+        } else if (typeof s.timestamp === 'object' && s.timestamp !== null && typeof (s.timestamp as any).toDate === 'function') {
+          sessionDate = (s.timestamp as any).toDate();
+        } else {
+          return false;
+        }
+        const isToday = isSameLocalDay(sessionDate, today);
+        console.log(`[Session ${idx}] timestamp:`, s.timestamp, '| parsed:', sessionDate, '| isToday (local):', isToday);
+        return isToday;
+      })
+    : [];
+  const wordsReadToday = sessionsToday.reduce((sum, s) => sum + (s.wordCount || 0), 0);
+  console.log('Filtered sessions for today:', sessionsToday);
+  console.log('wordsReadToday (sum):', wordsReadToday, 'dailyGoal:', dailyGoal);
 
   // Add handler for text book creation
   const handleCreateTextBook = async () => {
@@ -1418,6 +1452,39 @@ export default function library() {
               </div>
               {/* Progress Circle */}
               {(() => {
+                // Before rendering the daily goal progress circle, add debug logs:
+                console.log('All sessions:', sessions);
+                console.log('Today:', getToday());
+                // Helper: compare two dates by local year, month, and day
+                function isSameLocalDay(dateA: Date, dateB: Date) {
+                  return (
+                    dateA.getFullYear() === dateB.getFullYear() &&
+                    dateA.getMonth() === dateB.getMonth() &&
+                    dateA.getDate() === dateB.getDate()
+                  );
+                }
+                const today = new Date();
+                const sessionsToday = sessions
+                  ? sessions.filter((s, idx) => {
+                      if (!s.timestamp) return false;
+                      let sessionDate: Date;
+                      if (typeof s.timestamp === 'string') {
+                        sessionDate = new Date(s.timestamp);
+                      } else if (s.timestamp instanceof Date) {
+                        sessionDate = s.timestamp;
+                      } else if (typeof s.timestamp === 'object' && s.timestamp !== null && typeof (s.timestamp as any).toDate === 'function') {
+                        sessionDate = (s.timestamp as any).toDate();
+                      } else {
+                        return false;
+                      }
+                      const isToday = isSameLocalDay(sessionDate, today);
+                      console.log(`[Session ${idx}] timestamp:`, s.timestamp, '| parsed:', sessionDate, '| isToday (local):', isToday);
+                      return isToday;
+                    })
+                  : [];
+                console.log('Filtered sessions for today:', sessionsToday);
+                const wordsReadToday = sessionsToday.reduce((sum, s) => sum + (s.wordCount || 0), 0);
+                console.log('wordsReadToday (sum):', wordsReadToday, 'dailyGoal:', dailyGoal);
                 const pct = Math.min(100, (wordsReadToday / dailyGoal) * 100);
                 const dashoffset = 282.743 * (1 - pct / 100);
                 return (
@@ -1498,12 +1565,21 @@ export default function library() {
                   style={{ width: 160, color: '#222' }}
                 />
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const num = Number(goalInput);
                     if (!isNaN(num) && num >= 100 && num <= 10000) {
+                      if (!user?.uid) {
+                        alert('You must be signed in to save your goal.');
+                        return;
+                      }
+                      try {
+                        await UserService.setDailyGoal(user.uid, num);
                       setDailyGoal(num);
                       setShowGoalModal(false);
-                      localStorage.setItem('rf-daily-goal', String(num));
+                      } catch (err) {
+                        console.error('Failed to save daily goal:', err);
+                        alert('Failed to save your goal. Please try again.');
+                      }
                     }
                   }}
                   className="mt-2 px-6 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
@@ -1638,21 +1714,37 @@ export default function library() {
       'Completed': 'Finished',
       'Archived': 'Archived',
     };
+    // In SectionRow, render cards in a horizontal scrollable carousel on mobile, grid on desktop
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
     return (
       <div className="mb-16">
         <div className="flex items-center gap-4 mb-6 mt-12">
           <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>{shelfMap[title] || title}</h2>
           <div className="flex-1 border-t border-gray-200" />
         </div>
+        {isMobile ? (
+          <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {books.length > 0 ? books.map((book) => (
+              <div key={book.id} className="snap-center flex-shrink-0 w-[90vw] max-w-xs">
+                <BookCard book={book} archived={archived} />
+              </div>
+            )) : (
+              <div className="col-span-full flex flex-col items-center justify-center text-gray-300 italic h-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 min-w-[90vw] max-w-xs">
+                <span className="text-base text-gray-400">No books in this shelf yet.</span>
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="flex flex-wrap gap-x-4 gap-y-6 min-h-[180px]">
           {books.length > 0 ? books.map((book) => (
-            <BookCard key={book.id} book={book} archived={archived} />
+              <BookCard key={book.id} book={book} archived={archived} />
           )) : (
             <div className="col-span-full flex flex-col items-center justify-center text-gray-300 italic h-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
               <span className="text-base text-gray-400">No books in this shelf yet.</span>
             </div>
           )}
         </div>
+        )}
       </div>
     );
   }

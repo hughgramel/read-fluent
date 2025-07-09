@@ -12,6 +12,21 @@ export interface UserPreferences {
   theme?: string;
   viewMode?: 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two';
   disableWordsReadPopup?: boolean; // disables the words read popup
+  dailyGoal?: number; // daily reading goal in words (default: 1500)
+  
+  // Reader-specific settings (moved from localStorage)
+  readerContainerStyle?: 'contained' | 'border' | 'none' | 'full-width';
+  sentencesPerPage?: number;
+  ttsSpeed?: number;
+  ttsVoice?: string;
+  disableWordHighlighting?: boolean;
+  disableSentenceHighlighting?: boolean;
+  invisibleText?: boolean;
+  showCurrentWordWhenInvisible?: boolean;
+  highlightSentenceOnHover?: boolean;
+  lineSpacing?: number;
+  disableWordSpans?: boolean;
+  disableSentenceSpans?: boolean;
 }
 
 export interface UserStats {
@@ -37,6 +52,7 @@ export interface User {
   // Custom fields
   accountType: AccountType;
   profile: UserProfile;
+  preferences?: UserPreferences;
   
   // Subscription info
   subscriptionStatus: 'active' | 'canceled' | 'expired' | null;
@@ -66,6 +82,10 @@ export function createNewUserDocument(
       displayName,
       photoURL,
       language: 'en',
+    },
+    preferences: {
+      darkMode: false,
+      dailyGoal: 1500,
     },
     subscriptionStatus: null,
     subscriptionEndDate: null,

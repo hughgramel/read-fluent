@@ -133,4 +133,23 @@ export class UserService {
     const docSnap = await getDoc(achievementDoc);
     return docSnap.exists();
   }
+
+  // --- Daily Goal Methods --- //
+  static async getDailyGoal(uid: string): Promise<number> {
+    const userDoc = doc(db, this.COLLECTION, uid);
+    const snap = await getDoc(userDoc);
+    if (!snap.exists()) {
+      return 1500; // default value
+    }
+    const data = snap.data();
+    return data.preferences?.dailyGoal || 1500;
+  }
+
+  static async setDailyGoal(uid: string, goal: number): Promise<void> {
+    const userDoc = doc(db, this.COLLECTION, uid);
+    await updateDoc(userDoc, {
+      'preferences.dailyGoal': goal,
+      lastUpdatedAt: serverTimestamp(),
+    });
+  }
 } 

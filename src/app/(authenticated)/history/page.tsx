@@ -303,8 +303,11 @@ export default function HistoryPage() {
                       </td>
 
                       {/* Book Title */}
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                        <span className="font-medium text-[#232946]">
+                      <td
+                        className="py-2 px-3 border-r border-gray-200 whitespace-nowrap max-w-[80px] overflow-hidden truncate"
+                        title={session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}
+                      >
+                        <span className="font-medium text-[#232946] truncate block">
                           {/* Prefer session.bookTitle, fallback to bookTitles[session.bookId] */}
                           {session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}
                         </span>
@@ -376,7 +379,12 @@ export default function HistoryPage() {
                 return (
                   <tr key={book.bookId} className="text-base hover:bg-gray-50 transition-colors select-text text-[#232946]" style={{ userSelect: 'text' }}>
                     <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">{index + 1}</td>
-                    <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap font-medium text-[#232946]">{book.title}</td>
+                    <td
+                      className="py-2 px-3 border-r border-gray-200 whitespace-nowrap max-w-[80px] overflow-hidden truncate"
+                      title={book.title}
+                    >
+                      <span className="font-medium text-[#232946] truncate block">{book.title}</span>
+                    </td>
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.totalWords?.toLocaleString() ?? ''}</td>
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{wordsRead.toLocaleString()}</td>
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{percentStr}</td>
@@ -393,7 +401,12 @@ export default function HistoryPage() {
                 return (
                   <tr key={book.id} className="text-base hover:bg-gray-50 transition-colors select-text text-[#232946] opacity-70" style={{ userSelect: 'text' }}>
                     <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">{books.length + idx + 1}</td>
-                    <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap font-medium text-[#232946]">{book.title}</td>
+                    <td
+                      className="py-2 px-3 border-r border-gray-200 whitespace-nowrap max-w-[80px] overflow-hidden truncate"
+                      title={book.title}
+                    >
+                      <span className="font-medium text-[#232946] truncate block">{book.title}</span>
+                    </td>
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.totalWords?.toLocaleString() ?? ''}</td>
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.wordsRead.toLocaleString()}</td>
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{percentStr}</td>

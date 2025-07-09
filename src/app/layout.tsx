@@ -5,6 +5,7 @@ import { M_PLUS_Rounded_1c } from 'next/font/google';
 import "./globals.css";
 import { Providers } from '@/components/Providers';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { PWAInstall } from '@/components/PWAInstall';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,8 +49,37 @@ const mplusRounded = M_PLUS_Rounded_1c({
 });
 
 export const metadata: Metadata = {
-  title: "readfluent",
+  title: "ReadFluent",
   description: "Learn a new language by reading the books you love",
+  manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' }
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+    ]
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'ReadFluent'
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: 'cover'
+  },
+  themeColor: '#000000',
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'default',
+    'apple-mobile-web-app-title': 'ReadFluent'
+  }
 };
 
 export default function RootLayout({
@@ -65,6 +95,7 @@ export default function RootLayout({
         <AuthProvider>
             <Providers>
               {children}
+              <PWAInstall />
             </Providers>
         </AuthProvider>
       </body>

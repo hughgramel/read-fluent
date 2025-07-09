@@ -16,7 +16,7 @@ import parse, { HTMLReactParserOptions, Text } from 'html-react-parser';
 // @ts-ignore
 import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
 const SpeechPlayer: any = SpeechPlayerImport;
-import { Settings, Maximize2 } from 'lucide-react';
+import { Settings, Maximize2, List, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
 
 // Types
@@ -74,12 +74,7 @@ export default function ReaderPage() {
   const [wordStatusMap, setWordStatusMap] = useState<{ [word: string]: WordType }>({});
   const [popup, setPopup] = useState<{ word: string; x: number; y: number; status: WordType } | null>(null);
   const [hoveredWord, setHoveredWord] = useState<string | null>(null);
-  const [nativeLanguage, setNativeLanguage] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('reader-native-language') || 'en';
-    }
-    return 'en';
-  });
+  const [nativeLanguage, setNativeLanguage] = useState<string>('en');
   const [defPopup, setDefPopup] = useState<{
     word: string;
     anchor: { x: number; y: number } | null;
@@ -91,18 +86,8 @@ export default function ReaderPage() {
   const [shiftedWord, setShiftedWord] = useState<string | null>(null);
   const [showEntireBook, setShowEntireBook] = useState(false);
   const [disableWordUnderlines, setDisableWordUnderlines] = useState<boolean>(false);
-  const [currentTheme, setCurrentTheme] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('reader-theme') || 'light';
-    }
-    return 'light';
-  });
-  const [currentViewMode, setCurrentViewMode] = useState<'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two'>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('reader-view-mode') as 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two') || 'scroll-section';
-    }
-    return 'scroll-section';
-  });
+  const [currentTheme, setCurrentTheme] = useState<string>('light');
+  const [currentViewMode, setCurrentViewMode] = useState<'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two'>('scroll-section');
   const [isWideScreen, setIsWideScreen] = useState(false);
   const [readSections, setReadSections] = useState<{ [key: string]: boolean }>({});
   const [totalWordsRead, setTotalWordsRead] = useState(0);
@@ -118,19 +103,9 @@ export default function ReaderPage() {
   } | null>(null);
   const wiktionaryPopupTimeout = useRef<NodeJS.Timeout | null>(null);
   // 1. Add new state for container style
-  const [readerContainerStyle, setReaderContainerStyle] = useState<'contained' | 'border' | 'none' | 'full-width'>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('reader-container-style') as 'contained' | 'border' | 'none' | 'full-width') || 'contained';
-    }
-    return 'contained';
-  });
+  const [readerContainerStyle, setReaderContainerStyle] = useState<'contained' | 'border' | 'none' | 'full-width'>('contained');
   // 1. Add state for sentencesPerPage and sentence-based pagination
-  const [sentencesPerPage, setSentencesPerPage] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      return Number(localStorage.getItem('reader-sentences-per-page')) || 50;
-    }
-    return 50;
-  });
+  const [sentencesPerPage, setSentencesPerPage] = useState<number>(50);
   const [sentencePages, setSentencePages] = useState<string[][]>([]); // Each page is an array of sentences
   const [currentSentencePage, setCurrentSentencePage] = useState(0);
   const [readPages, setReadPages] = useState<{ [key: number]: boolean }>({});
@@ -150,25 +125,9 @@ export default function ReaderPage() {
   const [readPagesBySection, setReadPagesBySection] = useState<{ [sectionIdx: number]: Set<number> }>({});
 
   // State for TTS highlighting
-  const [activeSentenceIndex, setActiveSentenceIndex] = useState<number | null>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('reader-current-sentence-index');
-      if (saved && !isNaN(Number(saved))) {
-        return Number(saved);
-      }
-    }
-    return null;
-  });
-  const [disableSentenceSpans, setDisableSentenceSpans] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('reader-disable-sentence-spans');
-      return stored === 'true';
-    }
-    return false;
-  });
-  useEffect(() => {
-    localStorage.setItem('reader-disable-sentence-spans', String(disableSentenceSpans));
-  }, [disableSentenceSpans]);
+  const [activeSentenceIndex, setActiveSentenceIndex] = useState<number | null>(null);
+  const [disableSentenceSpans, setDisableSentenceSpans] = useState(false);
+
   const [isSentenceSelectMode, setIsSentenceSelectMode] = useState(false);
   const [forcedSpeechStartIndex, setForcedSpeechStartIndex] = useState<number | null>(null);
 
@@ -186,53 +145,22 @@ export default function ReaderPage() {
   const [isWHeld, setIsWHeld] = useState(false);
 
   // Add state for showing the currently-being-read word when invisible text is enabled
-  const [showCurrentWordWhenInvisible, setShowCurrentWordWhenInvisible] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('reader-show-current-word-when-invisible');
-      return stored === 'true';
-    }
-    return false;
-  });
+  const [showCurrentWordWhenInvisible, setShowCurrentWordWhenInvisible] = useState<boolean>(false);
 
   const speechPlayerRef = React.useRef(null);
 
   const [showSectionWordCount, setShowSectionWordCount] = useState(false);
 
   // Add state for sentence hover highlighting
-  const [highlightSentenceOnHover, setHighlightSentenceOnHover] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('reader-highlight-sentence-on-hover');
-      return stored === null ? false : stored === 'true';
-    }
-    return false;
-  });
-  useEffect(() => {
-    localStorage.setItem('reader-highlight-sentence-on-hover', String(highlightSentenceOnHover));
-  }, [highlightSentenceOnHover]);
+  const [highlightSentenceOnHover, setHighlightSentenceOnHover] = useState(false);
   // Add state for currently hovered sentence
   const [currentlyHighlightedSentence, setCurrentlyHighlightedSentence] = useState<number | null>(null);
   // Add state for line spacing
-  const [lineSpacing, setLineSpacing] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('reader-line-spacing');
-      return stored ? Number(stored) : 1.5;
-    }
-    return 1.5;
-  });
-  useEffect(() => {
-    localStorage.setItem('reader-line-spacing', String(lineSpacing));
-  }, [lineSpacing]);
+  const [lineSpacing, setLineSpacing] = useState<number>(1.5);
 
-  useEffect(() => {
-    localStorage.setItem('reader-show-current-word-when-invisible', String(showCurrentWordWhenInvisible));
-  }, [showCurrentWordWhenInvisible]);
 
-  // Persist activeSentenceIndex in localStorage whenever it changes
-  useEffect(() => {
-    if (activeSentenceIndex !== null && typeof window !== 'undefined') {
-      localStorage.setItem('reader-current-sentence-index', String(activeSentenceIndex));
-    }
-  }, [activeSentenceIndex]);
+
+
 
   // Fetch voices from Azure
   const fetchVoices = useCallback(async () => {
@@ -338,40 +266,11 @@ export default function ReaderPage() {
     return title;
   }
 
-    const [invisibleText, setInvisibleText] = useState<boolean>(() => {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('reader-invisible-text');
-        return stored === 'true';
-      }
-      return false;
-    });
-
-    // Persist invisibleText in localStorage whenever it changes
-    useEffect(() => {
-      localStorage.setItem('reader-invisible-text', String(invisibleText));
-    }, [invisibleText]);
+    const [invisibleText, setInvisibleText] = useState<boolean>(false);
 
     // Set default for disableWordHighlighting and disableSentenceHighlighting to true, and highlightSentenceOnHover to false
-    const [disableWordHighlighting, setDisableWordHighlighting] = useState<boolean>(() => {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('reader-disable-word-highlighting');
-        return stored === null ? true : stored === 'true';
-      }
-      return true;
-    });
-    const [disableSentenceHighlighting, setDisableSentenceHighlighting] = useState<boolean>(() => {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('reader-disable-sentence-highlighting');
-        return stored === null ? true : stored === 'true';
-      }
-      return true;
-    });
-    useEffect(() => {
-      localStorage.setItem('reader-disable-word-highlighting', String(disableWordHighlighting));
-    }, [disableWordHighlighting]);
-    useEffect(() => {
-      localStorage.setItem('reader-disable-sentence-highlighting', String(disableSentenceHighlighting));
-    }, [disableSentenceHighlighting]);
+    const [disableWordHighlighting, setDisableWordHighlighting] = useState<boolean>(true);
+    const [disableSentenceHighlighting, setDisableSentenceHighlighting] = useState<boolean>(true);
 
   // Navigation helpers
   const goToPage = (sectionIdx: number, pageIdx: number) => {
@@ -576,6 +475,25 @@ export default function ReaderPage() {
           setCurrentTheme(prefs.theme || 'light');
           setCurrentViewMode((prefs.viewMode as 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two') || 'scroll-section');
           setDisableWordsReadPopup(!!prefs.disableWordsReadPopup);
+          
+          // Load new reader-specific preferences
+          setReaderContainerStyle(prefs.readerContainerStyle || 'contained');
+          setSentencesPerPage(prefs.sentencesPerPage || 50);
+          setTtsSpeed(prefs.ttsSpeed || 1.0);
+          setTtsVoice(prefs.ttsVoice || 'es-MX-JorgeNeural');
+          setDisableWordHighlighting(prefs.disableWordHighlighting !== undefined ? prefs.disableWordHighlighting : true);
+          setDisableSentenceHighlighting(prefs.disableSentenceHighlighting !== undefined ? prefs.disableSentenceHighlighting : true);
+          setInvisibleText(!!prefs.invisibleText);
+          setShowCurrentWordWhenInvisible(!!prefs.showCurrentWordWhenInvisible);
+          setHighlightSentenceOnHover(!!prefs.highlightSentenceOnHover);
+          setLineSpacing(prefs.lineSpacing || 1.5);
+          setDisableWordSpans(!!prefs.disableWordSpans);
+          setDisableSentenceSpans(!!prefs.disableSentenceSpans);
+          
+          // Load additional preferences
+          setNativeLanguage(prefs.nativeLanguage || 'en');
+          setCurrentTheme(prefs.theme || 'light');
+          setCurrentViewMode((prefs.viewMode as 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two') || 'scroll-section');
         }
       });
     }
@@ -591,11 +509,9 @@ export default function ReaderPage() {
     return () => window.removeEventListener('resize', checkWideScreen);
   }, []);
 
-  // Apply theme to html[data-theme] and persist viewMode
+  // Apply theme to html[data-theme]
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', currentTheme);
-    localStorage.setItem('reader-theme', currentTheme);
-    localStorage.setItem('reader-view-mode', currentViewMode);
   }, [currentTheme, currentViewMode]);
 
   // Save preferences when changed
@@ -607,12 +523,31 @@ export default function ReaderPage() {
     theme = currentTheme,
     viewMode = currentViewMode,
     disableWordsReadPopupValue = disableWordsReadPopup,
-    containerStyle = readerContainerStyle
+    containerStyle = readerContainerStyle,
+    sentencesPerPageValue = sentencesPerPage,
+    ttsSpeedValue = ttsSpeed,
+    ttsVoiceValue = ttsVoice,
+    disableWordHighlightingValue = disableWordHighlighting,
+    disableSentenceHighlightingValue = disableSentenceHighlighting,
+    invisibleTextValue = invisibleText,
+    showCurrentWordWhenInvisibleValue = showCurrentWordWhenInvisible,
+    highlightSentenceOnHoverValue = highlightSentenceOnHover,
+    lineSpacingValue = lineSpacing,
+    disableWordSpansValue = disableWordSpans,
+    disableSentenceSpansValue = disableSentenceSpans,
+    nativeLanguageValue = nativeLanguage
   ) => {
-    // This function saves the user's reader preferences (font, width, font size, etc.) to the backend.
+    // This function saves the user's reader preferences to the backend.
     // It is called whenever a setting is changed in the UI.
     if (user?.uid) {
-      console.log('Saving preferences:', { font, width, fontSize, disableUnderlines, theme, viewMode, disableWordsReadPopupValue, containerStyle });
+      console.log('Saving preferences:', { 
+        font, width, fontSize, disableUnderlines, theme, viewMode, 
+        disableWordsReadPopupValue, containerStyle, sentencesPerPageValue,
+        ttsSpeedValue, ttsVoiceValue, disableWordHighlightingValue,
+        disableSentenceHighlightingValue, invisibleTextValue,
+        showCurrentWordWhenInvisibleValue, highlightSentenceOnHoverValue,
+        lineSpacingValue, disableWordSpansValue, disableSentenceSpansValue
+      });
       await UserService.updateUserPreferences(user.uid, {
         readerFont: font,
         readerWidth: width,
@@ -622,8 +557,19 @@ export default function ReaderPage() {
         viewMode: viewMode,
         disableWordsReadPopup: disableWordsReadPopupValue,
         readerContainerStyle: containerStyle,
-      } as any);
-      localStorage.setItem('reader-container-style', containerStyle);
+        sentencesPerPage: sentencesPerPageValue,
+        ttsSpeed: ttsSpeedValue,
+        ttsVoice: ttsVoiceValue,
+        disableWordHighlighting: disableWordHighlightingValue,
+        disableSentenceHighlighting: disableSentenceHighlightingValue,
+        invisibleText: invisibleTextValue,
+        showCurrentWordWhenInvisible: showCurrentWordWhenInvisibleValue,
+        highlightSentenceOnHover: highlightSentenceOnHoverValue,
+        lineSpacing: lineSpacingValue,
+        disableWordSpans: disableWordSpansValue,
+        disableSentenceSpans: disableSentenceSpansValue,
+        nativeLanguage: nativeLanguageValue,
+      });
     }
   };
 
@@ -827,16 +773,7 @@ export default function ReaderPage() {
   }, [user, book]);
 
 
-  const [disableWordSpans, setDisableWordSpans] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('reader-disable-word-spans');
-      return stored === 'true';
-    }
-    return false;
-  });
-  useEffect(() => {
-    localStorage.setItem('reader-disable-word-spans', String(disableWordSpans));
-  }, [disableWordSpans]);
+  const [disableWordSpans, setDisableWordSpans] = useState(false);
   
   // Navigation handlers for sentence pages
   const nextSentencePage = () => {
@@ -1167,33 +1104,20 @@ useEffect(() => {
       <EpubHtmlStyles />
       {/* Mobile: Dropdown icon is in the bar when header is visible, floating when hidden */}
       {isMobile ? (
-        showHeader ? (
-          <div className="fixed top-0 left-10 w-full z-50 pointer-events-none" style={{ height: '56px' }}>
-            <div className="relative w-full h-full flex items-center justify-end pr-2">
-              <button
-                onClick={() => setShowHeader((prev) => !prev)}
-                className="absolute top-1/2 -translate-y-1/2 bg-white border-2 border-black shadow-lg rounded-full p-1 hover:bg-gray-100 transition-all pointer-events-auto mr-2"
-                title={showHeader ? 'Hide top bar' : 'Show top bar'}
-                style={{ zIndex: 60, right: '0.05rem' }}
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" style={{ width: '1.25rem', height: '1.25rem' }} fill="none" stroke="black" viewBox="0 0 24 24">
-                  <path d="M19 9l-7 7-7-7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
+        <div className="fixed top-0 left-0 w-full z-50 pointer-events-none" style={{ height: '56px' }}>
+          <div className="relative w-full h-full flex items-center justify-end pr-2">
+            <button
+              onClick={() => setShowHeader((prev) => !prev)}
+              className="absolute top-1/2 -translate-y-1/2 bg-white border-2 border-black shadow-lg rounded-full p-1 hover:bg-gray-100 transition-all pointer-events-auto mr-2"
+              title={showHeader ? 'Hide top bar' : 'Show top bar'}
+              style={{ zIndex: 60, right: '0.05rem' }}
+            >
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" style={{ width: '1.25rem', height: '1.25rem' }} fill="none" stroke="black" viewBox="0 0 24 24">
+                <path d="M19 9l-7 7-7-7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </div>
-        ) : (
-          <button
-            onClick={() => setShowHeader((prev) => !prev)}
-            className="fixed top-4 z-50 bg-white border-2 border-black shadow-lg rounded-full p-1 hover:bg-gray-100 transition-all mr-1"
-            title={showHeader ? 'Hide top bar' : 'Show top bar'}
-            style={{ right: '0.5rem' }}
-          >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6" style={{ width: '1.25rem', height: '1.25rem' }} fill="none" stroke="black" viewBox="0 0 24 24">
-              <path d="M5 15l7-7 7 7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        )
+        </div>
       ) : (
         <button
           onClick={() => setShowHeader((prev) => !prev)}
@@ -1213,117 +1137,123 @@ useEffect(() => {
       {showHeader && (
         <div className="bg-white border-[0.75] border-black fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '56px' : '64px', paddingTop: 0, paddingBottom: 0, fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
           <div className="w-full px-8 py-3 grid grid-cols-3 items-center gap-4" style={{ minHeight: '64px' }}>
-            {/* Left section: Library button + Section toggle + Section title */}
+            {/* Left section: Library button + Section toggle */}
             <div className="flex items-center gap-2 justify-start">
-              <button onClick={backToLibrary} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-
+              <button 
+                onClick={backToLibrary} 
+                className={`flex items-center justify-center ${isMobile ? 'w-8 h-8 min-w-0 min-h-0 p-0' : 'gap-2 px-4 py-2'} font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors ${isMobile ? '' : 'text-base'}`}
+                style={isMobile ? { width: 32, height: 32, minWidth: 28, minHeight: 28 } : {}}
+              >
+                <ArrowLeft className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} />
               </button>
-              <button onClick={() => setShowSectionSidebar(v => !v)} className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 font-bold text-sm">
-                {showSectionSidebar ? 'Hide Sections' : 'Show Sections'}
+              <button 
+                onClick={() => setShowSectionSidebar(v => !v)} 
+                className={`rounded ${isMobile ? 'w-8 h-8 min-w-0 min-h-0 p-0 flex items-center justify-center bg-gray-200 hover:bg-gray-300' : 'px-3 py-2 bg-gray-200 hover:bg-gray-300 font-bold text-sm'}`}
+                style={isMobile ? { width: 32, height: 32, minWidth: 28, minHeight: 28 } : {}}
+                title={showSectionSidebar ? 'Hide Sections' : 'Show Sections'}
+              >
+                {isMobile ? (
+                  <List className="w-4 h-4 text-[#232946]" />
+                ) : (
+                  showSectionSidebar ? 'Hide Sections' : 'Show Sections'
+                )}
               </button>
-              <span className="truncate font-extrabold text-lg ml-2" style={{maxWidth: '240px', color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif'}}>
-                {getSectionTitle(currentSection, currentSectionIndex)}
-              </span>
+              {/* Hide section name on mobile */}
+              {!isMobile && (
+                <span className="truncate font-extrabold text-lg ml-2" style={{maxWidth: '240px', color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif'}}>
+                  {getSectionTitle(currentSection, currentSectionIndex)}
+                </span>
+              )}
             </div>
-            
-            {/* Center section: Navigation controls (always centered) */}
-            <div className="flex items-center gap-2 justify-center">
-              <button onClick={prevPage} disabled={globalPageNumber === 1} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Center section: Navigation controls (with audio button on left for mobile) */}
+            <div className="flex items-center justify-center gap-2">
+              {isMobile && (
+                <button
+                  onClick={() => setIsSpeechPlayerActive(!isSpeechPlayerActive)}
+                  className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors"
+                  title={isSpeechPlayerActive ? 'Hide Speech Player' : 'Show Speech Player'}
+                  style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0, borderRadius: '50%' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  </svg>
+                </button>
+              )}
+              <button 
+                onClick={prevPage} 
+                disabled={globalPageNumber === 1} 
+                className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
+                style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 36, height: 36 }}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
               <span className="text-base font-bold text-[#232946] whitespace-nowrap">{globalPageNumber} / {totalPages}</span>
-              <button onClick={nextPage} disabled={globalPageNumber === totalPages} className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base disabled:bg-gray-300 disabled:text-gray-400">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button 
+                onClick={nextPage} 
+                disabled={globalPageNumber === totalPages} 
+                className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
+                style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 36, height: 36 }}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             </div>
-            
-            {/* Right section: Audio controls, settings, and page completion */}
-            <div className="flex items-center gap-2 justify-end mr-10">
-              {currentViewMode === 'scroll-section' && false && (
-                <>
-                  <button
-                    onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                    title={isAutoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
-                  >
-                    {isAutoScrolling ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    )}
-                  </button>
-                  {/* Speed control: slider on desktop, button on mobile */}
-                  {isMobile ? (
-                    <button
-                      onClick={() => {
-                        const next = scrollSpeed >= 5 ? 0.5 : +(scrollSpeed + 0.5).toFixed(1);
-                        setScrollSpeed(next);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                      title="Change scroll speed"
-                    >
-                      {scrollSpeed.toFixed(1)}x
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2 bg-white rounded-md px-3 py-1 border-[0.75] border-[#2563eb]">
-                      <input
-                        type="range"
-                        min="0.5"
-                        max="5"
-                        step="0.1"
-                        value={scrollSpeed}
-                        onChange={(e) => setScrollSpeed(Number(e.target.value))}
-                        className="w-24 accent-[#2563eb]"
-                      />
-                      <span className="text-sm font-bold text-[#2563eb] min-w-[2rem] text-center">
-                        {scrollSpeed.toFixed(1)}x
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-              <button
-                onClick={() => setIsSpeechPlayerActive(!isSpeechPlayerActive)}
-                className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                title={isSpeechPlayerActive ? 'Hide Speech Player' : 'Show Speech Player'}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                </svg>
-                {!isMobile && (isSpeechPlayerActive ? 'Hide' : 'Read Aloud')}
-              </button>
+            {/* Right section: Settings and complete/uncomplete (and audio on desktop) */}
+            <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'} justify-end mr-2`}>
+              {/* Settings button */}
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                className={`flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors`}
                 title="Reader Settings"
                 aria-label="Reader Settings"
+                style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0, borderRadius: '50%' } : {}}
               >
-                <Settings className="w-5 h-5" />
+                <Settings className={isMobile ? 'w-5 h-5' : 'w-5 h-5'} />
               </button>
-              <button
-                onClick={handleFullscreen}
-                className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
-                title="Fullscreen"
-                aria-label="Fullscreen"
-              >
-                <Maximize2 className="w-5 h-5" />
-              </button>
-              {isPageRead ? (
-                <button onClick={handleUnmarkPageComplete} className="px-4 py-2 rounded bg-green-500 text-white font-bold whitespace-nowrap">Uncomplete</button>
+              {/* Fullscreen button: only show on desktop */}
+              {!isMobile && (
+                <button
+                  onClick={handleFullscreen}
+                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                  title="Fullscreen"
+                  aria-label="Fullscreen"
+                >
+                  <Maximize2 className="w-5 h-5" />
+                </button>
+              )}
+              {/* Audio/Speech button on desktop */}
+              {!isMobile && (
+                <button
+                  onClick={() => setIsSpeechPlayerActive(!isSpeechPlayerActive)}
+                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                  title={isSpeechPlayerActive ? 'Hide Speech Player' : 'Show Speech Player'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  </svg>
+                  {isSpeechPlayerActive ? 'Hide' : 'Read Aloud'}
+                </button>
+              )}
+              {/* Complete/Uncomplete button */}
+              {isMobile ? (
+                isPageRead ? (
+                  <button onClick={handleUnmarkPageComplete} className="flex items-center justify-center w-8 h-8 min-w-0 min-h-0 p-0 rounded bg-green-500 text-white" title="Uncomplete">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button onClick={handleMarkPageComplete} className="flex items-center justify-center w-8 h-8 min-w-0 min-h-0 p-0 rounded bg-blue-500 text-white" title="Complete">
+                    <CheckCircle className="w-4 h-4" />
+                  </button>
+                )
               ) : (
-                <button onClick={handleMarkPageComplete} className="px-4 py-2 rounded bg-blue-500 text-white font-bold whitespace-nowrap">Complete</button>
+                isPageRead ? (
+                  <button onClick={handleUnmarkPageComplete} className="rounded bg-green-500 text-white font-bold whitespace-nowrap px-4 py-2">Uncomplete</button>
+                ) : (
+                  <button onClick={handleMarkPageComplete} className="rounded bg-blue-500 text-white font-bold whitespace-nowrap px-4 py-2">Complete</button>
+                )
               )}
             </div>
           </div>
@@ -1381,15 +1311,29 @@ useEffect(() => {
           className="flex-1 flex justify-center transition-all duration-300"
           style={{
             marginLeft: 0,
-            padding: isMobile ? '0 0.25rem' : undefined,
-            maxWidth: '100vw',
+            padding: isMobile ? '0 8px' : undefined,
+            maxWidth: isMobile ? '100vw' : '100vw',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
+            overflowX: isMobile ? 'hidden' : undefined,
           }}
         >
           <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
-            <div className={getReaderContainerClass()} style={{ ...getReaderContainerStyle(), margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.001)' : undefined }}>
+            <div className={getReaderContainerClass()} style={{
+              ...getReaderContainerStyle(),
+              margin: '0 auto',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-start',
+              color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.001)' : undefined,
+              maxWidth: isMobile ? '95vw' : readerWidth,
+              width: isMobile ? '100%' : readerWidth,
+              padding: isMobile ? '1.25rem 0.5rem' : undefined,
+              boxSizing: 'border-box',
+              overflowX: isMobile ? 'hidden' : undefined,
+            }}>
               {/* Page content, always starts at top */}
               <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%', color: invisibleText ? 'rgba(0,0,0,0.01)' : undefined, lineHeight: lineSpacing }}>
                 {disableSentenceSpans ? (
@@ -1524,7 +1468,7 @@ useEffect(() => {
                 max={28}
                 step={1}
                 value={readerFontSize}
-                onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value), disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle); }}
+                onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value), disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
                 className="w-full accent-[#2563eb]"
               />
             </div>
@@ -1536,7 +1480,7 @@ useEffect(() => {
                 max={1600}
                 step={10}
                 value={readerWidth}
-                onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle); }}
+                onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
                 className="w-full accent-[#2563eb]"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
@@ -1552,7 +1496,7 @@ useEffect(() => {
               <label className="block font-bold mb-2 text-black">Font Family</label>
               <select
                 value={readerFont}
-                onChange={e => { setReaderFont(e.target.value); savePreferences(e.target.value, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle); }}
+                onChange={e => { setReaderFont(e.target.value); savePreferences(e.target.value, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               >
                 <option value="serif">Serif (default)</option>
@@ -1581,7 +1525,7 @@ useEffect(() => {
                 value={readerContainerStyle}
                 onChange={e => {
                   setReaderContainerStyle(e.target.value as any);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, e.target.value as any);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, e.target.value as any, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               >
@@ -1603,7 +1547,7 @@ useEffect(() => {
                 value={sentencesPerPage}
                 onChange={e => {
                   setSentencesPerPage(Number(e.target.value));
-                  localStorage.setItem('reader-sentences-per-page', e.target.value);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, Number(e.target.value), ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               />
@@ -1616,7 +1560,10 @@ useEffect(() => {
                 max={2}
                 step={0.05}
                 value={ttsSpeed}
-                onChange={e => setTtsSpeed(Number(e.target.value))}
+                onChange={e => {
+                  setTtsSpeed(Number(e.target.value));
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, Number(e.target.value), ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                }}
                 className="w-full accent-[#2563eb]"
               />
             </div>
@@ -1626,7 +1573,10 @@ useEffect(() => {
               <div className="flex gap-2 items-center">
                 <select
                   value={ttsVoice}
-                  onChange={e => setTtsVoice(e.target.value)}
+                  onChange={e => {
+                    setTtsVoice(e.target.value);
+                    savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, e.target.value, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  }}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
                 >
                   {availableVoices.length === 0 ? (
@@ -1647,7 +1597,10 @@ useEffect(() => {
                 id="disable-word-highlighting"
                 type="checkbox"
                 checked={disableWordHighlighting}
-                onChange={e => setDisableWordHighlighting(e.target.checked)}
+                onChange={e => {
+                  setDisableWordHighlighting(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, e.target.checked, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-word-highlighting" className="font-bold text-black select-none cursor-pointer">Disable word highlighting</label>
@@ -1657,7 +1610,10 @@ useEffect(() => {
                 id="disable-sentence-highlighting"
                 type="checkbox"
                 checked={disableSentenceHighlighting}
-                onChange={e => setDisableSentenceHighlighting(e.target.checked)}
+                onChange={e => {
+                  setDisableSentenceHighlighting(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, e.target.checked, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-sentence-highlighting" className="font-bold text-black select-none cursor-pointer">Disable sentence highlighting</label>
@@ -1667,7 +1623,10 @@ useEffect(() => {
                 id="invisible-text"
                 type="checkbox"
                 checked={invisibleText}
-                onChange={e => setInvisibleText(e.target.checked)}
+                onChange={e => {
+                  setInvisibleText(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, e.target.checked, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="invisible-text" className="font-bold text-black select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
@@ -1677,7 +1636,10 @@ useEffect(() => {
                 id="show-current-word-when-invisible"
                 type="checkbox"
                 checked={showCurrentWordWhenInvisible}
-                onChange={e => setShowCurrentWordWhenInvisible(e.target.checked)}
+                onChange={e => {
+                  setShowCurrentWordWhenInvisible(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, e.target.checked, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
                 disabled={!invisibleText}
               />
@@ -1690,7 +1652,10 @@ useEffect(() => {
                 id="highlight-sentence-on-hover"
                 type="checkbox"
                 checked={highlightSentenceOnHover}
-                onChange={e => setHighlightSentenceOnHover(e.target.checked)}
+                onChange={e => {
+                  setHighlightSentenceOnHover(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, e.target.checked, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="highlight-sentence-on-hover" className="font-bold text-black select-none cursor-pointer">Highlight sentences on hover</label>
@@ -1703,7 +1668,10 @@ useEffect(() => {
                 max={2.5}
                 step={0.05}
                 value={lineSpacing}
-                onChange={e => setLineSpacing(Number(e.target.value))}
+                onChange={e => {
+                  setLineSpacing(Number(e.target.value));
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, Number(e.target.value), disableWordSpans, disableSentenceSpans, nativeLanguage);
+                }}
                 className="w-full accent-[#2563eb]"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
@@ -1717,7 +1685,10 @@ useEffect(() => {
                 id="disable-word-spans"
                 type="checkbox"
                 checked={disableWordSpans}
-                onChange={e => setDisableWordSpans(e.target.checked)}
+                onChange={e => {
+                  setDisableWordSpans(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, e.target.checked, disableSentenceSpans, nativeLanguage);
+                }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-word-spans" className="font-bold text-black select-none cursor-pointer">Disable word-level spans (only wrap sentences)</label>
@@ -1727,7 +1698,10 @@ useEffect(() => {
                 id="disable-sentence-spans"
                 type="checkbox"
                 checked={disableSentenceSpans}
-                onChange={e => setDisableSentenceSpans(e.target.checked)}
+                onChange={e => {
+                  setDisableSentenceSpans(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, e.target.checked, nativeLanguage);
+                }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-sentence-spans" className="font-bold text-black select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
