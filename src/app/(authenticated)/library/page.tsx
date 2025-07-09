@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata } from '@/services/epubService';
+import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata, archiveBook, getArchivedBooks, deleteArchivedBook, ArchivedBookMetadata } from '@/services/epubService';
 import { useAuth } from '@/hooks/useAuth';
 import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus, FiArchive } from 'react-icons/fi';
 import { uploadFileAndGetUrl } from '@/lib/firebase';
@@ -38,6 +38,18 @@ interface ReadingProgress {
   bookId: string;
   currentSection: number;
   lastRead: string;
+}
+
+// Minimal type for archived book cards
+interface ArchivedBookCard {
+  id: string;
+  title: string;
+  author: string;
+  totalWords: number;
+  dateStarted: string;
+  dateEnded: string;
+  completed: boolean;
+  wordsRead: number;
 }
 
 export default function library() {
@@ -75,6 +87,7 @@ export default function library() {
   const [mdFile, setMdFile] = useState<File | null>(null);
   const [mdError, setMdError] = useState('');
   const [mdLoading, setMdLoading] = useState(false);
+  const [archivedBooks, setArchivedBooks] = useState<ArchivedBookCard[]>([]);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -188,6 +201,23 @@ export default function library() {
       setGoalInput(storedGoal);
     }
   }, []);
+
+  // Fetch archived books on mount
+  useEffect(() => {
+    if (!user?.uid) return;
+    getArchivedBooks(user.uid).then((archs: ArchivedBookMetadata[]) => {
+      setArchivedBooks(archs.map(a => ({
+        id: a.id || a.bookId,
+        title: a.title,
+        author: a.author,
+        totalWords: a.totalWords,
+        dateStarted: a.dateStarted,
+        dateEnded: a.dateEnded,
+        completed: a.completed,
+        wordsRead: a.wordsRead,
+      })));
+    });
+  }, [user]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -893,42 +923,108 @@ export default function library() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showTextModal]);
 
-  // Book Card
-  function BookCard({ book }: { book: Book }) {
+  // Archive handler
+  const archiveBookHandler = async (book: Book): Promise<void> => {
+    if (!user?.uid) return;
+    // Calculate words read
+    const wordsRead = sessions.filter(s => s.bookId === book.id).reduce((sum, s) => sum + s.wordCount, 0);
+    // Date ended: now
+    const dateEnded = new Date().toISOString();
+    // Archive
+    await archiveBook(user.uid, book.id, {
+      title: book.title,
+      author: book.author,
+      totalWords: book.totalWords,
+      dateStarted: book.dateAdded,
+      dateEnded,
+      completed: !!book.completed,
+      wordsRead,
+    });
+    // Remove from localStorage
+    localStorage.removeItem(`epub-book-${book.id}`);
+    // Remove reading progress for this book
+    const savedProgress = localStorage.getItem('epub-reader-progress');
+    if (savedProgress) {
+      let allProgress: ReadingProgress[] = JSON.parse(savedProgress);
+      allProgress = allProgress.filter((p: ReadingProgress) => p.bookId !== book.id);
+      localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
+    }
+    // Delete book
+    if (book.storagePath) await deleteBook(book.id, book.storagePath);
+    // Update state
+    setBooks(prev => prev.filter(b => b.id !== book.id));
+    // Refetch archived
+    getArchivedBooks(user.uid).then((archs: ArchivedBookMetadata[]) => {
+      setArchivedBooks(archs.map(a => ({
+        id: a.id || a.bookId,
+        title: a.title,
+        author: a.author,
+        totalWords: a.totalWords,
+        dateStarted: a.dateStarted,
+        dateEnded: a.dateEnded,
+        completed: a.completed,
+        wordsRead: a.wordsRead,
+      })));
+    });
+  };
+
+  // Delete archived book handler
+  const deleteArchivedBookHandler = async (archivedId: string): Promise<void> => {
+    await deleteArchivedBook(archivedId);
+    setArchivedBooks(prev => prev.filter(b => b.id !== archivedId));
+  };
+
+  // BookCard
+  function BookCard({ book, archived }: { book: Book | ArchivedBookCard; archived?: boolean }) {
     const knownPct = 94.6;
     const trackingPct = 3.5;
     const unknownPct = 1.8;
-    const completed = book.completed;
-    const wordsRead = bookWordsRead[String(book.id)] || 0;
+    const completed = (book as Book).completed;
+    // For archived, use book.wordsRead; for Book, use bookWordsRead
+    const wordsRead = archived ? (book as ArchivedBookCard).wordsRead : bookWordsRead[String(book.id)] || 0;
     const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
     return (
       <div
         className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col w-full max-w-[250px] min-h-[250px] aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group"
-        style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', minHeight: 320, padding: 0 }}
-        onClick={() => openBook(book)}
+        style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', minHeight: 320, padding: 0, opacity: archived ? 0.7 : 1 }}
+        onClick={archived ? undefined : () => openBook(book as Book)}
         tabIndex={0}
         role="button"
         aria-label={`Read ${book.title}`}
       >
         <div className="flex justify-end p-2 gap-2">
-          <button
-            onClick={e => { e.stopPropagation(); console.log('archiving', book.id); }}
-            className="text-gray-300 hover:text-yellow-500 text-lg p-1 rounded transition-colors"
-            title="Archive book"
-            tabIndex={-1}
-            style={{ background: 'none', border: 'none' }}
-          >
-            <FiArchive className="w-5 h-5" />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, book.storagePath); }}
-            className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
-            title="Delete book"
-            tabIndex={-1}
-            style={{ background: 'none', border: 'none' }}
-          >
-            <FiTrash2 className="w-5 h-5" />
-          </button>
+          {archived ? (
+            <button
+              onClick={e => { e.stopPropagation(); deleteArchivedBookHandler(book.id); }}
+              className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
+              title="Delete archived book"
+              tabIndex={-1}
+              style={{ background: 'none', border: 'none' }}
+            >
+              <FiTrash2 className="w-5 h-5" />
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); archiveBookHandler(book as Book); }}
+                className="text-gray-300 hover:text-yellow-500 text-lg p-1 rounded transition-colors"
+                title="Archive book"
+                tabIndex={-1}
+                style={{ background: 'none', border: 'none' }}
+              >
+                <FiArchive className="w-5 h-5" />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, (book as Book).storagePath); }}
+                className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
+                title="Delete book"
+                tabIndex={-1}
+                style={{ background: 'none', border: 'none' }}
+              >
+                <FiTrash2 className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
         <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
           <h3 className="font-bold text-[#232946] text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
@@ -955,22 +1051,24 @@ export default function library() {
             </div>
           </div>
           {/* Actions */}
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={e => { e.stopPropagation(); setDataModalBook(book); }}
-              className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1.5 px-2 text-sm transition-colors"
-              tabIndex={-1}
-            >
-              <FiBarChart2 className="w-4 h-4" /> Data
-            </button>
-            <button
-              onClick={e => { e.stopPropagation(); toggleCompleted(book); }}
-              className={`flex-1 flex items-center justify-center gap-1 rounded-lg border ${book.completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1.5 px-2 text-sm transition-colors`}
-              tabIndex={-1}
-            >
-              <FiCheckCircle className="w-4 h-4" /> {book.completed ? 'Uncomplete' : 'Complete'}
-            </button>
-          </div>
+          {!archived && (
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={e => { e.stopPropagation(); setDataModalBook(book as Book); }}
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1.5 px-2 text-sm transition-colors"
+                tabIndex={-1}
+              >
+                <FiBarChart2 className="w-4 h-4" /> Data
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); toggleCompleted(book as Book); }}
+                className={`flex-1 flex items-center justify-center gap-1 rounded-lg border ${(book as Book).completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1.5 px-2 text-sm transition-colors`}
+                tabIndex={-1}
+              >
+                <FiCheckCircle className="w-4 h-4" /> {(book as Book).completed ? 'Uncomplete' : 'Complete'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1230,6 +1328,8 @@ export default function library() {
         <SectionRow title="Not Started" books={notStarted} />
         {/* Completed */}
         <SectionRow title="Completed" books={completed} />
+        {/* Archived Section */}
+        <SectionRow title="Archived" books={archivedBooks} archived />
         <DataModal />
         {/* Daily Goal Modal */}
         {showGoalModal && (
@@ -1382,11 +1482,12 @@ export default function library() {
   );
 
   // SectionRow component
-  function SectionRow({ title, books }: { title: string; books: Book[] }) {
-    const shelfMap: Record<string, string> = {
+  function SectionRow({ title, books, archived }: { title: string; books: (Book | ArchivedBookCard)[]; archived?: boolean }) {
+    const shelfMap: { [key: string]: string } = {
       'Active': 'Currently Reading',
       'Not Started': 'To Read',
       'Completed': 'Finished',
+      'Archived': 'Archived',
     };
     return (
       <div className="mb-16">
@@ -1396,7 +1497,7 @@ export default function library() {
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-6 min-h-[180px]">
           {books.length > 0 ? books.map((book) => (
-            <BookCard key={book.id} book={book} />
+            <BookCard key={book.id} book={book} archived={archived} />
           )) : (
             <div className="col-span-full flex flex-col items-center justify-center text-gray-300 italic h-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
               <span className="text-base text-gray-400">No books in this shelf yet.</span>

@@ -138,4 +138,46 @@ export async function updateBookMetadata(userId: string, bookId: string, updates
   for (const d of snapshot.docs) {
     await updateDoc(d.ref, updates);
   }
+}
+
+// Archive BookMetadata type
+export interface ArchivedBookMetadata {
+  id?: string;
+  userId: string;
+  bookId: string;
+  title: string;
+  author: string;
+  totalWords: number;
+  dateStarted: string;
+  dateEnded: string;
+  completed: boolean;
+  wordsRead: number;
+}
+
+// Archive a book (save minimal info to archivedBooks collection)
+export async function archiveBook(userId: string, bookId: string, data: Omit<ArchivedBookMetadata, 'id' | 'userId' | 'bookId'> & { dateStarted: string; dateEnded: string; completed: boolean; wordsRead: number }) {
+  const docRef = await addDoc(collection(db, 'archivedBooks'), {
+    userId,
+    bookId,
+    title: data.title,
+    author: data.author,
+    totalWords: data.totalWords,
+    dateStarted: data.dateStarted,
+    dateEnded: data.dateEnded,
+    completed: data.completed,
+    wordsRead: data.wordsRead,
+  });
+  return { id: docRef.id, ...data };
+}
+
+// Get all archived books for a user
+export async function getArchivedBooks(userId: string): Promise<ArchivedBookMetadata[]> {
+  const q = query(collection(db, 'archivedBooks'), where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as Omit<ArchivedBookMetadata, 'id'>) }));
+}
+
+// Delete an archived book
+export async function deleteArchivedBook(archivedBookId: string) {
+  await deleteDoc(doc(db, 'archivedBooks', archivedBookId));
 } 

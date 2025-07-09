@@ -4,8 +4,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
-import { getBooks } from '@/services/epubService';
+import { getBooks, getArchivedBooks, deleteArchivedBook, ArchivedBookMetadata } from '@/services/epubService';
 import { FiTrash2 } from 'react-icons/fi';
+
+interface ArchivedBookRow {
+  id: string;
+  title: string;
+  author: string;
+  totalWords: number;
+  dateStarted: string;
+  dateEnded: string;
+  completed: boolean;
+  wordsRead: number;
+}
 
 export default function HistoryPage() {
   const { user } = useAuth();
@@ -23,6 +34,7 @@ export default function HistoryPage() {
   });
   const [selectedTab, setSelectedTab] = useState<'session' | 'book'>('session');
   const [books, setBooks] = useState<any[]>([]);
+  const [archivedBooks, setArchivedBooks] = useState<ArchivedBookRow[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -41,6 +53,18 @@ export default function HistoryPage() {
     if (!user?.uid) return;
     getBooks(user.uid).then((metadatas) => {
       setBooks(metadatas || []);
+    });
+    getArchivedBooks(user.uid).then((archs: ArchivedBookMetadata[]) => {
+      setArchivedBooks(archs.map(a => ({
+        id: a.id || a.bookId,
+        title: a.title,
+        author: a.author,
+        totalWords: a.totalWords,
+        dateStarted: a.dateStarted,
+        dateEnded: a.dateEnded,
+        completed: a.completed,
+        wordsRead: a.wordsRead,
+      })));
     });
   }, [user]);
 
@@ -146,6 +170,12 @@ export default function HistoryPage() {
   const totalWords = sessions.reduce((sum, session) => sum + session.wordCount, 0);
   const totalSessions = sessions.length;
   const averageWordsPerSession = totalSessions > 0 ? Math.round(totalWords / totalSessions) : 0;
+
+  // Delete archived book handler
+  const handleDeleteArchivedBook = async (archivedId: string) => {
+    await deleteArchivedBook(archivedId);
+    setArchivedBooks(prev => prev.filter(b => b.id !== archivedId));
+  };
 
   if (!user) {
     return (
@@ -330,9 +360,11 @@ export default function HistoryPage() {
                 <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Percent Complete</th>
                 <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Started</th>
                 <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Ended</th>
+                <th className="py-2 px-3 border-r border-gray-200 text-center" style={{ width: '8%' }}></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
+              {/* Normal books */}
               {books.map((book, index) => {
                 // Calculate words read and percent complete
                 const wordsRead = sessions
@@ -350,6 +382,32 @@ export default function HistoryPage() {
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{percentStr}</td>
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateAdded ? formatDate(new Date(book.dateAdded)) : '—'}</td>
                     <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{'dateEnded' in book && book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</td>
+                    <td className="py-2 px-3 text-center whitespace-nowrap"></td>
+                  </tr>
+                );
+              })}
+              {/* Archived books */}
+              {archivedBooks.map((book, idx) => {
+                const percent = book.totalWords > 0 ? (book.wordsRead / book.totalWords) * 100 : 0;
+                const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
+                return (
+                  <tr key={book.id} className="text-base hover:bg-gray-50 transition-colors select-text text-[#232946] opacity-70" style={{ userSelect: 'text' }}>
+                    <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">{books.length + idx + 1}</td>
+                    <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap font-medium text-[#232946]">{book.title}</td>
+                    <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.totalWords?.toLocaleString() ?? ''}</td>
+                    <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.wordsRead.toLocaleString()}</td>
+                    <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{percentStr}</td>
+                    <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateStarted ? formatDate(new Date(book.dateStarted)) : '—'}</td>
+                    <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</td>
+                    <td className="py-2 px-3 text-center whitespace-nowrap">
+                      <button
+                        onClick={() => handleDeleteArchivedBook(book.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+                        title="Delete archived book"
+                      >
+                        <FiTrash2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
