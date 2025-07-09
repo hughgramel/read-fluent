@@ -61,7 +61,12 @@ export default function ReaderPage() {
   const [error, setError] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
   const [readerFont, setReaderFont] = useState<string>('serif');
-  const [readerWidth, setReaderWidth] = useState<number>(700);
+  const [readerWidth, setReaderWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return Number(localStorage.getItem('readerWidth')) || 1200;
+    }
+    return 1200;
+  });
   const [readerFontSize, setReaderFontSize] = useState<number>(18);
   const [showHeader, setShowHeader] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -186,10 +191,14 @@ export default function ReaderPage() {
   // Add state for sentence hover highlighting
   const [highlightSentenceOnHover, setHighlightSentenceOnHover] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('reader-highlight-sentence-on-hover') === 'true';
+      const stored = localStorage.getItem('reader-highlight-sentence-on-hover');
+      return stored === null ? false : stored === 'true';
     }
     return false;
   });
+  useEffect(() => {
+    localStorage.setItem('reader-highlight-sentence-on-hover', String(highlightSentenceOnHover));
+  }, [highlightSentenceOnHover]);
   // Add state for currently hovered sentence
   const [currentlyHighlightedSentence, setCurrentlyHighlightedSentence] = useState<number | null>(null);
   // Add state for line spacing
@@ -332,19 +341,20 @@ export default function ReaderPage() {
       localStorage.setItem('reader-invisible-text', String(invisibleText));
     }, [invisibleText]);
 
+    // Set default for disableWordHighlighting and disableSentenceHighlighting to true, and highlightSentenceOnHover to false
     const [disableWordHighlighting, setDisableWordHighlighting] = useState<boolean>(() => {
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('reader-disable-word-highlighting');
-        return stored === 'true';
+        return stored === null ? true : stored === 'true';
       }
-      return false;
+      return true;
     });
     const [disableSentenceHighlighting, setDisableSentenceHighlighting] = useState<boolean>(() => {
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('reader-disable-sentence-highlighting');
-        return stored === 'true';
+        return stored === null ? true : stored === 'true';
       }
-      return false;
+      return true;
     });
     useEffect(() => {
       localStorage.setItem('reader-disable-word-highlighting', String(disableWordHighlighting));

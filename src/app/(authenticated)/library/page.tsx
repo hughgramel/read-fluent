@@ -88,6 +88,8 @@ export default function library() {
   const [mdError, setMdError] = useState('');
   const [mdLoading, setMdLoading] = useState(false);
   const [archivedBooks, setArchivedBooks] = useState<ArchivedBookCard[]>([]);
+  const [batchMdLoading, setBatchMdLoading] = useState(false);
+  const [batchMdError, setBatchMdError] = useState('');
 
   // Auto-scroll effect
   useEffect(() => {
@@ -903,6 +905,129 @@ export default function library() {
     }
   };
 
+  // Handler for batch .md file upload
+  const handleBatchMdFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    setBatchMdError('');
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    if (files.length > 5) {
+      setBatchMdError('You can upload a maximum of 5 files at once.');
+      return;
+    }
+    if (!user?.uid) {
+      setBatchMdError('You must be signed in.');
+      return;
+    }
+    setBatchMdLoading(true);
+    let uploaded = 0;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.name.endsWith('.md')) continue;
+      try {
+        const text = await file.text();
+        // Parse Markdown (reuse logic from handleMdFileSelect)
+        const lines = text.split(/\r?\n/);
+        let bookTitle = '';
+        let sections: { title: string; content: string; wordCount: number; id: string }[] = [];
+        let currentSectionTitle = '';
+        let currentSectionContent: string[] = [];
+        let foundH1 = false;
+        let sectionCount = 0;
+        for (let j = 0; j < lines.length; j++) {
+          const line = lines[j];
+          if (!foundH1 && line.trim().startsWith('# ')) {
+            bookTitle = line.replace(/^# /, '').trim();
+            currentSectionTitle = bookTitle;
+            foundH1 = true;
+            continue;
+          }
+          if (foundH1 && line.trim().startsWith('## ')) {
+            if (currentSectionContent.length > 0 || sectionCount === 0) {
+              sections.push({
+                title: currentSectionTitle,
+                content: currentSectionContent.join('\n').trim(),
+                wordCount: currentSectionContent.join(' ').split(/\s+/).filter(Boolean).length,
+                id: (sectionCount + 1).toString(),
+              });
+              sectionCount++;
+            }
+            currentSectionTitle = line.replace(/^## /, '').trim();
+            currentSectionContent = [];
+          } else if (foundH1) {
+            currentSectionContent.push(line);
+          }
+        }
+        if (foundH1 && (currentSectionContent.length > 0 || sectionCount === 0)) {
+          sections.push({
+            title: currentSectionTitle,
+            content: currentSectionContent.join('\n').trim(),
+            wordCount: currentSectionContent.join(' ').split(/\s+/).filter(Boolean).length,
+            id: (sectionCount + 1).toString(),
+          });
+        }
+        if (!foundH1 || sections.length === 0) {
+          continue;
+        }
+        // Create Book object
+        const bookId = Date.now().toString() + '-' + Math.random().toString(36).slice(2, 8);
+        const newBook = {
+          id: bookId,
+          title: bookTitle,
+          author: textAuthor.trim() || 'Unknown Author',
+          description: '',
+          sections,
+          totalWords: sections.reduce((sum, s) => sum + s.wordCount, 0),
+          fileName: `${bookTitle.replace(/\s+/g, '_')}.md`,
+          dateAdded: new Date().toISOString(),
+          css: '',
+          cover: '',
+        };
+        // Upload JSON to storage
+        const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
+        // Save metadata
+        await saveBookMetadata(user.uid, bookId, {
+          title: newBook.title,
+          author: newBook.author,
+          fileName: newBook.fileName,
+          totalWords: newBook.totalWords,
+          storagePath,
+          downloadURL,
+          currentSection: 0,
+        });
+        uploaded++;
+      } catch (err) {
+        // skip file on error
+        continue;
+      }
+    }
+    setBatchMdLoading(false);
+    if (uploaded > 0) {
+      // Refetch books
+      getBooks(user.uid).then((metadatas) => {
+        if (!metadatas || metadatas.length === 0) {
+          setBooks([]);
+          return;
+        }
+        setBooks(metadatas.map(meta => ({
+          id: meta.bookId,
+          title: meta.title,
+          author: meta.author,
+          description: '',
+          sections: [],
+          totalWords: meta.totalWords,
+          fileName: meta.fileName,
+          dateAdded: meta.dateAdded,
+          storagePath: meta.storagePath,
+          downloadURL: meta.downloadURL,
+          completed: meta.completed || false,
+          css: '',
+          cover: '',
+        })));
+      });
+    }
+    (event.target as HTMLInputElement).value = '';
+  };
+
   // Prevent background scroll when modal is open
   useEffect(() => {
     if (showTextModal) {
@@ -1252,6 +1377,7 @@ export default function library() {
               className="hidden"
               disabled={isUploading}
             />
+            
           </div>
         </div>
         {error && (
@@ -1451,16 +1577,37 @@ export default function library() {
                 </div>
                 <div className="flex flex-col mb-2">
                   <label className="font-semibold mb-1">Or upload .md file</label>
-                  <label htmlFor="md-upload-input" className="inline-block w-fit px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors cursor-pointer text-base mb-2">
-                    Choose .md File
+                  <div className="flex flex-row gap-2">
+                    <label htmlFor="md-upload-input" className="inline-block w-fit px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors cursor-pointer text-base mb-2">
+                      Choose .md File
+                      <input
+                        id="md-upload-input"
+                        type="file"
+                        accept=".md"
+                        onChange={handleMdFileSelect}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      className="px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors text-base mb-2"
+                      disabled={batchMdLoading}
+                      onClick={() => document.getElementById('batch-md-upload-input')?.click()}
+                      type="button"
+                    >
+                      {batchMdLoading ? 'Uploading...' : 'Batch Upload (max 5)'}
+                    </button>
                     <input
-                      id="md-upload-input"
+                      id="batch-md-upload-input"
                       type="file"
                       accept=".md"
-                      onChange={handleMdFileSelect}
+                      multiple
+                      onChange={handleBatchMdFileSelect}
                       className="hidden"
+                      disabled={batchMdLoading}
                     />
-                  </label>
+                  </div>
+                  <span className="text-xs text-gray-500 mt-1">You can select up to 5 .md files at once.</span>
+                  {batchMdError && <div className="text-red-600 text-xs mt-1">{batchMdError}</div>}
                   {mdFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{mdFile.name}</span></div>}
                   {mdError && <div className="text-red-600 text-sm mb-2">{mdError}</div>}
                   {mdLoading && <div className="text-blue-600 text-sm mb-2">Processing .md file...</div>}
