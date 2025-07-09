@@ -1,13 +1,12 @@
 {
   "name": "readfluent",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "NEXT_DISABLE_ESLINT=true next build",
     "start": "next start",
-    "lint": "next lint",
-    "build:prod": "NODE_ENV=production npm run build"
+    "lint": "next lint"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",
