@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata } from '@/services/epubService';
 import { useAuth } from '@/hooks/useAuth';
-import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus } from 'react-icons/fi';
+import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus, FiArchive } from 'react-icons/fi';
 import { uploadFileAndGetUrl } from '@/lib/firebase';
 import '@fontsource/inter';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
@@ -72,6 +72,9 @@ export default function library() {
   const [textError, setTextError] = useState('');
   const [textLoading, setTextLoading] = useState(false);
   const [textFile, setTextFile] = useState<File | null>(null);
+  const [mdFile, setMdFile] = useState<File | null>(null);
+  const [mdError, setMdError] = useState('');
+  const [mdLoading, setMdLoading] = useState(false);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -749,6 +752,127 @@ export default function library() {
     }
   };
 
+  // Handler for .md file upload and parsing
+  const handleMdFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    setMdError('');
+    const file = event.target.files?.[0];
+    if (!file || !file.name.endsWith('.md')) {
+      setMdError('Please select a valid .md file.');
+      return;
+    }
+    if (!user?.uid) {
+      setMdError('You must be signed in.');
+      return;
+    }
+    setMdFile(file);
+    setMdLoading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const text = e.target?.result as string || '';
+        // Parse Markdown
+        const lines = text.split(/\r?\n/);
+        let bookTitle = '';
+        let sections: { title: string; content: string; wordCount: number; id: string }[] = [];
+        let currentSectionTitle = '';
+        let currentSectionContent: string[] = [];
+        let foundH1 = false;
+        let sectionCount = 0;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (!foundH1 && line.trim().startsWith('# ')) {
+            bookTitle = line.replace(/^# /, '').trim();
+            currentSectionTitle = bookTitle;
+            foundH1 = true;
+            continue;
+          }
+          if (foundH1 && line.trim().startsWith('## ')) {
+            // Save previous section
+            if (currentSectionContent.length > 0 || sectionCount === 0) {
+              sections.push({
+                title: currentSectionTitle,
+                content: currentSectionContent.join('\n').trim(),
+                wordCount: currentSectionContent.join(' ').split(/\s+/).filter(Boolean).length,
+                id: (sectionCount + 1).toString(),
+              });
+              sectionCount++;
+            }
+            currentSectionTitle = line.replace(/^## /, '').trim();
+            currentSectionContent = [];
+          } else if (foundH1) {
+            currentSectionContent.push(line);
+          }
+        }
+        // Push last section
+        if (foundH1 && (currentSectionContent.length > 0 || sectionCount === 0)) {
+          sections.push({
+            title: currentSectionTitle,
+            content: currentSectionContent.join('\n').trim(),
+            wordCount: currentSectionContent.join(' ').split(/\s+/).filter(Boolean).length,
+            id: (sectionCount + 1).toString(),
+          });
+        }
+        if (!foundH1) {
+          setMdError('Markdown file must start with a # Title.');
+          setMdLoading(false);
+          return;
+        }
+        if (sections.length === 0) {
+          setMdError('No sections found in Markdown.');
+          setMdLoading(false);
+          return;
+        }
+        // Create Book object
+        const bookId = Date.now().toString();
+        const newBook = {
+          id: bookId,
+          title: bookTitle,
+          author: textAuthor.trim() || 'Unknown Author',
+          description: '',
+          sections,
+          totalWords: sections.reduce((sum, s) => sum + s.wordCount, 0),
+          fileName: `${bookTitle.replace(/\s+/g, '_')}.md`,
+          dateAdded: new Date().toISOString(),
+          css: '',
+          cover: '',
+        };
+        // Upload JSON to storage
+        const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
+        // Save metadata
+        await saveBookMetadata(user.uid, bookId, {
+          title: newBook.title,
+          author: newBook.author,
+          fileName: newBook.fileName,
+          totalWords: newBook.totalWords,
+          storagePath,
+          downloadURL,
+          currentSection: 0,
+        });
+        // Add to local state
+        setBooks(prevBooks => [
+          ...prevBooks,
+          {
+            ...newBook,
+            storagePath,
+            downloadURL,
+            completed: false,
+          }
+        ]);
+        setShowTextModal(false);
+        setMdFile(null);
+        setMdError('');
+        setTextTitle('');
+        setTextAuthor('');
+        setTextContent('');
+      };
+      reader.readAsText(file);
+    } catch (err) {
+      setMdError('Failed to process .md file.');
+    } finally {
+      setMdLoading(false);
+    }
+  };
+
   // Prevent background scroll when modal is open
   useEffect(() => {
     if (showTextModal) {
@@ -786,7 +910,16 @@ export default function library() {
         role="button"
         aria-label={`Read ${book.title}`}
       >
-        <div className="flex justify-end p-2">
+        <div className="flex justify-end p-2 gap-2">
+          <button
+            onClick={e => { e.stopPropagation(); console.log('archiving', book.id); }}
+            className="text-gray-300 hover:text-yellow-500 text-lg p-1 rounded transition-colors"
+            title="Archive book"
+            tabIndex={-1}
+            style={{ background: 'none', border: 'none' }}
+          >
+            <FiArchive className="w-5 h-5" />
+          </button>
           <button
             onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, book.storagePath); }}
             className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
@@ -1215,6 +1348,22 @@ export default function library() {
                     />
                   </label>
                   {textFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{textFile.name}</span></div>}
+                </div>
+                <div className="flex flex-col mb-2">
+                  <label className="font-semibold mb-1">Or upload .md file</label>
+                  <label htmlFor="md-upload-input" className="inline-block w-fit px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors cursor-pointer text-base mb-2">
+                    Choose .md File
+                    <input
+                      id="md-upload-input"
+                      type="file"
+                      accept=".md"
+                      onChange={handleMdFileSelect}
+                      className="hidden"
+                    />
+                  </label>
+                  {mdFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{mdFile.name}</span></div>}
+                  {mdError && <div className="text-red-600 text-sm mb-2">{mdError}</div>}
+                  {mdLoading && <div className="text-blue-600 text-sm mb-2">Processing .md file...</div>}
                 </div>
                 {textError && <div className="text-red-600 text-sm mb-2">{textError}</div>}
                 <button
