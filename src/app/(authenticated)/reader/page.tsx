@@ -1160,7 +1160,7 @@ useEffect(() => {
                 {isMobile ? (
                   <List className="w-4 h-4 text-[#232946]" />
                 ) : (
-                  showSectionSidebar ? 'Hide Sections' : 'Show Sections'
+                  <span style={{ color: '#232946', fontWeight: 700 }}>{showSectionSidebar ? 'Hide Sections' : 'Show Sections'}</span>
                 )}
               </button>
               
@@ -1333,16 +1333,15 @@ useEffect(() => {
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-start',
-              color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.001)' : undefined,
+              color: invisibleText && !disableSentenceHighlighting && !disableWordHighlighting ? 'rgba(0,0,0,0.001)' : '#232946',
               maxWidth: isMobile ? '95vw' : readerWidth,
               width: isMobile ? '100%' : readerWidth,
-              padding: isMobile ? '1.25rem 0.5rem' : undefined,
+              padding: isMobile ? '1.25rem 0.5rem' : '1.5rem',
               boxSizing: 'border-box',
               overflowX: isMobile ? 'hidden' : undefined,
             }}>
               {/* Page content, always starts at top */}
-              <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%', color: invisibleText ? 'rgba(0,0,0,0.01)' : undefined, lineHeight: lineSpacing }}>
-                {disableSentenceSpans ? (
+              <div style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, width: '100%', color: invisibleText ? 'rgba(0,0,0,0.01)' : '#232946', lineHeight: lineSpacing }}>                {disableSentenceSpans ? (
                   <div>{flatSentences.join(' ') + ' '}</div>
                 ) : (
                   flatSentences.map((sentence, sIdx) => {
@@ -1361,7 +1360,7 @@ useEffect(() => {
                           cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'pointer'),
                           color: showCurrentSentence
                             ? '#232946'
-                            : (invisibleText ? 'rgba(0,0,0,0.001)' : undefined),
+                            : (invisibleText ? 'rgba(0,0,0,0.01)' : '#232946'),
                           background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
                           borderRadius: isSentenceHovered ? '0.25em' : undefined,
                           transition: 'background 0.15s',
@@ -1495,7 +1494,7 @@ useEffect(() => {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
           onClick={() => setShowSettings(false)}
-          style={{ backdropFilter: 'blur(2px)' }}
+          style={{ backdropFilter: 'blur(2px)', color: '#232946' }}
         >
           <div
             className="bg-white rounded-2xl border-[0.75] border-black shadow-lg w-full relative"
