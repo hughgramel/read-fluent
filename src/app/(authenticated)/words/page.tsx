@@ -345,43 +345,44 @@ export default function WordsPage() {
                   setShowCopyToast(true);
                   setTimeout(() => setShowCopyToast(false), 2000);
                 }}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200 sm:px-4"
               >
                 <Clipboard className="w-4 h-4" />
-                Copy All
+                <span className="hidden sm:inline">Copy All</span>
+                <span className="sm:hidden">Copy</span>
               </button>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+              <table className="w-full border-collapse min-w-[600px]" style={{ tableLayout: 'fixed' }}>
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-gray-700">
-                    <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
-                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '70%' }}>Sentence</th>
-                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Saved</th>
-                    <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-sm sm:text-base font-semibold text-gray-700">
+                    <th className="py-2 px-2 sm:px-3 border-r border-gray-200 text-center w-12 sm:w-16">#</th>
+                    <th className="py-2 px-2 sm:px-3 border-r border-gray-200 text-left" style={{ width: '60%' }}>Sentence</th>
+                    <th className="py-2 px-2 sm:px-3 border-r border-gray-200 text-left" style={{ width: '25%' }}>Date</th>
+                    <th className="py-2 px-2 sm:px-3 text-center" style={{ width: '15%' }}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {sentences.map((sentence, index) => (
                     <tr
                       key={sentence.id || index}
-                      className="text-base hover:bg-gray-50 transition-colors select-text"
+                      className="text-sm sm:text-base hover:bg-gray-50 transition-colors select-text"
                       style={{ userSelect: 'text' }}
                     >
-                      <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
+                      <td className="py-2 px-2 sm:px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
                         {index + 1}
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 text-[#232946]">
-                        <span className="font-medium text-[#232946]">
+                      <td className="py-2 px-2 sm:px-3 border-r border-gray-200 text-[#232946]">
+                        <span className="font-medium text-[#232946] break-words">
                           {sentence.text}
                         </span>
                       </td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                        <span className="text-gray-700">
-                          {sentence.createdAt ? new Date(sentence.createdAt).toLocaleDateString() : 'Unknown date'}
+                      <td className="py-2 px-2 sm:px-3 border-r border-gray-200 whitespace-nowrap">
+                        <span className="text-gray-700 text-xs sm:text-sm">
+                          {sentence.createdAt ? new Date(sentence.createdAt).toLocaleDateString() : 'Unknown'}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-center whitespace-nowrap">
+                      <td className="py-2 px-2 sm:px-3 text-center whitespace-nowrap">
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(sentence.text);
@@ -389,10 +390,10 @@ export default function WordsPage() {
                             setShowCopyToast(true);
                             setTimeout(() => setShowCopyToast(false), 2000);
                           }}
-                          className="text-gray-400 hover:text-[#2563eb] transition-colors p-2 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-200 flex items-center justify-center"
+                          className="text-gray-400 hover:text-[#2563eb] transition-colors p-1.5 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-200 flex items-center justify-center"
                           title="Copy sentence"
                         >
-                          <Clipboard className="w-4 h-4" />
+                          <Clipboard className="w-3 h-3 sm:w-4 sm:h-4" />
                         </button>
                       </td>
                     </tr>
