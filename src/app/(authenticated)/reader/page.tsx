@@ -18,6 +18,7 @@ import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
 const SpeechPlayer: any = SpeechPlayerImport;
 import { Settings, Maximize2, List, CheckCircle, XCircle, ArrowLeft, Clipboard } from 'lucide-react';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
+import { SentenceService } from '@/services/sentenceService';
 
 // Types
 interface BookSection {
@@ -160,9 +161,8 @@ export default function ReaderPage() {
   // Add state for line spacing
   const [lineSpacing, setLineSpacing] = useState<number>(1.5);
 
-
-
-
+  const [showSentenceSaved, setShowSentenceSaved] = useState(false);
+  const [savedSentencesSet, setSavedSentencesSet] = useState<Set<string>>(new Set());
 
   // Fetch voices from Azure
   const fetchVoices = useCallback(async () => {
@@ -1358,7 +1358,7 @@ useEffect(() => {
                         className={`${isSentenceHighlighted ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
                         style={{
                           marginRight: 8,
-                          cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'default'),
+                          cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'pointer'),
                           color: showCurrentSentence
                             ? '#232946'
                             : (invisibleText ? 'rgba(0,0,0,0.001)' : undefined),
@@ -1369,10 +1369,21 @@ useEffect(() => {
                           display: 'inline',
                           verticalAlign: 'baseline',
                         }}
-                        onClick={() => {
+                        onClick={async () => {
                           if (isSentenceSelectMode) {
                             setForcedSpeechStartIndex(sIdx);
                             setIsSentenceSelectMode(false);
+                            return;
+                          }
+                          if (!user?.uid) return;
+                          if (savedSentencesSet.has(sentence)) return;
+                          try {
+                            await SentenceService.addSentence(user.uid, sentence);
+                            setSavedSentencesSet(prev => new Set(prev).add(sentence));
+                            setShowSentenceSaved(true);
+                            setTimeout(() => setShowSentenceSaved(false), 1200);
+                          } catch (err) {
+                            // Optionally handle error
                           }
                         }}
                         onMouseEnter={highlightSentenceOnHover ? () => setCurrentlyHighlightedSentence(sIdx) : undefined}
@@ -1787,6 +1798,12 @@ useEffect(() => {
       {showCopyConfirm && (
         <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1000 }} className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold animate-fade-in">
           Copied!
+        </div>
+      )}
+      {/* Floating sentence saved popup */}
+      {showSentenceSaved && (
+        <div style={{ position: 'fixed', bottom: 80, right: 32, zIndex: 1000 }} className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold animate-fade-in">
+          Sentence saved!
         </div>
       )}
     </div>

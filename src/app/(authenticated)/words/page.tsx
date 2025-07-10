@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { WordService, WordType, Word } from '@/services/wordService';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { UserService } from '@/services/userService';
+import { SentenceService, UserSentence } from '@/services/sentenceService';
+import { Clipboard } from 'lucide-react';
 
 const FILTERS = [
   { label: 'All', value: 'all' },
@@ -30,6 +32,10 @@ export default function WordsPage() {
   const [addMultiText, setAddMultiText] = useState('');
   const [sortColumn, setSortColumn] = useState<'word' | 'type'>('word');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [selectedTab, setSelectedTab] = useState<'words' | 'sentences'>('words');
+  const [sentences, setSentences] = useState<UserSentence[]>([]);
+  const [showCopyToast, setShowCopyToast] = useState(false);
+  const [copyToastMessage, setCopyToastMessage] = useState('');
 
   const LANGUAGES = [
     { code: 'en', name: 'English' },
@@ -63,6 +69,12 @@ export default function WordsPage() {
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    if (selectedTab === 'sentences' && user?.uid) {
+      SentenceService.getSentences(user.uid).then(setSentences);
+    }
+  }, [selectedTab, user]);
 
   const handleSort = (column: 'word' | 'type') => {
     if (sortColumn === column) {
@@ -146,154 +158,250 @@ export default function WordsPage() {
 
   return (
     <div className="w-full max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#232946] mb-2">Words</h1>
-        <div className="flex gap-8 text-sm text-gray-600">
-          <span><strong>{totalWords}</strong> total words</span>
-          <span><strong>{knownWords}</strong> known</span>
-          <span><strong>{trackingWords}</strong> tracking</span>
-          <span><strong>{ignoredWords}</strong> ignored</span>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-4 mb-8">
+        <button
+          className={`px-4 py-2 font-semibold text-base transition-colors border-b-2 ${selectedTab === 'words' ? 'border-[#2563eb] text-[#2563eb]' : 'border-transparent text-gray-500 hover:text-[#2563eb]'}`}
+          style={{ background: 'transparent', marginBottom: -1 }}
+          onClick={() => setSelectedTab('words')}
+        >
+          Words
+        </button>
+        <button
+          className={`px-4 py-2 font-semibold text-base transition-colors border-b-2 ${selectedTab === 'sentences' ? 'border-[#2563eb] text-[#2563eb]' : 'border-transparent text-gray-500 hover:text-[#2563eb]'}`}
+          style={{ background: 'transparent', marginBottom: -1 }}
+          onClick={() => setSelectedTab('sentences')}
+        >
+          Sentences
+        </button>
       </div>
 
-      {/* Search and Filter Controls - Aligned with table */}
-      <div className="mb-4">
-        <div className="flex items-center gap-4">
-          {/* Word search */}
-          <div className="flex-1 max-w-md">
-            <input
-              type="text"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none transition-all"
-              placeholder="Search words..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+      {selectedTab === 'words' && (
+        <>
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-[#232946] mb-2">Words</h1>
+            <div className="flex gap-8 text-sm text-gray-600">
+              <span><strong>{totalWords}</strong> total words</span>
+              <span><strong>{knownWords}</strong> known</span>
+              <span><strong>{trackingWords}</strong> tracking</span>
+              <span><strong>{ignoredWords}</strong> ignored</span>
+            </div>
           </div>
-          
-          {/* Status filter */}
-          <div>
-            <select
-              className="rounded-lg border border-gray-200 px-3 py-2 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none transition-all"
-              value={filter}
-              onChange={e => setFilter(e.target.value as 'all' | 'known' | 'tracking' | 'ignored')}
-            >
-              {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
+
+          {/* Search and Filter Controls - Aligned with table */}
+          <div className="mb-4">
+            <div className="flex items-center gap-4">
+              {/* Word search */}
+              <div className="flex-1 max-w-md">
+                <input
+                  type="text"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none transition-all"
+                  placeholder="Search words..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+              {/* Status filter */}
+              <div>
+                <select
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none transition-all"
+                  value={filter}
+                  onChange={e => setFilter(e.target.value as 'all' | 'known' | 'tracking' | 'ignored')}
+                >
+                  {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </select>
+              </div>
+              {/* Add button */}
+              <div>
+                <button
+                  className="px-4 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors text-sm border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40 flex items-center gap-2 whitespace-nowrap"
+                  onClick={openAddModal}
+                  title="Add Word"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  Add
+                </button>
+              </div>
+            </div>
           </div>
-          
-          {/* Add button */}
-          <div>
-            <button
-              className="px-4 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors text-sm border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40 flex items-center gap-2 whitespace-nowrap"
-              onClick={openAddModal}
-              title="Add Word"
-            >
-              <FiPlus className="w-4 h-4" />
-              Add
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Words Table */}
-      {sortedWords.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <div className="text-lg mb-2">No words found</div>
-          <div className="text-sm">Add some words to track your vocabulary!</div>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
-            {/* Table Header */}
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-gray-700">
-                <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
-                <th 
-                  className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('word')}
-                  style={{ width: '40%' }}
-                >
-                  <div className="flex items-center gap-2">
-                    Word
-                    {sortColumn === 'word' && (
-                      <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </div>
-                </th>
-                <th 
-                  className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('type')}
-                  style={{ width: '25%' }}
-                >
-                  <div className="flex items-center gap-2">
-                    Status
-                    {sortColumn === 'type' && (
-                      <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </div>
-                </th>
-                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Language</th>
-                <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
-              </tr>
-            </thead>
-
-            {/* Table Body */}
-            <tbody className="divide-y divide-gray-200">
-              {sortedWords.map((word, index) => (
-                <tr
-                  key={word.word}
-                  className="text-base hover:bg-gray-50 transition-colors select-text"
-                  style={{ userSelect: 'text' }}
-                >
-                  {/* Row Number */}
-                  <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
-                    {index + 1}
-                  </td>
-
-                  {/* Word */}
-                  <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                    <span className="font-medium text-[#232946]">
-                      {word.word}
-                    </span>
-                  </td>
-
-                  {/* Status */}
-                  <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                    <span
-                      className={`inline-block px-3 py-1 text-sm font-semibold rounded-full
-                        ${word.type === 'known' ? 'bg-green-100 text-green-800' :
-                          word.type === 'tracking' ? 'bg-purple-100 text-purple-800' :
-                          word.type === 'ignored' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'}
-                      `}
+          {/* Words Table */}
+          {sortedWords.length === 0 ? (
+            <div className="text-center py-16 text-gray-500">
+              <div className="text-lg mb-2">No words found</div>
+              <div className="text-sm">Add some words to track your vocabulary!</div>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                {/* Table Header */}
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-gray-700">
+                    <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
+                    <th 
+                      className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('word')}
+                      style={{ width: '40%' }}
                     >
-                      {word.type}
-                    </span>
-                  </td>
-
-                  {/* Language */}
-                  <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                    <span className="text-gray-700 font-medium">
-                      {profileLang || 'en'}
-                    </span>
-                  </td>
-
-                  {/* Actions */}
-                  <td className="py-2 px-3 text-center whitespace-nowrap">
-                    <button
-                      onClick={() => handleDeleteWord(word)}
-                      className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                      title="Delete word"
+                      <div className="flex items-center gap-2">
+                        Word
+                        {sortColumn === 'word' && (
+                          <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('type')}
+                      style={{ width: '25%' }}
                     >
-                      <FiTrash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <div className="flex items-center gap-2">
+                        Status
+                        {sortColumn === 'type' && (
+                          <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Language</th>
+                    <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
+                  </tr>
+                </thead>
+
+                {/* Table Body */}
+                <tbody className="divide-y divide-gray-200">
+                  {sortedWords.map((word, index) => (
+                    <tr
+                      key={word.word}
+                      className="text-base hover:bg-gray-50 transition-colors select-text"
+                      style={{ userSelect: 'text' }}
+                    >
+                      {/* Row Number */}
+                      <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
+                        {index + 1}
+                      </td>
+
+                      {/* Word */}
+                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                        <span className="font-medium text-[#232946]">
+                          {word.word}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                        <span
+                          className={`inline-block px-3 py-1 text-sm font-semibold rounded-full
+                            ${word.type === 'known' ? 'bg-green-100 text-green-800' :
+                              word.type === 'tracking' ? 'bg-purple-100 text-purple-800' :
+                              word.type === 'ignored' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'}
+                          `}
+                        >
+                          {word.type}
+                        </span>
+                      </td>
+
+                      {/* Language */}
+                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                        <span className="text-gray-700 font-medium">
+                          {profileLang || 'en'}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-2 px-3 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => handleDeleteWord(word)}
+                          className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+                          title="Delete word"
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {selectedTab === 'sentences' && (
+        sentences.length === 0 ? (
+          <div className="text-center py-16 text-gray-500">
+            <div className="text-lg mb-2">No sentences found</div>
+            <div className="text-sm">Add sentences by clicking on them while reading</div>
+          </div>
+        ) : (
+          <div>
+            <div className="flex justify-start mb-4">
+              <button
+                onClick={() => {
+                  const allText = sentences.map(s => s.text).join('\n');
+                  navigator.clipboard.writeText(allText);
+                  setCopyToastMessage('All sentences copied!');
+                  setShowCopyToast(true);
+                  setTimeout(() => setShowCopyToast(false), 2000);
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200"
+              >
+                <Clipboard className="w-4 h-4" />
+                Copy All
+              </button>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-gray-700">
+                    <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '70%' }}>Sentence</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Saved</th>
+                    <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {sentences.map((sentence, index) => (
+                    <tr
+                      key={sentence.id || index}
+                      className="text-base hover:bg-gray-50 transition-colors select-text"
+                      style={{ userSelect: 'text' }}
+                    >
+                      <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
+                        {index + 1}
+                      </td>
+                      <td className="py-2 px-3 border-r border-gray-200 text-[#232946]">
+                        <span className="font-medium text-[#232946]">
+                          {sentence.text}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                        <span className="text-gray-700">
+                          {sentence.createdAt ? new Date(sentence.createdAt).toLocaleDateString() : 'Unknown date'}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(sentence.text);
+                            setCopyToastMessage('Sentence copied!');
+                            setShowCopyToast(true);
+                            setTimeout(() => setShowCopyToast(false), 2000);
+                          }}
+                          className="text-gray-400 hover:text-[#2563eb] transition-colors p-2 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-200 flex items-center justify-center"
+                          title="Copy sentence"
+                        >
+                          <Clipboard className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
       )}
 
       {/* Add Word Modal */}
@@ -394,6 +502,13 @@ export default function WordsPage() {
               </div>
             </div>
           )}
+      {/* Toast Notification */}
+      {showCopyToast && (
+        <div className="fixed bottom-4 right-4 z-50 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+          <Clipboard className="w-4 h-4" />
+          <span>{copyToastMessage}</span>
+        </div>
+      )}
     </div>
   );
 } 
