@@ -16,7 +16,7 @@ import parse, { HTMLReactParserOptions, Text } from 'html-react-parser';
 // @ts-ignore
 import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
 const SpeechPlayer: any = SpeechPlayerImport;
-import { Settings, Maximize2, List, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { Settings, Maximize2, List, CheckCircle, XCircle, ArrowLeft, Clipboard } from 'lucide-react';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
 
 // Types
@@ -136,6 +136,8 @@ export default function ReaderPage() {
   const [ttsVoice, setTtsVoice] = useState('es-MX-JorgeNeural');
   const [activeWordIndex, setActiveWordIndex] = useState<number | null>(null);
   const [isSpeechPlayerActive, setIsSpeechPlayerActive] = useState(true);
+  const [showAudioBarOnStart, setShowAudioBarOnStart] = useState(true);
+  const [showCopyConfirm, setShowCopyConfirm] = useState(false);
 
   // Add state for available TTS voices
   const [availableVoices, setAvailableVoices] = useState<{ Name: string; LocalName?: string; Locale?: string }[]>([]);
@@ -494,6 +496,8 @@ export default function ReaderPage() {
           setNativeLanguage(prefs.nativeLanguage || 'en');
           setCurrentTheme(prefs.theme || 'light');
           setCurrentViewMode((prefs.viewMode as 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two') || 'scroll-section');
+          setShowAudioBarOnStart(!!prefs.showAudioBarOnStart);
+          setIsSpeechPlayerActive(!!prefs.showAudioBarOnStart);
         }
       });
     }
@@ -569,6 +573,7 @@ export default function ReaderPage() {
         disableWordSpans: disableWordSpansValue,
         disableSentenceSpans: disableSentenceSpansValue,
         nativeLanguage: nativeLanguageValue,
+        showAudioBarOnStart: showAudioBarOnStart,
       });
     }
   };
@@ -1158,6 +1163,7 @@ useEffect(() => {
                   showSectionSidebar ? 'Hide Sections' : 'Show Sections'
                 )}
               </button>
+              
               {/* Hide section name on mobile */}
               {!isMobile && (
                 <span className="truncate font-extrabold text-lg ml-2" style={{maxWidth: '240px', color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif'}}>
@@ -1376,6 +1382,49 @@ useEffect(() => {
                           ? sentence + ' '
                           : words.map((word, wIdx) => {
                               const isWordHighlighted = isSentenceHighlighted && wIdx === activeWordIndex && !disableWordHighlighting;
+                              // Insert clipboard button before the first word of the first sentence on mobile
+                              if (isMobile && sIdx === 0 && wIdx === 0) {
+                                return [
+                                  <button
+                                    key="clipboard-btn"
+                                    onClick={async () => {
+                                      const text = flatSentences.join(' ');
+                                      try {
+                                        await navigator.clipboard.writeText(text);
+                                        setShowCopyConfirm(true);
+                                        setTimeout(() => setShowCopyConfirm(false), 1200);
+                                        console.log('[Reader Copy] Copied text:', text);
+                                      } catch (err) {
+                                        console.error('[Reader Copy] Failed to copy:', err);
+                                      }
+                                    }}
+                                    className="inline-flex items-center justify-center w-7 h-7 min-w-0 min-h-0 p-0 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 shadow border border-gray-300 mr-1 align-middle"
+                                    title="Copy page text"
+                                    style={{ verticalAlign: 'middle' }}
+                                  >
+                                    <Clipboard className="w-4 h-4" />
+                                  </button>,
+                                  <span
+                                    key={wIdx}
+                                    className={isWordHighlighted ? 'speaking-highlight-word' : ''}
+                                    style={{
+                                      marginRight: 4,
+                                      color: showCurrentSentence
+                                        ? '#232946'
+                                        : (invisibleText
+                                            ? (showCurrentWordWhenInvisible && isWordHighlighted
+                                                ? '#232946'
+                                                : 'rgba(0,0,0,0.001)')
+                                            : undefined),
+                                    }}
+                                  >
+                                    {word + ' '}
+                                  </span>,
+                                  showCopyConfirm && (
+                                    <span key="clipboard-confirm" className="ml-2 text-xs text-gray-500 animate-fade-in bg-white px-2 py-1 rounded shadow border border-gray-200 align-middle">Copied!</span>
+                                  )
+                                ];
+                              }
                               return (
                                 <span
                                   key={wIdx}
@@ -1705,6 +1754,21 @@ useEffect(() => {
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-sentence-spans" className="font-bold text-black select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="show-audio-bar-on-start"
+                type="checkbox"
+                checked={showAudioBarOnStart}
+                onChange={async e => {
+                  setShowAudioBarOnStart(e.target.checked);
+                  if (user?.uid) {
+                    await UserService.updateUserPreferences(user.uid, { showAudioBarOnStart: e.target.checked });
+                  }
+                }}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="show-audio-bar-on-start" className="font-bold text-black select-none cursor-pointer">Show audio bar on start</label>
             </div>
           </div>
         </div>

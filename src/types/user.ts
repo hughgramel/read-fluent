@@ -27,6 +27,7 @@ export interface UserPreferences {
   lineSpacing?: number;
   disableWordSpans?: boolean;
   disableSentenceSpans?: boolean;
+  showAudioBarOnStart?: boolean; // NEW: show audio bar on start (default true)
 }
 
 export interface UserStats {
@@ -86,6 +87,7 @@ export function createNewUserDocument(
     preferences: {
       darkMode: false,
       dailyGoal: 1500,
+      showAudioBarOnStart: true, // NEW default
     },
     subscriptionStatus: null,
     subscriptionEndDate: null,
