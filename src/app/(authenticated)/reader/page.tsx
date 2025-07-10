@@ -1419,10 +1419,7 @@ useEffect(() => {
                                     }}
                                   >
                                     {word + ' '}
-                                  </span>,
-                                  showCopyConfirm && (
-                                    <span key="clipboard-confirm" className="ml-2 text-xs text-gray-500 animate-fade-in bg-white px-2 py-1 rounded shadow border border-gray-200 align-middle">Copied!</span>
-                                  )
+                                  </span>
                                 ];
                               }
                               return (
@@ -1784,6 +1781,12 @@ useEffect(() => {
       {showUnmarkedPopup.visible && (
         <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1000 }} className="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg text-lg font-bold animate-fade-in">
           Marked unread! (-{showUnmarkedPopup.wordCount.toLocaleString()} words)
+        </div>
+      )}
+      {/* Floating copy confirmation popup */}
+      {showCopyConfirm && (
+        <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1000 }} className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold animate-fade-in">
+          Copied!
         </div>
       )}
     </div>
