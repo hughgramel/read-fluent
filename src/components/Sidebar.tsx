@@ -140,7 +140,7 @@ export default function Sidebar() {
                   style={{
                     borderRadius: 14,
                     margin: '0 auto',
-                    width: '90%',
+                    width: collapsed ? 54 : '85%', // narrower highlight in collapsed mode
                     minWidth: 0,
                     height: ICON_BOX,
                     marginBottom: 0,
