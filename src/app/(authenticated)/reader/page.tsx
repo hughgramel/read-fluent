@@ -1492,9 +1492,9 @@ useEffect(() => {
       {/* Settings Modal */}
       {showSettings && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)', color: '#232946' }}
           onClick={() => setShowSettings(false)}
-          style={{ backdropFilter: 'blur(2px)', color: '#232946' }}
         >
           <div
             className="bg-white rounded-2xl border-[0.75] border-black shadow-lg w-full relative"
