@@ -49,6 +49,7 @@ export default function ReaderPage() {
     showUnmarkedPopup,
     showCopyConfirm,
     showSentenceSaved,
+    hoveredWord,
     
     // Derived values
     currentSection,
@@ -86,6 +87,9 @@ export default function ReaderPage() {
     handleFullscreen,
     backToLibrary,
     fetchVoices,
+    updateWordStatus,
+    getWordStatus,
+    handleWordHover,
   } = useReaderState(user);
 
   // Keyboard navigation
@@ -105,6 +109,9 @@ export default function ReaderPage() {
     },
     isPageRead,
     setIsWHeld,
+    hoveredWord,
+    updateWordStatus,
+    enableHighlightWords: readerSettings.enableHighlightWords,
   });
 
   // Apply theme to html[data-theme]
@@ -406,6 +413,10 @@ export default function ReaderPage() {
                 onSentenceHover={handleSentenceHover}
                 onCopyText={handleCopyText}
                 showCopyConfirm={showCopyConfirm}
+                enableHighlightWords={readerSettings.enableHighlightWords}
+                getWordStatus={getWordStatus}
+                hoveredWord={hoveredWord}
+                onWordHover={handleWordHover}
               />
             </div>
           </div>
@@ -713,6 +724,18 @@ export default function ReaderPage() {
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="show-audio-bar-on-start" className="font-bold theme-text select-none cursor-pointer">Show audio bar on start</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="enable-highlight-words"
+                type="checkbox"
+                checked={readerSettings.enableHighlightWords}
+                onChange={async e => {
+                  savePreferences({ enableHighlightWords: e.target.checked });
+                }}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="enable-highlight-words" className="font-bold theme-text select-none cursor-pointer">Enable highlight words</label>
             </div>
           </div>
         </div>

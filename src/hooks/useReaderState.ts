@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Book, ReaderSettings, TTSVoice } from '@/components/reader/ReaderTypes';
+import { Book, ReaderSettings, TTSVoice, WordType } from '@/components/reader/ReaderTypes';
 import { getBooks, getBookJson, updateBookMetadata } from '@/services/epubService';
 import { UserService } from '@/services/userService';
-import { WordService } from '@/services/wordService';
+import { WordService, Word } from '@/services/wordService';
 import { ReadingSessionService } from '@/services/readingSessionService';
 import { SentenceService } from '@/services/sentenceService';
-import { getPageWordCount } from '@/components/reader/ReaderUtils';
+import { getPageWordCount, cleanWord } from '@/components/reader/ReaderUtils';
 
 export function useReaderState(user: any) {
   const router = useRouter();
@@ -64,7 +64,12 @@ export function useReaderState(user: any) {
     disableSentenceSpans: false,
     nativeLanguage: 'en',
     showAudioBarOnStart: true,
+    enableHighlightWords: false,
   });
+
+  // Word tracking state
+  const [userWords, setUserWords] = useState<Map<string, WordType>>(new Map());
+  const [hoveredWord, setHoveredWord] = useState<string | null>(null);
 
   // Interactive state
   const [isWHeld, setIsWHeld] = useState(false);
@@ -200,9 +205,23 @@ export function useReaderState(user: any) {
             disableSentenceSpans: !!prefs.disableSentenceSpans,
             nativeLanguage: prefs.nativeLanguage || 'en',
             showAudioBarOnStart: !!prefs.showAudioBarOnStart,
+            enableHighlightWords: !!prefs.enableHighlightWords,
           }));
           setIsSpeechPlayerActive(!!prefs.showAudioBarOnStart);
         }
+      });
+    }
+  }, [user]);
+
+  // Load user words for highlighting
+  useEffect(() => {
+    if (user?.uid) {
+      WordService.getWords(user.uid).then(words => {
+        const wordMap = new Map<string, WordType>();
+        words.forEach(word => {
+          wordMap.set(cleanWord(word.word), word.type);
+        });
+        setUserWords(wordMap);
       });
     }
   }, [user]);
@@ -396,6 +415,48 @@ export function useReaderState(user: any) {
     router.push('/library');
   }, [router]);
 
+  // Word management functions
+  const updateWordStatus = useCallback(async (word: string, type: WordType) => {
+    if (!user?.uid) return;
+    
+    const cleanedWord = cleanWord(word);
+    
+    // If type is "unknown", remove the word from the database
+    if (type === 'unknown') {
+      try {
+        await WordService.removeWord(user.uid, cleanedWord);
+        setUserWords(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(cleanedWord);
+          return newMap;
+        });
+      } catch (error) {
+        console.error('Failed to remove word:', error);
+      }
+      return;
+    }
+    
+    try {
+      await WordService.updateWord(user.uid, cleanedWord, type);
+      setUserWords(prev => new Map(prev).set(cleanedWord, type));
+    } catch (error) {
+      try {
+        await WordService.addWord(user.uid, cleanedWord, type);
+        setUserWords(prev => new Map(prev).set(cleanedWord, type));
+      } catch (addError) {
+        console.error('Failed to add word:', addError);
+      }
+    }
+  }, [user]);
+
+  const getWordStatus = useCallback((word: string): WordType | undefined => {
+    return userWords.get(cleanWord(word));
+  }, [userWords]);
+
+  const handleWordHover = useCallback((word: string | null) => {
+    setHoveredWord(word);
+  }, []);
+
   // Calculate derived values
   const currentSection = book?.sections?.[currentSectionIndex];
   const currentPages = sectionPages[currentSectionIndex] || [];
@@ -437,6 +498,7 @@ export function useReaderState(user: any) {
     showUnmarkedPopup,
     showCopyConfirm,
     showSentenceSaved,
+    hoveredWord,
     
     // Derived values
     currentSection,
@@ -478,5 +540,8 @@ export function useReaderState(user: any) {
     handleFullscreen,
     backToLibrary,
     fetchVoices,
+    updateWordStatus,
+    getWordStatus,
+    handleWordHover,
   };
 } 

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { WordType } from '@/components/reader/ReaderTypes';
 
 interface UseReaderKeyboardProps {
   onPrevPage: () => void;
@@ -10,6 +11,9 @@ interface UseReaderKeyboardProps {
   onRepeatSentence: () => void;
   isPageRead: boolean;
   setIsWHeld: (held: boolean) => void;
+  hoveredWord: string | null;
+  updateWordStatus: (word: string, type: WordType) => void;
+  enableHighlightWords: boolean;
 }
 
 export function useReaderKeyboard({
@@ -22,9 +26,31 @@ export function useReaderKeyboard({
   onRepeatSentence,
   isPageRead,
   setIsWHeld,
+  hoveredWord,
+  updateWordStatus,
+  enableHighlightWords,
 }: UseReaderKeyboardProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Word status shortcuts when hovering over a word
+      if (enableHighlightWords && hoveredWord) {
+        if (e.key === '1') {
+          updateWordStatus(hoveredWord, 'known');
+          return;
+        } else if (e.key === '2') {
+          updateWordStatus(hoveredWord, 'tracking');
+          return;
+        } else if (e.key === '3') {
+          updateWordStatus(hoveredWord, 'ignored');
+          return;
+        } else if (e.key === '4') {
+          // For "unknown" we need to remove the word from the database
+          updateWordStatus(hoveredWord, 'unknown' as WordType);
+          return;
+        }
+      }
+      
+      // Regular shortcuts
       if (e.key === 'ArrowLeft') {
         onPrevPage();
       } else if (e.key === 'ArrowRight') {
@@ -69,5 +95,8 @@ export function useReaderKeyboard({
     onRepeatSentence,
     isPageRead,
     setIsWHeld,
+    hoveredWord,
+    updateWordStatus,
+    enableHighlightWords,
   ]);
 } 

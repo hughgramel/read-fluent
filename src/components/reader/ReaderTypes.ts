@@ -29,7 +29,7 @@ export interface Word {
   type: WordType;
 }
 
-export type WordType = 'known' | 'tracking' | 'ignored';
+export type WordType = 'known' | 'tracking' | 'ignored' | 'unknown';
 
 export interface ReaderSettings {
   readerFont: string;
@@ -53,6 +53,7 @@ export interface ReaderSettings {
   disableSentenceSpans: boolean;
   nativeLanguage: string;
   showAudioBarOnStart: boolean;
+  enableHighlightWords: boolean;
 }
 
 export interface TTSVoice {

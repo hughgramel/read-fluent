@@ -20,10 +20,24 @@ export function nextStatus(current: WordType | undefined): WordType {
 // Helper: get underline style
 export function getUnderline(type: WordType | undefined, hovered: boolean): string {
   if (type === 'tracking') return '2px solid #a78bfa'; // purple
-  if (!type) return 'none'; // no underline for unknown
+  if (!type || type === 'unknown') return 'none'; // no underline for unknown
   if (type === 'known') return hovered ? '2px solid #16a34a' : 'none';
   if (type === 'ignored') return hovered ? '2px solid #222' : 'none';
   return 'none';
+}
+
+// Helper: get word underline style for highlighting feature
+export function getWordUnderline(type: WordType | undefined, hovered: boolean): string {
+  if (type === 'tracking') return '2px solid #a78bfa'; // purple
+  if (!type || type === 'unknown') return '2px solid #ef4444'; // red for unknown
+  if (type === 'known') return hovered ? '2px solid #16a34a' : 'none'; // green on hover
+  if (type === 'ignored') return hovered ? '2px solid #4b5563' : 'none'; // dark grey on hover
+  return 'none';
+}
+
+// Helper: clean word for lookup (remove punctuation, lowercase)
+export function cleanWord(word: string): string {
+  return word.replace(/[^\p{L}\p{M}\d'-]/gu, '').toLowerCase();
 }
 
 // Helper: robust sentence splitter

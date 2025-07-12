@@ -41,6 +41,7 @@ export interface UserPreferences {
   disableWordSpans?: boolean;
   disableSentenceSpans?: boolean;
   showAudioBarOnStart?: boolean; // NEW: show audio bar on start (default true)
+  enableHighlightWords?: boolean; // Enable word highlighting based on status
 }
 
 export interface UserStats {
