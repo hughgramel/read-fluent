@@ -17,6 +17,15 @@ export interface Theme {
   config: ThemeConfig;
 }
 
+// Helper function to darken a color for hover states
+const darkenColor = (hex: string, amount: number = 20): string => {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, (num >> 16) - amount);
+  const g = Math.max(0, ((num >> 8) & 0x00FF) - amount);
+  const b = Math.max(0, (num & 0x0000FF) - amount);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+};
+
 // Predefined themes
 export const predefinedThemes: Theme[] = [
   {
@@ -36,7 +45,7 @@ export const predefinedThemes: Theme[] = [
   },
   {
     id: 'dark',
-    name: 'Dark',
+    name: 'Dark Blue',
     config: {
       primaryColor: '#3b82f6',
       secondaryColor: '#90caf9',
@@ -47,6 +56,51 @@ export const predefinedThemes: Theme[] = [
       accentColor: '#90caf9',
       shadowColor: '#000000',
       secondaryTextColor: '#a0a0a0',
+    },
+  },
+  {
+    id: 'midnight',
+    name: 'Midnight',
+    config: {
+      primaryColor: '#60a5fa',
+      secondaryColor: '#93c5fd',
+      backgroundColor: '#0f172a',
+      textColor: '#f8fafc',
+      fontFamily: 'Noto Sans, Helvetica Neue, Arial, sans-serif',
+      borderColor: '#334155',
+      accentColor: '#60a5fa',
+      shadowColor: '#000000',
+      secondaryTextColor: '#cbd5e1',
+    },
+  },
+  {
+    id: 'true-dark',
+    name: 'True Dark',
+    config: {
+      primaryColor: '#ffffff',
+      secondaryColor: '#e5e7eb',
+      backgroundColor: '#000000',
+      textColor: '#ffffff',
+      fontFamily: 'Noto Sans, Helvetica Neue, Arial, sans-serif',
+      borderColor: '#374151',
+      accentColor: '#f3f4f6',
+      shadowColor: '#111827',
+      secondaryTextColor: '#d1d5db',
+    },
+  },
+  {
+    id: 'high-contrast',
+    name: 'High Contrast',
+    config: {
+      primaryColor: '#000000',
+      secondaryColor: '#333333',
+      backgroundColor: '#ffffff',
+      textColor: '#000000',
+      fontFamily: 'Arial, sans-serif',
+      borderColor: '#000000',
+      accentColor: '#000000',
+      shadowColor: '#666666',
+      secondaryTextColor: '#333333',
     },
   },
   {
@@ -66,7 +120,7 @@ export const predefinedThemes: Theme[] = [
   },
   {
     id: 'solarized',
-    name: 'Solarized',
+    name: 'Solarized Dark',
     config: {
       primaryColor: '#268bd2',
       secondaryColor: '#2aa198',
@@ -77,6 +131,21 @@ export const predefinedThemes: Theme[] = [
       accentColor: '#268bd2',
       shadowColor: '#073642',
       secondaryTextColor: '#657b83',
+    },
+  },
+  {
+    id: 'solarized-light',
+    name: 'Solarized Light',
+    config: {
+      primaryColor: '#268bd2',
+      secondaryColor: '#2aa198',
+      backgroundColor: '#fdf6e3',
+      textColor: '#657b83',
+      fontFamily: 'Monaco, "Cascadia Code", monospace',
+      borderColor: '#93a1a1',
+      accentColor: '#268bd2',
+      shadowColor: '#eee8d5',
+      secondaryTextColor: '#586e75',
     },
   },
   {
@@ -139,6 +208,111 @@ export const predefinedThemes: Theme[] = [
       secondaryTextColor: '#6b21a8',
     },
   },
+  {
+    id: 'rose',
+    name: 'Rose',
+    config: {
+      primaryColor: '#e11d48',
+      secondaryColor: '#f43f5e',
+      backgroundColor: '#fff1f2',
+      textColor: '#881337',
+      fontFamily: 'Noto Sans, Helvetica Neue, Arial, sans-serif',
+      borderColor: '#fecaca',
+      accentColor: '#be185d',
+      shadowColor: '#fecaca',
+      secondaryTextColor: '#9f1239',
+    },
+  },
+  {
+    id: 'monochrome',
+    name: 'Monochrome',
+    config: {
+      primaryColor: '#4b5563',
+      secondaryColor: '#6b7280',
+      backgroundColor: '#f9fafb',
+      textColor: '#111827',
+      fontFamily: 'Inter, sans-serif',
+      borderColor: '#d1d5db',
+      accentColor: '#374151',
+      shadowColor: '#e5e7eb',
+      secondaryTextColor: '#6b7280',
+    },
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal',
+    config: {
+      primaryColor: '#1f2937',
+      secondaryColor: '#4b5563',
+      backgroundColor: '#ffffff',
+      textColor: '#1f2937',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      borderColor: '#e5e7eb',
+      accentColor: '#374151',
+      shadowColor: '#f3f4f6',
+      secondaryTextColor: '#6b7280',
+    },
+  },
+  {
+    id: 'terminal',
+    name: 'Terminal',
+    config: {
+      primaryColor: '#00ff00',
+      secondaryColor: '#00cc00',
+      backgroundColor: '#000000',
+      textColor: '#00ff00',
+      fontFamily: 'Monaco, "Cascadia Code", "Courier New", monospace',
+      borderColor: '#00ff00',
+      accentColor: '#00ff00',
+      shadowColor: '#003300',
+      secondaryTextColor: '#00cc00',
+    },
+  },
+  {
+    id: 'default-brown',
+    name: 'Default Brown',
+    config: {
+      primaryColor: '#8B5C2A', // brown
+      secondaryColor: '#C9A066', // secondary brown
+      backgroundColor: '#ffffff',
+      textColor: '#0B1423',
+      fontFamily: 'Noto Sans, Helvetica Neue, Arial, sans-serif',
+      borderColor: '#cccccc',
+      accentColor: '#C9A066',
+      shadowColor: '#d1d5db',
+      secondaryTextColor: '#777777',
+    },
+  },
+  {
+    id: 'default-purple',
+    name: 'Default Purple',
+    config: {
+      primaryColor: '#7c3aed', // purple
+      secondaryColor: '#a78bfa', // secondary purple
+      backgroundColor: '#ffffff',
+      textColor: '#0B1423',
+      fontFamily: 'Noto Sans, Helvetica Neue, Arial, sans-serif',
+      borderColor: '#cccccc',
+      accentColor: '#a78bfa',
+      shadowColor: '#d1d5db',
+      secondaryTextColor: '#777777',
+    },
+  },
+  {
+    id: 'default-green',
+    name: 'Default Green',
+    config: {
+      primaryColor: '#16a34a', // green
+      secondaryColor: '#22c55e', // secondary green
+      backgroundColor: '#ffffff',
+      textColor: '#0B1423',
+      fontFamily: 'Noto Sans, Helvetica Neue, Arial, sans-serif',
+      borderColor: '#cccccc',
+      accentColor: '#22c55e',
+      shadowColor: '#d1d5db',
+      secondaryTextColor: '#777777',
+    },
+  },
 ];
 
 interface ThemeContextType {
@@ -197,8 +371,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const root = document.documentElement;
       const config = theme.config;
       
+      // Helper function to convert hex to RGB
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : null;
+      };
+      
+      const primaryRgb = hexToRgb(config.primaryColor);
+      const secondaryRgb = hexToRgb(config.secondaryColor);
+      
       root.style.setProperty('--primary-color', config.primaryColor);
+      root.style.setProperty('--primary-color-hover', darkenColor(config.primaryColor));
       root.style.setProperty('--secondary-color', config.secondaryColor);
+      root.style.setProperty('--secondary-color-hover', darkenColor(config.secondaryColor));
       root.style.setProperty('--background', config.backgroundColor);
       root.style.setProperty('--foreground', config.textColor);
       root.style.setProperty('--text-color', config.textColor);
@@ -207,6 +396,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--accent-color', config.accentColor);
       root.style.setProperty('--shadow-color', config.shadowColor);
       root.style.setProperty('--secondary-text-color', config.secondaryTextColor);
+      
+      // Set RGB values for rgba() usage
+      if (primaryRgb) {
+        root.style.setProperty('--primary-color-rgb', `${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}`);
+      }
+      if (secondaryRgb) {
+        root.style.setProperty('--secondary-color-rgb', `${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}`);
+      }
       
       // Update data-theme attribute for backward compatibility
       if (theme.id === 'dark') {
@@ -225,13 +422,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = async (theme: Theme) => {
     setCurrentTheme(theme);
-    
     if (user?.uid) {
       try {
-        await UserService.updateUserPreferences(user.uid, {
-          theme: theme.id,
-          customTheme: theme.id === 'custom' ? theme.config : undefined,
-        });
+        const preferences: any = { theme: theme.id };
+        if (theme.id === 'custom') {
+          preferences.customTheme = theme.config;
+        }
+        await UserService.updateUserPreferences(user.uid, preferences);
       } catch (error) {
         console.error('Error saving theme:', error);
       }

@@ -1105,7 +1105,7 @@ useEffect(() => {
   
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
+    <div className="page-container" style={{ fontFamily: 'var(--font-family)' }}>
       <EpubHtmlStyles />
       {/* Mobile: Dropdown icon is in the bar when header is visible, floating when hidden */}
       {isMobile ? (
@@ -1140,13 +1140,13 @@ useEffect(() => {
       )}
       {/* Header (conditionally rendered) */}
       {showHeader && (
-        <div className="bg-white border-[0.75] border-black fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '56px' : '64px', paddingTop: 0, paddingBottom: 0, fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
+        <div className="card-themed fixed top-0 left-0 w-full z-20" style={{ minHeight: isMobile ? '56px' : '64px', paddingTop: 0, paddingBottom: 0, fontFamily: 'var(--font-family)', borderRadius: 0, borderLeft: 0, borderRight: 0, borderTop: 0 }}>
           <div className="w-full px-8 py-3 grid grid-cols-3 items-center gap-4" style={{ minHeight: '64px' }}>
             {/* Left section: Library button + Section toggle */}
             <div className="flex items-center gap-2 justify-start">
               <button 
                 onClick={backToLibrary} 
-                className={`flex items-center justify-center ${isMobile ? 'w-8 h-8 min-w-0 min-h-0 p-0' : 'gap-2 px-4 py-2'} font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors ${isMobile ? '' : 'text-base'}`}
+                className={`btn-primary flex items-center justify-center ${isMobile ? 'w-8 h-8 min-w-0 min-h-0 p-0' : 'gap-2 px-4 py-2'} font-bold rounded-full shadow-sm border-none transition-colors ${isMobile ? '' : 'text-base'}`}
                 style={isMobile ? { width: 32, height: 32, minWidth: 28, minHeight: 28 } : {}}
               >
                 <ArrowLeft className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} />
@@ -1158,15 +1158,15 @@ useEffect(() => {
                 title={showSectionSidebar ? 'Hide Sections' : 'Show Sections'}
               >
                 {isMobile ? (
-                  <List className="w-4 h-4 text-[#232946]" />
+                  <List className="w-4 h-4 theme-text" />
                 ) : (
-                  <span style={{ color: '#232946', fontWeight: 700 }}>{showSectionSidebar ? 'Hide Sections' : 'Show Sections'}</span>
+                  <span className="theme-text font-bold">{showSectionSidebar ? 'Hide Sections' : 'Show Sections'}</span>
                 )}
               </button>
               
               {/* Hide section name on mobile */}
               {!isMobile && (
-                <span className="truncate font-extrabold text-lg ml-2" style={{maxWidth: '240px', color: '#232946', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif'}}>
+                <span className="truncate font-extrabold text-lg ml-2 theme-text" style={{maxWidth: '240px', fontFamily: 'var(--font-family)'}}>
                   {getSectionTitle(currentSection, currentSectionIndex)}
                 </span>
               )}
@@ -1176,11 +1176,11 @@ useEffect(() => {
               {isMobile && (
                 <button
                   onClick={() => setIsSpeechPlayerActive(!isSpeechPlayerActive)}
-                  className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors"
+                  className="btn-primary flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold rounded-full shadow-sm border-none transition-colors"
                   title={isSpeechPlayerActive ? 'Hide Speech Player' : 'Show Speech Player'}
                   style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0, borderRadius: '50%' }}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                   </svg>
                 </button>
@@ -1188,21 +1188,21 @@ useEffect(() => {
               <button 
                 onClick={prevPage} 
                 disabled={globalPageNumber === 1} 
-                className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
+                className="btn-primary flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold rounded-full shadow-sm border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
                 style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 36, height: 36 }}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <span className="text-base font-bold text-[#232946] whitespace-nowrap">{globalPageNumber} / {totalPages}</span>
+              <span className="text-base font-bold theme-text whitespace-nowrap">{globalPageNumber} / {totalPages}</span>
               <button 
                 onClick={nextPage} 
                 disabled={globalPageNumber === totalPages} 
-                className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
+                className="btn-primary flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold rounded-full shadow-sm border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
                 style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 36, height: 36 }}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -1212,7 +1212,7 @@ useEffect(() => {
               {/* Settings button */}
               <button
                 onClick={() => setShowSettings(true)}
-                className={`flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors`}
+                className={`btn-primary flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold rounded-full shadow-sm border-none transition-colors`}
                 title="Reader Settings"
                 aria-label="Reader Settings"
                 style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0, borderRadius: '50%' } : {}}
@@ -1223,7 +1223,7 @@ useEffect(() => {
               {!isMobile && (
                 <button
                   onClick={handleFullscreen}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                  className="btn-primary flex items-center gap-2 px-4 py-2 font-bold rounded-full shadow-sm border-none transition-colors text-base"
                   title="Fullscreen"
                   aria-label="Fullscreen"
                 >
@@ -1234,10 +1234,10 @@ useEffect(() => {
               {!isMobile && (
                 <button
                   onClick={() => setIsSpeechPlayerActive(!isSpeechPlayerActive)}
-                  className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+                  className="btn-primary flex items-center gap-2 px-4 py-2 font-bold rounded-full shadow-sm border-none transition-colors text-base"
                   title={isSpeechPlayerActive ? 'Hide Speech Player' : 'Show Speech Player'}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                   </svg>
                   {isSpeechPlayerActive ? 'Hide' : 'Read Aloud'}
@@ -1247,11 +1247,11 @@ useEffect(() => {
               {isMobile ? (
                 isPageRead ? (
                   <button onClick={handleUnmarkPageComplete} className="flex items-center justify-center w-8 h-8 min-w-0 min-h-0 p-0 rounded bg-green-500 text-white" title="Uncomplete">
-                    <XCircle className="w-4 h-4" />
+                    <XCircle className="w-5 h-5" />
                   </button>
                 ) : (
                   <button onClick={handleMarkPageComplete} className="flex items-center justify-center w-8 h-8 min-w-0 min-h-0 p-0 rounded bg-blue-500 text-white" title="Complete">
-                    <CheckCircle className="w-4 h-4" />
+                    <CheckCircle className="w-5 h-5" />
                   </button>
                 )
               ) : (
@@ -1493,13 +1493,13 @@ useEffect(() => {
       {showSettings && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)', color: '#232946' }}
+          style={{ background: 'rgba(0,0,0,0.4)' }}
           onClick={() => setShowSettings(false)}
         >
           <div
-            className="bg-white rounded-2xl border-[0.75] border-black shadow-lg w-full relative"
+            className="card-themed w-full relative"
             style={{
-              fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
+              fontFamily: 'var(--font-family)',
               maxWidth: 400,
               maxHeight: '90vh',
               overflowY: 'auto',
@@ -1510,14 +1510,14 @@ useEffect(() => {
           >
             <button
               onClick={() => setShowSettings(false)}
-              className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
+              className="absolute top-3 right-3 theme-text-secondary hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
               style={{ lineHeight: 1 }}
             >
               ×
             </button>
-            <h2 className="text-2xl font-extrabold mb-4 text-[#232946] tracking-tight text-center">Reader Settings</h2>
-            <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Font Size ({readerFontSize}px)</label>
+            <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Reader Settings</h2>
+                          <div className="mb-6">
+                <label className="block font-bold mb-2 theme-text">Font Size ({readerFontSize}px)</label>
               <input
                 type="range"
                 min={14}
@@ -1529,7 +1529,7 @@ useEffect(() => {
               />
             </div>
             <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Text Width ({readerWidth}px)</label>
+              <label className="block font-bold mb-2 theme-text">Text Width ({readerWidth}px)</label>
               <input
                 type="range"
                 min={500}
@@ -1549,7 +1549,7 @@ useEffect(() => {
             {/* Single example text, black color, all settings applied */}
            
             <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Font Family</label>
+              <label className="block font-bold mb-2 theme-text">Font Family</label>
               <select
                 value={readerFont}
                 onChange={e => { setReaderFont(e.target.value); savePreferences(e.target.value, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
@@ -1570,13 +1570,13 @@ useEffect(() => {
               // Log font size and width for the settings example text
               console.log('Settings example text font size:', readerFontSize, 'and width:', readerWidth);
               return (
-                <div className="mt-4 mb-4 p-5 border-[0.75] border-black rounded bg-gray-50 text-black" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth }}>
+                <div className="mt-4 mb-4 p-5 theme-border rounded theme-text" style={{ fontFamily: readerFont, fontSize: readerFontSize, maxWidth: readerWidth, backgroundColor: 'var(--background)', border: '1px solid var(--border-color)' }}>
                   Example: El rápido zorro marrón salta sobre el perro perezoso.
                 </div>
               );
             })()}
             <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Container Mode</label>
+              <label className="block font-bold mb-2 theme-text">Container Mode</label>
               <select
                 value={readerContainerStyle}
                 onChange={e => {
@@ -1594,7 +1594,7 @@ useEffect(() => {
             
             {/* 5. Settings modal: add sentences per page setting */}
             <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Sentences per Page</label>
+              <label className="block font-bold mb-2 theme-text">Sentences per Page</label>
               <input
                 type="number"
                 min={10}
@@ -1609,7 +1609,7 @@ useEffect(() => {
               />
             </div>
             <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">TTS Speed ({ttsSpeed}x)</label>
+              <label className="block font-bold mb-2 theme-text">TTS Speed ({ttsSpeed}x)</label>
               <input
                 type="range"
                 min={0.5}
@@ -1625,7 +1625,7 @@ useEffect(() => {
             </div>
 
             <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Voice Option</label>
+              <label className="block font-bold mb-2 theme-text">Voice Option</label>
               <div className="flex gap-2 items-center">
                 <select
                   value={ttsVoice}
@@ -1659,7 +1659,7 @@ useEffect(() => {
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
-              <label htmlFor="disable-word-highlighting" className="font-bold text-black select-none cursor-pointer">Disable word highlighting</label>
+              <label htmlFor="disable-word-highlighting" className="font-bold theme-text select-none cursor-pointer">Disable word highlighting</label>
             </div>
             <div className="mb-6 flex items-center">
               <input
@@ -1672,7 +1672,7 @@ useEffect(() => {
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
-              <label htmlFor="disable-sentence-highlighting" className="font-bold text-black select-none cursor-pointer">Disable sentence highlighting</label>
+              <label htmlFor="disable-sentence-highlighting" className="font-bold theme-text select-none cursor-pointer">Disable sentence highlighting</label>
             </div>
             <div className="mb-6 flex items-center">
               <input
@@ -1685,7 +1685,7 @@ useEffect(() => {
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
-              <label htmlFor="invisible-text" className="font-bold text-black select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
+              <label htmlFor="invisible-text" className="font-bold theme-text select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
             </div>
             <div className="mb-6 flex items-center">
               <input
@@ -1699,7 +1699,7 @@ useEffect(() => {
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
                 disabled={!invisibleText}
               />
-              <label htmlFor="show-current-word-when-invisible" className="font-bold text-black select-none cursor-pointer">Show currently-being-read word when invisible</label>
+              <label htmlFor="show-current-word-when-invisible" className="font-bold theme-text select-none cursor-pointer">Show currently-being-read word when invisible</label>
             </div>
             
             {/* Settings Modal */}
@@ -1714,10 +1714,10 @@ useEffect(() => {
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
-              <label htmlFor="highlight-sentence-on-hover" className="font-bold text-black select-none cursor-pointer">Highlight sentences on hover</label>
+              <label htmlFor="highlight-sentence-on-hover" className="font-bold theme-text select-none cursor-pointer">Highlight sentences on hover</label>
             </div>
             <div className="mb-6">
-              <label className="block font-bold mb-2 text-black">Line Spacing</label>
+              <label className="block font-bold mb-2 theme-text">Line Spacing</label>
               <input
                 type="range"
                 min={1.0}
@@ -1747,7 +1747,7 @@ useEffect(() => {
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
-              <label htmlFor="disable-word-spans" className="font-bold text-black select-none cursor-pointer">Disable word-level spans (only wrap sentences)</label>
+              <label htmlFor="disable-word-spans" className="font-bold theme-text select-none cursor-pointer">Disable word-level spans (only wrap sentences)</label>
             </div>
             <div className="mb-6 flex items-center">
               <input
@@ -1760,7 +1760,7 @@ useEffect(() => {
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
-              <label htmlFor="disable-sentence-spans" className="font-bold text-black select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
+              <label htmlFor="disable-sentence-spans" className="font-bold theme-text select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
             </div>
             <div className="mb-6 flex items-center">
               <input
@@ -1775,7 +1775,7 @@ useEffect(() => {
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
-              <label htmlFor="show-audio-bar-on-start" className="font-bold text-black select-none cursor-pointer">Show audio bar on start</label>
+              <label htmlFor="show-audio-bar-on-start" className="font-bold theme-text select-none cursor-pointer">Show audio bar on start</label>
             </div>
           </div>
         </div>

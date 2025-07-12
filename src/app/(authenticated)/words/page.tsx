@@ -101,7 +101,7 @@ export default function WordsPage() {
   if (!user) {
     return (
       <div className="flex items-center justify-center pt-16">
-        <div className="text-[#232946] text-xl font-semibold">
+        <div className="theme-text text-xl font-semibold">
           Loading...
         </div>
       </div>
@@ -157,31 +157,42 @@ export default function WordsPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-8">
-      {/* Tabs */}
-      <div className="flex gap-4 mb-8">
-        <button
-          className={`px-4 py-2 font-semibold text-base transition-colors border-b-2 ${selectedTab === 'words' ? 'border-[#2563eb] text-[#2563eb]' : 'border-transparent text-gray-500 hover:text-[#2563eb]'}`}
-          style={{ background: 'transparent', marginBottom: -1 }}
-          onClick={() => setSelectedTab('words')}
-        >
-          Words
-        </button>
-        <button
-          className={`px-4 py-2 font-semibold text-base transition-colors border-b-2 ${selectedTab === 'sentences' ? 'border-[#2563eb] text-[#2563eb]' : 'border-transparent text-gray-500 hover:text-[#2563eb]'}`}
-          style={{ background: 'transparent', marginBottom: -1 }}
-          onClick={() => setSelectedTab('sentences')}
-        >
-          Sentences
-        </button>
-      </div>
+    <div className="page-container">
+      <div className="w-full max-w-7xl mx-auto px-6 py-8" style={{ fontFamily: 'var(--font-family)' }}>
+        {/* Tabs */}
+        <div className="flex gap-4 mb-8">
+          <button
+            className={`px-4 py-2 font-semibold text-base transition-colors border-b-2 ${selectedTab === 'words' ? 'theme-border theme-primary' : 'border-transparent theme-text-secondary hover:theme-primary'}`}
+            style={{ 
+              background: 'transparent', 
+              marginBottom: -1,
+              borderColor: selectedTab === 'words' ? 'var(--primary-color)' : 'transparent',
+              color: selectedTab === 'words' ? 'var(--primary-color)' : 'var(--secondary-text-color)'
+            }}
+            onClick={() => setSelectedTab('words')}
+          >
+            Words
+          </button>
+          <button
+            className={`px-4 py-2 font-semibold text-base transition-colors border-b-2 ${selectedTab === 'sentences' ? 'theme-border theme-primary' : 'border-transparent theme-text-secondary hover:theme-primary'}`}
+            style={{ 
+              background: 'transparent', 
+              marginBottom: -1,
+              borderColor: selectedTab === 'sentences' ? 'var(--primary-color)' : 'transparent',
+              color: selectedTab === 'sentences' ? 'var(--primary-color)' : 'var(--secondary-text-color)'
+            }}
+            onClick={() => setSelectedTab('sentences')}
+          >
+            Sentences
+          </button>
+        </div>
 
       {selectedTab === 'words' && (
         <>
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#232946] mb-2">Words</h1>
-            <div className="flex gap-8 text-sm text-gray-600">
+            <h1 className="text-3xl font-bold theme-text mb-2">Words</h1>
+            <div className="flex gap-8 text-sm theme-text-secondary">
               <span><strong>{totalWords}</strong> total words</span>
               <span><strong>{knownWords}</strong> known</span>
               <span><strong>{trackingWords}</strong> tracking</span>
@@ -196,7 +207,7 @@ export default function WordsPage() {
               <div className="flex-1 max-w-md">
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none transition-all"
+                  className="input-themed w-full"
                   placeholder="Search words..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
@@ -205,7 +216,7 @@ export default function WordsPage() {
               {/* Status filter */}
               <div>
                 <select
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none transition-all"
+                  className="select-themed"
                   value={filter}
                   onChange={e => setFilter(e.target.value as 'all' | 'known' | 'tracking' | 'ignored')}
                 >
@@ -215,7 +226,7 @@ export default function WordsPage() {
               {/* Add button */}
               <div>
                 <button
-                  className="px-4 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors text-sm border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40 flex items-center gap-2 whitespace-nowrap"
+                  className="btn-primary flex items-center gap-2 whitespace-nowrap"
                   onClick={openAddModal}
                   title="Add Word"
                 >
@@ -228,19 +239,19 @@ export default function WordsPage() {
 
           {/* Words Table */}
           {sortedWords.length === 0 ? (
-            <div className="text-center py-16 text-gray-500">
+            <div className="text-center py-16 theme-text-secondary">
               <div className="text-lg mb-2">No words found</div>
               <div className="text-sm">Add some words to track your vocabulary!</div>
             </div>
           ) : (
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="card-themed overflow-hidden">
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 {/* Table Header */}
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-gray-700">
-                    <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
+                  <tr className="bg-gray-50 border-b theme-border text-base font-semibold theme-text-secondary">
+                    <th className="py-2 px-3 border-r theme-border text-center w-16">#</th>
                     <th 
-                      className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                      className="py-2 px-3 border-r theme-border text-left cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('word')}
                       style={{ width: '40%' }}
                     >
@@ -252,7 +263,7 @@ export default function WordsPage() {
                       </div>
                     </th>
                     <th 
-                      className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                      className="py-2 px-3 border-r theme-border text-left cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('type')}
                       style={{ width: '25%' }}
                     >
@@ -263,13 +274,13 @@ export default function WordsPage() {
                         )}
                       </div>
                     </th>
-                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Language</th>
+                    <th className="py-2 px-3 border-r theme-border text-left" style={{ width: '15%' }}>Language</th>
                     <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
                   </tr>
                 </thead>
 
                 {/* Table Body */}
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y theme-border">
                   {sortedWords.map((word, index) => (
                     <tr
                       key={word.word}
@@ -277,19 +288,19 @@ export default function WordsPage() {
                       style={{ userSelect: 'text' }}
                     >
                       {/* Row Number */}
-                      <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
+                      <td className="py-2 px-3 border-r theme-border text-center theme-text-secondary font-mono whitespace-nowrap">
                         {index + 1}
                       </td>
 
                       {/* Word */}
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                        <span className="font-medium text-[#232946]">
+                      <td className="py-2 px-3 border-r theme-border whitespace-nowrap">
+                        <span className="font-medium theme-text">
                           {word.word}
                         </span>
                       </td>
 
                       {/* Status */}
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                      <td className="py-2 px-3 border-r theme-border whitespace-nowrap">
                         <span
                           className={`inline-block px-3 py-1 text-sm font-semibold rounded-full
                             ${word.type === 'known' ? 'bg-green-100 text-green-800' :
@@ -303,8 +314,8 @@ export default function WordsPage() {
                       </td>
 
                       {/* Language */}
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                        <span className="text-gray-700 font-medium">
+                      <td className="py-2 px-3 border-r theme-border whitespace-nowrap">
+                        <span className="theme-text-secondary font-medium">
                           {profileLang || 'en'}
                         </span>
                       </td>
@@ -330,7 +341,7 @@ export default function WordsPage() {
 
       {selectedTab === 'sentences' && (
         sentences.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
+          <div className="text-center py-16 theme-text-secondary">
             <div className="text-lg mb-2">No sentences found</div>
             <div className="text-sm">Add sentences by clicking on them while reading</div>
           </div>
@@ -345,40 +356,40 @@ export default function WordsPage() {
                   setShowCopyToast(true);
                   setTimeout(() => setShowCopyToast(false), 2000);
                 }}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200 sm:px-4"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium theme-text-secondary hover:theme-text transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg theme-border border sm:px-4"
               >
                 <Clipboard className="w-4 h-4" />
                 <span className="hidden sm:inline">Copy All</span>
                 <span className="sm:hidden">Copy</span>
               </button>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+            <div className="card-themed overflow-hidden overflow-x-auto">
               <table className="w-full border-collapse min-w-[600px]" style={{ tableLayout: 'fixed' }}>
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-sm sm:text-base font-semibold text-gray-700">
-                    <th className="py-2 px-2 sm:px-3 border-r border-gray-200 text-center w-12 sm:w-16">#</th>
-                    <th className="py-2 px-2 sm:px-3 border-r border-gray-200 text-left" style={{ width: '60%' }}>Sentence</th>
-                    <th className="py-2 px-2 sm:px-3 border-r border-gray-200 text-left" style={{ width: '25%' }}>Date</th>
+                  <tr className="bg-gray-50 border-b theme-border text-sm sm:text-base font-semibold theme-text-secondary">
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-center w-12 sm:w-16">#</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '60%' }}>Sentence</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '25%' }}>Date</th>
                     <th className="py-2 px-2 sm:px-3 text-center" style={{ width: '15%' }}></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y theme-border">
                   {sentences.map((sentence, index) => (
                     <tr
                       key={sentence.id || index}
                       className="text-sm sm:text-base hover:bg-gray-50 transition-colors select-text"
                       style={{ userSelect: 'text' }}
                     >
-                      <td className="py-2 px-2 sm:px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border text-center theme-text-secondary font-mono whitespace-nowrap">
                         {index + 1}
                       </td>
-                      <td className="py-2 px-2 sm:px-3 border-r border-gray-200 text-[#232946]">
-                        <span className="font-medium text-[#232946] break-words">
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border theme-text">
+                        <span className="font-medium theme-text break-words">
                           {sentence.text}
                         </span>
                       </td>
-                      <td className="py-2 px-2 sm:px-3 border-r border-gray-200 whitespace-nowrap">
-                        <span className="text-gray-700 text-xs sm:text-sm">
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border whitespace-nowrap">
+                        <span className="theme-text-secondary text-xs sm:text-sm">
                           {sentence.createdAt ? new Date(sentence.createdAt).toLocaleDateString() : 'Unknown'}
                         </span>
                       </td>
@@ -390,7 +401,7 @@ export default function WordsPage() {
                             setShowCopyToast(true);
                             setTimeout(() => setShowCopyToast(false), 2000);
                           }}
-                          className="text-gray-400 hover:text-[#2563eb] transition-colors p-1.5 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-200 flex items-center justify-center"
+                          className="text-gray-400 hover:theme-primary transition-colors p-1.5 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 theme-border border flex items-center justify-center"
                           title="Copy sentence"
                         >
                           <Clipboard className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -407,17 +418,17 @@ export default function WordsPage() {
 
       {/* Add Word Modal */}
           {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" style={{ backdropFilter: 'blur(2px)' }}>
-          <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-lg max-w-md w-full relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAdd(false)}>
+          <div className="theme-bg rounded-2xl p-8 theme-border border theme-shadow shadow-lg max-w-md w-full relative" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={() => setShowAdd(false)}
               className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
                   style={{ lineHeight: 1 }}
                   aria-label="Close"
                 >×</button>
-            <h2 className="text-2xl font-bold mb-6 text-[#232946] text-center">Add Word</h2>
+            <h2 className="text-2xl font-bold mb-6 theme-text text-center">Add Word</h2>
                 {!langLoaded ? (
-              <div className="text-gray-500 text-center">Loading language...</div>
+              <div className="theme-text-secondary text-center">Loading language...</div>
                 ) : (
                   <form onSubmit={async (e) => {
                     e.preventDefault();
@@ -440,19 +451,23 @@ export default function WordsPage() {
                     }
                   }} className="flex flex-col gap-4">
                     <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-[#232946]">
+                  <label className="flex items-center gap-2 text-sm font-semibold theme-text">
                     <input 
                       type="checkbox" 
                       checked={addMultiple} 
                       onChange={e => setAddMultiple(e.target.checked)}
-                      className="w-4 h-4 text-[#2563eb] border-gray-300 rounded focus:ring-[#2563eb]"
+                      className="w-4 h-4 border-gray-300 rounded focus:ring-2"
+                      style={{ 
+                        accentColor: 'var(--primary-color)',
+                        color: 'var(--primary-color)'
+                      }}
                     />
                     Add multiple words
                       </label>
                     </div>
                     {addMultiple ? (
                       <textarea
-                    className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none min-h-[100px] transition-all"
+                    className="input-themed min-h-[100px]"
                     placeholder='Enter words separated by spaces or commas, or use quotes for phrases (e.g. banana fruit "to be")'
                         value={addMultiText}
                         onChange={e => setAddMultiText(e.target.value)}
@@ -460,7 +475,7 @@ export default function WordsPage() {
                       />
                     ) : (
                       <input
-                    className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all"
+                    className="input-themed"
                     placeholder="Enter word"
                         value={addWord}
                         onChange={e => setAddWord(e.target.value)}
@@ -469,7 +484,7 @@ export default function WordsPage() {
                     )}
                 <div className="flex gap-3">
                       <select
-                    className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all flex-1"
+                    className="select-themed flex-1"
                         value={addType}
                         onChange={e => setAddType(e.target.value as WordType)}
                       >
@@ -478,7 +493,7 @@ export default function WordsPage() {
                         <option value="ignored">Ignored</option>
                       </select>
                       <select
-                    className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all flex-1"
+                    className="select-themed flex-1"
                         value={addLang}
                         onChange={e => setAddLang(e.target.value)}
                       >
@@ -487,7 +502,7 @@ export default function WordsPage() {
                     </div>
                     <button
                       type="submit"
-                  className="rounded-lg bg-[#2563eb] text-white font-bold px-6 py-3 hover:bg-[#1749b1] transition-all text-base"
+                  className="btn-primary text-base"
                 >
                   Add {addMultiple ? 'Words' : 'Word'}
                 </button>
@@ -510,6 +525,7 @@ export default function WordsPage() {
           <span>{copyToastMessage}</span>
         </div>
       )}
+      </div>
     </div>
   );
 } 

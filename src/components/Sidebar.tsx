@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaBookOpen, FaRegSave, FaUser, FaInfoCircle, FaPalette, FaHome } from 'react-icons/fa';
 import { MdPushPin } from 'react-icons/md';
 import { PiTextAaBold } from 'react-icons/pi';
@@ -23,7 +23,6 @@ const bottomButtons = [
 ];
 
 const GRAY = 'rgb(98,108,145)';
-const ACTIVE_BG = '#e6f0fd'; // blue shade for highlight
 const SIDEBAR_COLLAPSED_WIDTH = 80;
 const SIDEBAR_EXPANDED_WIDTH = 240;
 const ICON_SIZE = 28;
@@ -31,7 +30,6 @@ const ICON_BOX = 48;
 
 // Pin icon color constants
 const PIN_LIGHT_GRAY = '#9aa1b2'; // slightly darker gray for unpinned
-const PIN_BLACK = '#232946'; // black for pinned
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -56,6 +54,18 @@ export default function Sidebar() {
   const [theme, setTheme] = useState('light');
   const [pinned, setPinned] = useState(false);
 
+  // On mount, load pin state from localStorage
+  useEffect(() => {
+    const pinnedState = localStorage.getItem('sidebar-pinned');
+    if (pinnedState === 'true') {
+      setPinned(true);
+      setCollapsed(false);
+    } else {
+      setPinned(false);
+      setCollapsed(true);
+    }
+  }, []);
+
   // Handle theme/language change (persist as needed)
   const handleThemeChange = (t: string) => {
     setTheme(t);
@@ -74,15 +84,16 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="hidden sm:flex h-screen fixed left-0 top-0 bg-white border-r border-gray-100 flex-col z-40 shadow-none"
+      className="hidden sm:flex h-screen fixed left-0 top-0 theme-border border-r flex-col z-40 shadow-none"
       style={{
-        fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif',
+        fontFamily: 'var(--font-family)',
         fontSize: 16,
         width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
         transition: 'width 0.2s',
         boxShadow: 'none',
         overflow: 'hidden',
         alignItems: 'center',
+        backgroundColor: 'var(--sidebar-background)',
       }}
       onMouseEnter={handleSidebarMouseEnter}
       onMouseLeave={handleSidebarMouseLeave}
@@ -95,13 +106,19 @@ export default function Sidebar() {
         {/* Centered logo */}
         <div style={{ width: SIDEBAR_COLLAPSED_WIDTH, margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', left: 0, right: 0 }}>
           <Link href="/library" className="flex items-center justify-center" style={{ width: ICON_BOX, height: ICON_BOX }}>
-            <FaBookOpen size={ICON_SIZE + 4} color="#2563eb" />
+            <FaBookOpen size={ICON_SIZE + 4} style={{ color: 'var(--primary-color)' }} />
           </Link>
         </div>
         {/* Pin icon at top right, only show when expanded */}
         {!collapsed && (
           <button
-            onClick={() => setPinned((v) => !v)}
+            onClick={() => {
+              setPinned((v) => {
+                const newPinned = !v;
+                localStorage.setItem('sidebar-pinned', newPinned ? 'true' : 'false');
+                return newPinned;
+              });
+            }}
             title={pinned ? 'Unpin sidebar' : 'Pin sidebar'}
             style={{
               position: 'absolute',
@@ -112,7 +129,7 @@ export default function Sidebar() {
               border: 'none',
               padding: 0,
               cursor: 'pointer',
-              color: pinned ? PIN_BLACK : PIN_LIGHT_GRAY,
+              color: pinned ? 'var(--text-color)' : PIN_LIGHT_GRAY,
               fontSize: 19,
               outline: 'none',
               display: 'flex',
@@ -135,9 +152,7 @@ export default function Sidebar() {
               <li key={item.name} style={{ width: '100%' }}>
                 <Link
                   href={item.href}
-                  className={
-                    `group flex items-center transition-all duration-200 ${isActive ? 'bg-[#e6f0fd]' : 'hover:bg-[#f5f7fa]'}`
-                  }
+                  className="group flex items-center transition-all duration-200 hover:bg-gray-50"
                   style={{
                     borderRadius: 14,
                     margin: '0 auto',
@@ -146,8 +161,8 @@ export default function Sidebar() {
                     height: ICON_BOX,
                     marginBottom: 0,
                     marginTop: 0,
-                    background: isActive ? ACTIVE_BG : 'none',
-                    color: isActive ? '#2563eb' : GRAY,
+                    background: isActive ? 'rgba(var(--primary-color-rgb, 37, 99, 235), 0.1)' : 'none',
+                    color: isActive ? 'var(--primary-color)' : GRAY,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: collapsed ? 'center' : 'flex-start',
@@ -175,7 +190,7 @@ export default function Sidebar() {
                         width: ICON_SIZE,
                         height: ICON_SIZE,
                         fontSize: ICON_SIZE,
-                        color: isActive ? '#2563eb' : GRAY,
+                        color: isActive ? 'var(--primary-color)' : GRAY,
                         transition: 'color 0.2s',
                       }}
                     >
@@ -200,7 +215,7 @@ export default function Sidebar() {
                         style={{
                           fontWeight: 700,
                           fontSize: 16,
-                          color: isActive ? '#2563eb' : GRAY,
+                          color: isActive ? 'var(--primary-color)' : GRAY,
                           marginLeft: 10,
                         }}
                       >
@@ -221,7 +236,7 @@ export default function Sidebar() {
             <li key={btn.name} style={{ width: '100%' }}>
               <button
                 onClick={() => handleBottomButtonClick(btn.onClickKey)}
-                className={`group flex items-center transition-all duration-200 hover:bg-[#f5f7fa]`}
+                className="group flex items-center transition-all duration-200 hover:bg-gray-50"
                 style={{
                   borderRadius: 14,
                   margin: '0 auto',
@@ -309,8 +324,8 @@ export default function Sidebar() {
           onClick={() => setShowTheme(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-xs relative flex flex-col items-center"
-            style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}
+            className="theme-bg rounded-2xl theme-shadow shadow-lg p-8 w-full max-w-xs relative flex flex-col items-center"
+            style={{ fontFamily: 'var(--font-family)' }}
             onClick={e => e.stopPropagation()}
           >
             <button
@@ -318,14 +333,19 @@ export default function Sidebar() {
               className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
               style={{ lineHeight: 1 }}
             >×</button>
-            <h2 className="text-xl font-bold mb-4">Theme</h2>
+            <h2 className="text-xl font-bold mb-4 theme-text">Theme</h2>
             <div className="flex flex-col gap-2 w-full">
               {THEMES.map(t => (
                 <button
                   key={t.key}
                   onClick={() => handleThemeChange(t.key)}
-                  className={`w-full py-2 rounded-lg text-base font-semibold ${theme === t.key ? 'bg-[#f5f7fa] text-[#2563eb]' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
-                  style={{ textAlign: 'left', paddingLeft: 16 }}
+                  className="w-full py-2 rounded-lg text-base font-semibold hover:bg-gray-100 transition-colors"
+                  style={{ 
+                    textAlign: 'left', 
+                    paddingLeft: 16,
+                    backgroundColor: theme === t.key ? 'rgba(var(--primary-color-rgb, 37, 99, 235), 0.1)' : 'transparent',
+                    color: theme === t.key ? 'var(--primary-color)' : 'var(--secondary-text-color)'
+                  }}
                 >
                   {t.label}
                 </button>

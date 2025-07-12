@@ -1146,8 +1146,8 @@ export default function library() {
     const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
     return (
       <div
-        className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col w-full max-w-[250px] min-h-[250px] aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group"
-        style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', minHeight: 320, padding: 0, opacity: archived ? 0.7 : 1 }}
+        className={`${archived ? 'card-themed-secondary' : 'card-themed-primary'} flex flex-col w-full max-w-[250px] min-h-[250px] aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group`}
+        style={{ fontFamily: 'var(--font-family)', minHeight: 320, padding: 0, opacity: archived ? 0.7 : 1 }}
         onClick={archived ? undefined : () => openBook(book as Book)}
         tabIndex={0}
         role="button"
@@ -1188,13 +1188,13 @@ export default function library() {
           )}
         </div>
         <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
-          <h3 className="font-bold text-[#232946] text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
+          <h3 className="font-bold theme-text text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
           {/* Reading Progress Bar */}
           <div className="w-full mb-1">
             <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
-              <div className="absolute left-0 top-0 h-full bg-[#2563eb] transition-all" style={{ width: `${progressPct}%` }} />
+              <div className="absolute left-0 top-0 h-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: 'var(--primary-color)' }} />
             </div>
-            <div className="flex justify-between text-xs mt-1 text-[#6b7280]">
+            <div className="flex justify-between text-xs mt-1 theme-text-secondary">
               <span>{book.author}</span>
               <span className="text-right">{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()} words</span>
             </div>
@@ -1206,7 +1206,7 @@ export default function library() {
               <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: `${100 - unknownPct}%`, opacity: 0.3 }} />
               <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: `${trackingPct + knownPct}%`, opacity: 0.18 }} />
             </div>
-            <div className="flex justify-between text-xs mt-1 text-[#6b7280]">
+            <div className="flex justify-between text-xs mt-1 theme-text-secondary">
               <span>{knownPct}% Known</span>
               <span>{unknownPct}% Unknown</span>
             </div>
@@ -1216,14 +1216,24 @@ export default function library() {
           <div className="flex gap-2 mt-2">
             <button
                 onClick={e => { e.stopPropagation(); setDataModalBook(book as Book); }}
-              className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff] font-semibold py-1.5 px-2 text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 rounded-lg border theme-border theme-primary font-semibold py-1.5 px-2 text-sm transition-colors"
+              style={{ 
+                backgroundColor: 'var(--background)',
+                borderColor: 'var(--primary-color)',
+                color: 'var(--primary-color)'
+              }}
               tabIndex={-1}
             >
               <FiBarChart2 className="w-4 h-4" /> Data
             </button>
             <button
                 onClick={e => { e.stopPropagation(); toggleCompleted(book as Book); }}
-                className={`flex-1 flex items-center justify-center gap-1 rounded-lg border ${(book as Book).completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'border-[#2563eb] text-[#2563eb] bg-white hover:bg-[#f0f6ff]'} font-semibold py-1.5 px-2 text-sm transition-colors`}
+                className={`flex-1 flex items-center justify-center gap-1 rounded-lg border font-semibold py-1.5 px-2 text-sm transition-colors ${(book as Book).completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'theme-border theme-primary'}`}
+                style={(book as Book).completed ? {} : { 
+                  backgroundColor: 'var(--background)',
+                  borderColor: 'var(--primary-color)',
+                  color: 'var(--primary-color)'
+                }}
               tabIndex={-1}
             >
                 <FiCheckCircle className="w-4 h-4" /> {(book as Book).completed ? 'Uncomplete' : 'Complete'}
@@ -1240,17 +1250,17 @@ export default function library() {
     if (!dataModalBook) return null;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <div className="card-themed p-8 max-w-md w-full relative" style={{ fontFamily: 'var(--font-family)' }}>
           <button
             onClick={() => setDataModalBook(null)}
-            className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
+            className="absolute top-3 right-3 theme-text-secondary hover:theme-primary text-2xl font-bold transition-colors"
             style={{ background: 'none', border: 'none', lineHeight: 1 }}
             aria-label="Close"
           >
             ×
           </button>
-          <h2 className="text-2xl font-extrabold mb-4 text-[#222] tracking-tight text-center">Book Data</h2>
-          <div className="text-gray-700 text-base space-y-3 px-2">
+          <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Book Data</h2>
+          <div className="theme-text-secondary text-base space-y-3 px-2">
             <div className="flex justify-between"><span className="font-semibold">Title:</span> <span>{dataModalBook.title}</span></div>
             <div className="flex justify-between"><span className="font-semibold">Author:</span> <span>{dataModalBook.author}</span></div>
             <div className="flex justify-between"><span className="font-semibold">File:</span> <span>{dataModalBook.fileName}</span></div>
@@ -1371,7 +1381,7 @@ export default function library() {
 
   // Library view
   return (
-    <div className="min-h-screen" style={{ background: '#f7f8fa', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
+    <div className="page-container min-h-screen w-full">
       <div
         className="pr-8 pb-10 transition-all duration-300"
         style={{
@@ -1383,13 +1393,13 @@ export default function library() {
       >
         <div className="flex justify-between items-center mb-10">
           <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-extrabold text-[#232946] tracking-tight" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>My Library</h1>
-            <div style={{ height: 4, width: 48, background: '#2563eb', borderRadius: 2 }} />
+            <h1 className="text-3xl font-extrabold theme-text tracking-tight" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>My Library</h1>
+            <div style={{ height: 4, width: 48, background: 'var(--primary-color)', borderRadius: 2 }} />
           </div>
           <div className="flex items-center gap-3">
             {/* Add Text Button */}
             <button
-              className="flex items-center justify-center rounded-full bg-[#2563eb] hover:bg-[#1749b1] text-white w-11 h-11 shadow-sm transition-colors border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
+              className="flex items-center justify-center rounded-full btn-primary w-11 h-11 shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
               style={{ fontSize: 24, marginRight: 0 }}
               title="Add Text Book"
               onClick={() => setShowTextModal(true)}
@@ -1398,10 +1408,10 @@ export default function library() {
             </button>
             {/* Upload EPUB Button */}
           <button
-            className="px-7 py-2 rounded-full bg-[#2563eb] text-white font-bold shadow-sm hover:bg-[#1749b1] transition-colors text-base border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
+            className="btn-primary px-7 py-2 rounded-full font-bold shadow-sm transition-colors text-base border-none focus:outline-none focus:ring-2"
             disabled={isUploading}
             onClick={() => document.getElementById('epub-upload-input')?.click()}
-            style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)' }}
+            style={{ fontFamily: 'var(--font-family)', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)' }}
           >
             {isUploading ? 'Uploading...' : 'Upload EPUB'}
           </button>
@@ -1434,53 +1444,51 @@ export default function library() {
             onClick={() => setShowTextModal(true)}
           >
             <div
-              className="bg-white rounded-2xl p-12 border border-gray-200 shadow-xl max-w-2xl w-full relative"
-              style={{ fontFamily: 'Inter, sans-serif', color: 'black', minWidth: 400 }}
+              className="card-themed p-12 max-w-2xl w-full relative"
+              style={{ fontFamily: 'var(--font-family)', color: 'var(--text-color)', minWidth: 400 }}
               onClick={e => e.stopPropagation()}
             >
               <button
                 onClick={() => setShowTextModal(false)}
-                className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
+                className="absolute top-3 right-3 theme-text-secondary hover:theme-primary text-2xl font-bold transition-colors"
                 style={{ background: 'none', border: 'none', lineHeight: 1 }}
                 aria-label="Close"
               >
                 ×
               </button>
-              <h2 className="text-2xl font-extrabold mb-4 text-[#222] tracking-tight text-center">Add Text Book</h2>
-              <div className="text-gray-700 text-base space-y-3 px-2">
+              <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Add Text Book</h2>
+              <div className="theme-text-secondary text-base space-y-3 px-2">
                 <div className="flex flex-col mb-2">
                   <label className="font-semibold mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={textTitle}
-                    onChange={e => setTextTitle(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                    style={{ color: 'black' }}
-                  />
+                                      <input
+                      type="text"
+                      value={textTitle}
+                      onChange={e => setTextTitle(e.target.value)}
+                      className="input-themed"
+                    />
                 </div>
                 <div className="flex flex-col mb-2">
                   <label className="font-semibold mb-1">Author</label>
-                  <input
-                    type="text"
-                    value={textAuthor}
-                    onChange={e => setTextAuthor(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                    style={{ color: 'black' }}
-                  />
+                                      <input
+                      type="text"
+                      value={textAuthor}
+                      onChange={e => setTextAuthor(e.target.value)}
+                      className="input-themed"
+                    />
                 </div>
                 <div className="flex flex-col mb-2">
                   <label className="font-semibold mb-1">Text Content</label>
-                  <textarea
-                    value={textContent}
-                    onChange={e => setTextContent(e.target.value)}
-                    rows={16}
-                    className="border border-gray-300 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                    style={{ color: 'black', minHeight: 220 }}
-                  />
+                                      <textarea
+                      value={textContent}
+                      onChange={e => setTextContent(e.target.value)}
+                      rows={16}
+                      className="input-themed"
+                      style={{ minHeight: 220 }}
+                    />
                 </div>
                 <div className="flex flex-col mb-2">
                   <label className="font-semibold mb-1">Or upload .txt file</label>
-                  <label htmlFor="text-upload-input" className="inline-block w-fit px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors cursor-pointer text-base mb-2">
+                  <label htmlFor="text-upload-input" className="btn-primary inline-block w-fit px-6 py-2 rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base mb-2">
                     Choose .txt File
                     <input
                       id="text-upload-input"
@@ -1495,7 +1503,7 @@ export default function library() {
                 <div className="flex flex-col mb-2">
                   <label className="font-semibold mb-1">Or upload .md file</label>
                   <div className="flex flex-row gap-2">
-                    <label htmlFor="md-upload-input" className="inline-block w-fit px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors cursor-pointer text-base mb-2">
+                    <label htmlFor="md-upload-input" className="btn-primary inline-block w-fit px-6 py-2 rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base mb-2">
                       Choose .md File
                       <input
                         id="md-upload-input"
@@ -1506,7 +1514,7 @@ export default function library() {
                       />
                     </label>
                     <button
-                      className="px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors text-base mb-2"
+                      className="btn-primary px-6 py-2 rounded-lg font-semibold shadow-sm transition-colors text-base mb-2"
                       disabled={batchMdLoading}
                       onClick={() => document.getElementById('batch-md-upload-input')?.click()}
                       type="button"
@@ -1530,13 +1538,13 @@ export default function library() {
                   {mdLoading && <div className="text-blue-600 text-sm mb-2">Processing .md file...</div>}
                 </div>
                 {textError && <div className="text-red-600 text-sm mb-2">{textError}</div>}
-                <button
-                  onClick={handleCreateTextBook}
-                  className="w-full mt-4 py-3 px-4 rounded-lg bg-[#2563eb] text-white font-bold text-base shadow-sm hover:bg-[#1749b1] transition-colors border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40"
-                  disabled={textLoading}
-                >
-                  {textLoading ? 'Adding...' : 'Add Book'}
-                </button>
+                                  <button
+                    onClick={handleCreateTextBook}
+                    className="btn-primary w-full mt-4 py-3 px-4 rounded-lg font-bold text-base shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
+                    disabled={textLoading}
+                  >
+                    {textLoading ? 'Adding...' : 'Add Book'}
+                  </button>
               </div>
             </div>
           </div>
@@ -1558,8 +1566,8 @@ export default function library() {
     return (
       <div className="mb-16">
         <div className="flex items-center gap-4 mb-6 mt-12">
-          <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>{shelfMap[title] || title}</h2>
-          <div className="flex-1 border-t border-gray-200" />
+          <h2 className="text-xl font-bold theme-primary tracking-tight" style={{ fontFamily: 'var(--font-family)', letterSpacing: '-0.01em', fontWeight: 700 }}>{shelfMap[title] || title}</h2>
+          <div className="flex-1 border-t theme-border" />
         </div>
         {isMobile ? (
           <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
