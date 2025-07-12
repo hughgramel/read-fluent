@@ -1,5 +1,17 @@
 export type AccountType = 'free' | 'premium' | 'enterprise';
 
+export interface ThemeConfig {
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  textColor: string;
+  fontFamily: string;
+  borderColor: string;
+  accentColor: string;
+  shadowColor: string;
+  secondaryTextColor: string;
+}
+
 export interface UserPreferences {
   darkMode: boolean;
   readerFont?: string; // e.g. 'serif', 'sans', 'merriweather', etc.
@@ -10,6 +22,7 @@ export interface UserPreferences {
   // Add more preferences as needed
   disableWordUnderlines?: boolean; // disables word underlines and popups
   theme?: string;
+  customTheme?: ThemeConfig; // Custom theme configuration
   viewMode?: 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two';
   disableWordsReadPopup?: boolean; // disables the words read popup
   dailyGoal?: number; // daily reading goal in words (default: 1500)

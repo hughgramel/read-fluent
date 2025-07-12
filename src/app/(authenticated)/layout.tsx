@@ -32,11 +32,12 @@ export default function AuthenticatedLayout({
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen bg-gray-50"> {/* Changed min-h-screen to h-screen for better viewport control */}
+      <div className="flex h-screen"> {/* Changed min-h-screen to h-screen for better viewport control */}
         {showSidebar && <Sidebar />}
         {/* Added overflow-y-auto for scrolling, responsive margin, and overscroll-y-contain */}
         <main
-          className={`flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto overscroll-y-contain ${showSidebar ? 'md:ml-64' : ''}`}
+          className={`flex-1 min-h-screen w-full overflow-y-auto overscroll-y-contain page-container ${showSidebar ? 'md:ml-64' : ''}`}
+          style={{ background: 'var(--background)' }}
         >
           {/* Page content goes here */}
           {children}
