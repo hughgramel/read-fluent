@@ -193,8 +193,8 @@ export default function Home() {
         </div>
         {/* Daily Goal Modal */}
         {showGoalModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.32)' }}>
-            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif', minWidth: 340 }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.32)' }} onClick={() => setShowGoalModal(false)}>
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif', minWidth: 340 }} onClick={e => e.stopPropagation()}>
               <button
                 onClick={() => setShowGoalModal(false)}
                 className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"

@@ -1239,8 +1239,8 @@ export default function library() {
   function DataModal() {
     if (!dataModalBook) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif' }}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDataModalBook(null)}>
+        <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif' }} onClick={e => e.stopPropagation()}>
           <button
             onClick={() => setDataModalBook(null)}
             className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
@@ -1430,8 +1430,8 @@ export default function library() {
         {showTextModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ background: 'rgba(0,0,0,0.10)', backdropFilter: 'blur(1.5px)' }}
-            onClick={() => setShowTextModal(true)}
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={() => setShowTextModal(false)}
           >
             <div
               className="bg-white rounded-2xl p-12 border border-gray-200 shadow-xl max-w-2xl w-full relative"
