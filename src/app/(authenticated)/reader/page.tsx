@@ -75,6 +75,7 @@ export default function ReaderPage() {
   const [wordStatusMap, setWordStatusMap] = useState<{ [word: string]: WordType }>({});
   const [popup, setPopup] = useState<{ word: string; x: number; y: number; status: WordType } | null>(null);
   const [hoveredWord, setHoveredWord] = useState<string | null>(null);
+  const [hoveredWordElement, setHoveredWordElement] = useState<HTMLElement | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState<string>('en');
   const [defPopup, setDefPopup] = useState<{
     word: string;
@@ -87,6 +88,7 @@ export default function ReaderPage() {
   const [shiftedWord, setShiftedWord] = useState<string | null>(null);
   const [showEntireBook, setShowEntireBook] = useState(false);
   const [disableWordUnderlines, setDisableWordUnderlines] = useState<boolean>(false);
+  const [enableHighlightWords, setEnableHighlightWords] = useState<boolean>(false);
   const [currentTheme, setCurrentTheme] = useState<string>('light');
   const [currentViewMode, setCurrentViewMode] = useState<'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two'>('scroll-section');
   const [isWideScreen, setIsWideScreen] = useState(false);
@@ -163,6 +165,7 @@ export default function ReaderPage() {
 
   const [showSentenceSaved, setShowSentenceSaved] = useState(false);
   const [savedSentencesSet, setSavedSentencesSet] = useState<Set<string>>(new Set());
+  const [showWordStatusUpdate, setShowWordStatusUpdate] = useState<{ visible: boolean; word: string; status: string }>({ visible: false, word: '', status: '' });
 
   // Fetch voices from Azure
   const fetchVoices = useCallback(async () => {
@@ -474,6 +477,7 @@ export default function ReaderPage() {
           setReaderWidth(prefs.readerWidth || 700);
           setReaderFontSize(prefs.readerFontSize || 18);
           setDisableWordUnderlines(!!prefs.disableWordUnderlines);
+          setEnableHighlightWords(!!prefs.enableHighlightWords);
           setCurrentTheme(prefs.theme || 'light');
           setCurrentViewMode((prefs.viewMode as 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two') || 'scroll-section');
           setDisableWordsReadPopup(!!prefs.disableWordsReadPopup);
@@ -524,6 +528,7 @@ export default function ReaderPage() {
     width: number,
     fontSize: number,
     disableUnderlines = disableWordUnderlines,
+    enableHighlightWordsValue = enableHighlightWords,
     theme = currentTheme,
     viewMode = currentViewMode,
     disableWordsReadPopupValue = disableWordsReadPopup,
@@ -557,6 +562,7 @@ export default function ReaderPage() {
         readerWidth: width,
         readerFontSize: fontSize,
         disableWordUnderlines: disableUnderlines,
+        enableHighlightWords: enableHighlightWordsValue,
         theme: theme,
         viewMode: viewMode,
         disableWordsReadPopup: disableWordsReadPopupValue,
@@ -635,12 +641,76 @@ export default function ReaderPage() {
 
   // Helper: get underline style
   function getUnderline(type: WordType | undefined, hovered: boolean) {
-    if (type === 'tracking') return '2px solid #a78bfa'; // purple
-    if (!type) return 'none'; // no underline for unknown
-    if (type === 'known') return hovered ? '2px solid #16a34a' : 'none';
-    if (type === 'ignored') return hovered ? '2px solid #222' : 'none';
+    if (!enableHighlightWords) return 'none'; // Don't show underlines if feature is disabled
+    
+    if (type === 'known') return '2px solid #16a34a'; // green underline for known words
+    if (!type) return '2px solid #dc2626'; // red underline for unknown words
+    if (type === 'tracking') return '2px solid #a78bfa'; // purple underline for tracking words
+    if (type === 'ignored') return 'none'; // no underline for ignored words
     return 'none';
   }
+
+  // Function to update word status
+  const updateWordStatus = async (word: string, newStatus: WordType | undefined) => {
+    if (!user?.uid) return;
+
+    const cleanWord = word.toLowerCase().trim();
+    
+    // Update local state immediately
+    setWordStatusMap(prev => {
+      const newMap = { ...prev };
+      if (newStatus === undefined) {
+        delete newMap[cleanWord];
+      } else {
+        newMap[cleanWord] = newStatus;
+      }
+      return newMap;
+    });
+
+    // Show notification
+    const statusText = newStatus === undefined ? 'unknown' : newStatus;
+    setShowWordStatusUpdate({ visible: true, word: cleanWord, status: statusText });
+    setTimeout(() => setShowWordStatusUpdate({ visible: false, word: '', status: '' }), 1200);
+
+    // Update database
+    try {
+      if (newStatus === undefined) {
+        // Remove word from database by setting it to null/undefined
+        // We need to check if this word exists first and then remove it
+        const currentWords = await WordService.getWords(user.uid);
+        const existingWord = currentWords.find(w => w.word.toLowerCase() === cleanWord);
+        if (existingWord) {
+          // Since WordService doesn't have a delete method, we'll use updateWord with a special handling
+          // For now, we'll just remove it from the local map
+          console.log('Removing word from local map:', cleanWord);
+        }
+      } else {
+        await WordService.updateWord(user.uid, cleanWord, newStatus);
+      }
+    } catch (error) {
+      console.error('Error updating word status:', error);
+      // Revert local state on error
+      setWordStatusMap(prev => {
+        const newMap = { ...prev };
+        if (newStatus === undefined) {
+          // If we were trying to remove and it failed, restore the original status
+          const originalStatus = wordStatusMap[cleanWord];
+          if (originalStatus) {
+            newMap[cleanWord] = originalStatus;
+          }
+        } else {
+          // If we were trying to add/update and it failed, restore the original status
+          const originalStatus = wordStatusMap[cleanWord];
+          if (originalStatus) {
+            newMap[cleanWord] = originalStatus;
+          } else {
+            delete newMap[cleanWord];
+          }
+        }
+        return newMap;
+      });
+    }
+  };
 
   // Use localStorage/cache for word map
   useEffect(() => {
@@ -1008,6 +1078,18 @@ useEffect(() => {
         // @ts-ignore
         speechPlayerRef.current.repeatCurrentSentence();
       }
+    } else if (e.key === '1' && hoveredWord && user?.uid) {
+      // Set word to known
+      updateWordStatus(hoveredWord, 'known');
+    } else if (e.key === '2' && hoveredWord && user?.uid) {
+      // Set word to tracking
+      updateWordStatus(hoveredWord, 'tracking');
+    } else if (e.key === '3' && hoveredWord && user?.uid) {
+      // Set word to ignored
+      updateWordStatus(hoveredWord, 'ignored');
+    } else if (e.key === '4' && hoveredWord && user?.uid) {
+      // Set word to unknown (remove from word map)
+      updateWordStatus(hoveredWord, undefined);
     }
   };
   const handleKeyUp = (e: KeyboardEvent) => {
@@ -1021,7 +1103,7 @@ useEffect(() => {
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
   };
-}, [prevPage, nextPage, isPageRead, handleMarkPageComplete, handleUnmarkPageComplete]);
+}, [prevPage, nextPage, isPageRead, handleMarkPageComplete, handleUnmarkPageComplete, hoveredWord, user, updateWordStatus]);
 
 
   // Get reader container class
@@ -1426,12 +1508,31 @@ useEffect(() => {
                                                 ? '#232946'
                                                 : 'rgba(0,0,0,0.001)')
                                             : undefined),
+                                      borderBottom: getUnderline(wordStatusMap[word.replace(/[^\p{L}\p{M}\d'-]/gu, '').toLowerCase()], hoveredWord === word.replace(/[^\p{L}\p{M}\d'-]/gu, '').toLowerCase()),
+                                      cursor: 'pointer',
+                                      transition: 'border-bottom 0.15s ease',
+                                    }}
+                                    onMouseEnter={() => {
+                                      const cleanWord = word.replace(/[^\p{L}\p{M}\d'-]/gu, '').toLowerCase();
+                                      if (cleanWord) {
+                                        setHoveredWord(cleanWord);
+                                        setHoveredWordElement(null);
+                                      }
+                                    }}
+                                    onMouseLeave={() => {
+                                      setHoveredWord(null);
+                                      setHoveredWordElement(null);
                                     }}
                                   >
                                     {word + ' '}
                                   </span>
                                 ];
                               }
+                              // Extract the clean word (without punctuation) for status checking
+                              const cleanWord = word.replace(/[^\p{L}\p{M}\d'-]/gu, '').toLowerCase();
+                              const wordStatus = wordStatusMap[cleanWord];
+                              const isHovered = hoveredWord === cleanWord;
+                              
                               return (
                                 <span
                                   key={wIdx}
@@ -1445,6 +1546,19 @@ useEffect(() => {
                                               ? '#232946'
                                               : 'rgba(0,0,0,0.001)')
                                           : undefined),
+                                    borderBottom: getUnderline(wordStatus, isHovered),
+                                    cursor: 'pointer',
+                                    transition: 'border-bottom 0.15s ease',
+                                  }}
+                                  onMouseEnter={() => {
+                                    if (cleanWord) {
+                                      setHoveredWord(cleanWord);
+                                      setHoveredWordElement(null);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    setHoveredWord(null);
+                                    setHoveredWordElement(null);
                                   }}
                                 >
                                   {word + ' '}
@@ -1524,7 +1638,7 @@ useEffect(() => {
                 max={28}
                 step={1}
                 value={readerFontSize}
-                onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value), disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
+                onChange={e => { setReaderFontSize(Number(e.target.value)); savePreferences(readerFont, readerWidth, Number(e.target.value), disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
                 className="w-full accent-[#2563eb]"
               />
             </div>
@@ -1536,7 +1650,7 @@ useEffect(() => {
                 max={1600}
                 step={10}
                 value={readerWidth}
-                onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
+                onChange={e => { setReaderWidth(Number(e.target.value)); savePreferences(readerFont, Number(e.target.value), readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
                 className="w-full accent-[#2563eb]"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
@@ -1552,7 +1666,7 @@ useEffect(() => {
               <label className="block font-bold mb-2 text-black">Font Family</label>
               <select
                 value={readerFont}
-                onChange={e => { setReaderFont(e.target.value); savePreferences(e.target.value, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
+                onChange={e => { setReaderFont(e.target.value); savePreferences(e.target.value, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage); }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               >
                 <option value="serif">Serif (default)</option>
@@ -1581,7 +1695,7 @@ useEffect(() => {
                 value={readerContainerStyle}
                 onChange={e => {
                   setReaderContainerStyle(e.target.value as any);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, e.target.value as any, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, e.target.value as any, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               >
@@ -1603,7 +1717,7 @@ useEffect(() => {
                 value={sentencesPerPage}
                 onChange={e => {
                   setSentencesPerPage(Number(e.target.value));
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, Number(e.target.value), ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, Number(e.target.value), ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               />
@@ -1618,7 +1732,7 @@ useEffect(() => {
                 value={ttsSpeed}
                 onChange={e => {
                   setTtsSpeed(Number(e.target.value));
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, Number(e.target.value), ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, Number(e.target.value), ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="w-full accent-[#2563eb]"
               />
@@ -1631,7 +1745,7 @@ useEffect(() => {
                   value={ttsVoice}
                   onChange={e => {
                     setTtsVoice(e.target.value);
-                    savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, e.target.value, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                    savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, e.target.value, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                   }}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
                 >
@@ -1650,12 +1764,29 @@ useEffect(() => {
             </div>
             <div className="mb-6 flex items-center">
               <input
+                id="enable-highlight-words"
+                type="checkbox"
+                checked={enableHighlightWords}
+                onChange={e => {
+                  setEnableHighlightWords(e.target.checked);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, e.target.checked, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                }}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="enable-highlight-words" className="font-bold text-black select-none cursor-pointer">Enable highlight words</label>
+            </div>
+            <div className="mb-6 text-sm text-gray-600">
+              <p>When enabled, words will show colored underlines: <span className="font-semibold text-green-600">green</span> for known, <span className="font-semibold text-red-600">red</span> for unknown, <span className="font-semibold text-purple-600">purple</span> for tracking, and no underline for ignored words.</p>
+              <p className="mt-1">Hover over words and press <kbd className="px-1 py-0.5 text-xs font-mono bg-gray-200 rounded">1</kbd> (known), <kbd className="px-1 py-0.5 text-xs font-mono bg-gray-200 rounded">2</kbd> (tracking), <kbd className="px-1 py-0.5 text-xs font-mono bg-gray-200 rounded">3</kbd> (ignored), or <kbd className="px-1 py-0.5 text-xs font-mono bg-gray-200 rounded">4</kbd> (unknown) to change word status.</p>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
                 id="disable-word-highlighting"
                 type="checkbox"
                 checked={disableWordHighlighting}
                 onChange={e => {
                   setDisableWordHighlighting(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, e.target.checked, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, e.target.checked, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -1668,7 +1799,7 @@ useEffect(() => {
                 checked={disableSentenceHighlighting}
                 onChange={e => {
                   setDisableSentenceHighlighting(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, e.target.checked, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, e.target.checked, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -1681,7 +1812,7 @@ useEffect(() => {
                 checked={invisibleText}
                 onChange={e => {
                   setInvisibleText(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, e.target.checked, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, e.target.checked, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -1694,7 +1825,7 @@ useEffect(() => {
                 checked={showCurrentWordWhenInvisible}
                 onChange={e => {
                   setShowCurrentWordWhenInvisible(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, e.target.checked, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, e.target.checked, highlightSentenceOnHover, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
                 disabled={!invisibleText}
@@ -1710,7 +1841,7 @@ useEffect(() => {
                 checked={highlightSentenceOnHover}
                 onChange={e => {
                   setHighlightSentenceOnHover(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, e.target.checked, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, e.target.checked, lineSpacing, disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -1726,7 +1857,7 @@ useEffect(() => {
                 value={lineSpacing}
                 onChange={e => {
                   setLineSpacing(Number(e.target.value));
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, Number(e.target.value), disableWordSpans, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, Number(e.target.value), disableWordSpans, disableSentenceSpans, nativeLanguage);
                 }}
                 className="w-full accent-[#2563eb]"
               />
@@ -1743,7 +1874,7 @@ useEffect(() => {
                 checked={disableWordSpans}
                 onChange={e => {
                   setDisableWordSpans(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, e.target.checked, disableSentenceSpans, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, e.target.checked, disableSentenceSpans, nativeLanguage);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -1756,7 +1887,7 @@ useEffect(() => {
                 checked={disableSentenceSpans}
                 onChange={e => {
                   setDisableSentenceSpans(e.target.checked);
-                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, e.target.checked, nativeLanguage);
+                  savePreferences(readerFont, readerWidth, readerFontSize, disableWordUnderlines, enableHighlightWords, currentTheme, currentViewMode, disableWordsReadPopup, readerContainerStyle, sentencesPerPage, ttsSpeed, ttsVoice, disableWordHighlighting, disableSentenceHighlighting, invisibleText, showCurrentWordWhenInvisible, highlightSentenceOnHover, lineSpacing, disableWordSpans, e.target.checked, nativeLanguage);
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -1803,6 +1934,12 @@ useEffect(() => {
       {showSentenceSaved && (
         <div style={{ position: 'fixed', bottom: 80, right: 32, zIndex: 1000 }} className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold animate-fade-in">
           Sentence saved!
+        </div>
+      )}
+      {/* Word status update popup */}
+      {showWordStatusUpdate.visible && (
+        <div style={{ position: 'fixed', bottom: 120, right: 32, zIndex: 1000 }} className="bg-purple-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold animate-fade-in">
+          "{showWordStatusUpdate.word}" → {showWordStatusUpdate.status}
         </div>
       )}
     </div>
