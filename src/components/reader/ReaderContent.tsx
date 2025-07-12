@@ -31,6 +31,7 @@ interface ReaderContentProps {
   getWordStatus: (word: string) => WordType | undefined;
   hoveredWord: string | null;
   onWordHover: (word: string | null) => void;
+  onWordClick?: (word: string) => void;
 }
 
 export function ReaderContent({
@@ -61,6 +62,7 @@ export function ReaderContent({
   getWordStatus,
   hoveredWord,
   onWordHover,
+  onWordClick,
 }: ReaderContentProps) {
   return (
     <div style={{ 
@@ -138,6 +140,7 @@ export function ReaderContent({
                             }}
                             onMouseEnter={() => enableHighlightWords && onWordHover(word)}
                             onMouseLeave={() => enableHighlightWords && onWordHover(null)}
+                            onClick={enableHighlightWords && onWordClick ? (e) => { e.stopPropagation(); onWordClick(word); } : undefined}
                           >
                             {word + ' '}
                           </span>
@@ -162,6 +165,7 @@ export function ReaderContent({
                         }}
                         onMouseEnter={() => enableHighlightWords && onWordHover(word)}
                         onMouseLeave={() => enableHighlightWords && onWordHover(null)}
+                        onClick={enableHighlightWords && onWordClick ? (e) => { e.stopPropagation(); onWordClick(word); } : undefined}
                       >
                         {word + ' '}
                       </span>

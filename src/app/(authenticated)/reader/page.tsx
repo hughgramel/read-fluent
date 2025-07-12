@@ -164,6 +164,25 @@ export default function ReaderPage() {
     setCurrentlyHighlightedSentence(sentenceIndex);
   };
 
+  // Function to handle cycling word status on click/tap
+  const handleWordClick = (word: string) => {
+    if (!readerSettings.enableHighlightWords) return;
+    const currentStatus = getWordStatus(word);
+    let nextStatus: 'known' | 'tracking' | 'ignored' | 'unknown';
+    if (!currentStatus || currentStatus === 'unknown') {
+      nextStatus = 'known';
+    } else if (currentStatus === 'known') {
+      nextStatus = 'tracking';
+    } else if (currentStatus === 'tracking') {
+      nextStatus = 'ignored';
+    } else if (currentStatus === 'ignored') {
+      nextStatus = 'unknown';
+    } else {
+      nextStatus = 'known';
+    }
+    updateWordStatus(word, nextStatus);
+  };
+
   // Early returns for error and !book
   if (error) {
     return (
@@ -417,6 +436,7 @@ export default function ReaderPage() {
                 getWordStatus={getWordStatus}
                 hoveredWord={hoveredWord}
                 onWordHover={handleWordHover}
+                onWordClick={handleWordClick}
               />
             </div>
           </div>

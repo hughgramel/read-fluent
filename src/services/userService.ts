@@ -50,17 +50,32 @@ export class UserService {
     uid: string,
     preferences: Partial<UserPreferences>
   ): Promise<void> {
-    const userDoc = doc(db, this.COLLECTION, uid);
-    await updateDoc(userDoc, {
-      preferences: preferences,
-      lastUpdatedAt: serverTimestamp(),
-    });
+    try {
+      console.log('[UserService] Updating preferences for user:', uid, 'preferences:', preferences);
+      const userDoc = doc(db, this.COLLECTION, uid);
+      await updateDoc(userDoc, {
+        preferences: preferences,
+        lastUpdatedAt: serverTimestamp(),
+      });
+      console.log('[UserService] Successfully updated preferences for user:', uid);
+    } catch (error) {
+      console.error('[UserService] Failed to update preferences for user:', uid, 'error:', error);
+      throw error;
+    }
   }
 
   static async getUserPreferences(uid: string): Promise<UserPreferences | null> {
-    const userDoc = doc(db, this.COLLECTION, uid);
-    const snap = await getDoc(userDoc);
-    return snap.exists() ? (snap.data().preferences as UserPreferences) : null;
+    try {
+      console.log('[UserService] Getting preferences for user:', uid);
+      const userDoc = doc(db, this.COLLECTION, uid);
+      const snap = await getDoc(userDoc);
+      const preferences = snap.exists() ? (snap.data().preferences as UserPreferences) : null;
+      console.log('[UserService] Retrieved preferences for user:', uid, 'preferences:', preferences);
+      return preferences;
+    } catch (error) {
+      console.error('[UserService] Failed to get preferences for user:', uid, 'error:', error);
+      throw error;
+    }
   }
 
   static async updateLastLogin(uid: string): Promise<void> {

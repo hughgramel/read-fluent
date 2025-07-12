@@ -359,9 +359,19 @@ export function useReaderState(user: any) {
 
   // Save preferences
   const savePreferences = useCallback(async (newSettings: Partial<ReaderSettings>) => {
+    console.log('[ReaderState] Saving preferences:', newSettings);
     setReaderSettings(prev => ({ ...prev, ...newSettings }));
     if (user?.uid) {
-      await UserService.updateUserPreferences(user.uid, newSettings);
+      try {
+        await UserService.updateUserPreferences(user.uid, newSettings);
+        console.log('[ReaderState] Successfully saved preferences');
+      } catch (error) {
+        console.error('[ReaderState] Failed to save preferences:', error);
+        // Optionally revert the local state change on error
+        // setReaderSettings(prev => ({ ...prev, ...originalSettings }));
+      }
+    } else {
+      console.warn('[ReaderState] No user UID available, cannot save preferences');
     }
   }, [user]);
 
