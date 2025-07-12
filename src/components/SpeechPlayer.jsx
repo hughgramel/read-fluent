@@ -317,33 +317,33 @@ const SpeechPlayer = forwardRef(({
   }, [handlePrevious, handleNext]);
 
   if (!isSDKLoaded) {
-    return (<div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg shadow-lg p-4"><div className="text-sm text-gray-600">Loading Speech SDK...</div></div>);
+    return (<div className="fixed bottom-4 right-4 bg-[var(--background)] border theme-border rounded-lg shadow-lg p-4"><div className="text-sm theme-text">Loading Speech SDK...</div></div>);
   }
   if (error) {
     return (<div className="fixed bottom-4 right-4 bg-red-50 border border-red-300 rounded-lg shadow-lg p-4"><div className="text-sm text-red-600">Error: {error}</div></div>);
   }
   return (
-    <div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg shadow-lg p-4 min-w-[220px] flex flex-col items-center">
+    <div className="fixed bottom-4 right-4 bg-[var(--background)] border theme-border rounded-lg shadow-lg p-4 min-w-[220px] flex flex-col items-center">
       <div className="flex items-center gap-2 justify-center">
-        <button onClick={handlePrevious} disabled={currentSentenceIndex === 0} className="p-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-full" title="Previous">
-          <SkipBack size={22} className="text-blue-500" />
+        <button onClick={handlePrevious} disabled={currentSentenceIndex === 0} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors" title="Previous">
+          <SkipBack size={22} className="text-[var(--primary-color)]" />
         </button>
         {isPlaying && !isPaused ? (
-          <button onClick={handlePause} className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full" title="Pause">
+          <button onClick={handlePause} className="p-3 bg-[var(--primary-color)] hover:bg-[var(--primary-color-hover)] text-white rounded-full transition-colors" title="Pause">
             <Pause size={28} className="text-white" />
           </button>
         ) : (
-          <button onClick={handlePlay} className="p-3 bg-green-500 hover:bg-green-600 text-white rounded-full" title={isPaused ? "Resume" : "Play"}>
+          <button onClick={handlePlay} className="p-3 bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors" title={isPaused ? "Resume" : "Play"}>
             <Play size={28} className="text-white" />
           </button>
         )}
-        <button onClick={handleNext} disabled={currentSentenceIndex === sentences.length - 1} className="p-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-full" title="Next">
-          <SkipForward size={22} className="text-blue-500" />
+        <button onClick={handleNext} disabled={currentSentenceIndex === sentences.length - 1} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors" title="Next">
+          <SkipForward size={22} className="text-[var(--primary-color)]" />
         </button>
-        <button onClick={repeatCurrentSentence} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full" title="Repeat current sentence">
+        <button onClick={repeatCurrentSentence} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white rounded-full transition-colors" title="Repeat current sentence">
           <Repeat size={22} className="text-yellow-500" />
         </button>
-        <button onClick={toggleSelectMode} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full" title="Select active sentence">
+        <button onClick={toggleSelectMode} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white rounded-full transition-colors" title="Select active sentence">
           <MousePointerClick size={22} className="text-purple-500" />
         </button>
       </div>

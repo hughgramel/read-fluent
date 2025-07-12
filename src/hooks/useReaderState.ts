@@ -82,6 +82,25 @@ export function useReaderState(user: any) {
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [showSentenceSaved, setShowSentenceSaved] = useState(false);
 
+  // Auto-hide popups after timeout
+  useEffect(() => {
+    if (showSentenceSaved) {
+      const timer = setTimeout(() => {
+        setShowSentenceSaved(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSentenceSaved]);
+
+  useEffect(() => {
+    if (showCopyConfirm) {
+      const timer = setTimeout(() => {
+        setShowCopyConfirm(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showCopyConfirm]);
+
   // Load book from Firebase Storage
   useEffect(() => {
     if (!user?.uid || !bookId) return;
