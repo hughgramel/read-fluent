@@ -378,7 +378,6 @@ export function useReaderState(user: any) {
       await SentenceService.addSentence(user.uid, sentence);
       setSavedSentencesSet(prev => new Set(prev).add(sentence));
       setShowSentenceSaved(true);
-      setTimeout(() => setShowSentenceSaved(false), 1200);
     } catch (err) {
       // Optionally handle error
     }
@@ -392,7 +391,6 @@ export function useReaderState(user: any) {
     try {
       await navigator.clipboard.writeText(text);
       setShowCopyConfirm(true);
-      setTimeout(() => setShowCopyConfirm(false), 1200);
     } catch (err) {
       console.error('[Reader Copy] Failed to copy:', err);
     }
@@ -421,30 +419,41 @@ export function useReaderState(user: any) {
     
     const cleanedWord = cleanWord(word);
     
-    // If type is "unknown", remove the word from the database
+    // Update local state immediately for instant visual feedback
+    if (type === 'unknown') {
+      setUserWords(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(cleanedWord);
+        return newMap;
+      });
+    } else {
+      setUserWords(prev => new Map(prev).set(cleanedWord, type));
+    }
+    
+    // Handle database operations in the background
     if (type === 'unknown') {
       try {
         await WordService.removeWord(user.uid, cleanedWord);
-        setUserWords(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(cleanedWord);
-          return newMap;
-        });
       } catch (error) {
         console.error('Failed to remove word:', error);
+        // Revert local state on error
+        setUserWords(prev => new Map(prev).set(cleanedWord, prev.get(cleanedWord) || 'unknown'));
       }
-      return;
-    }
-    
-    try {
-      await WordService.updateWord(user.uid, cleanedWord, type);
-      setUserWords(prev => new Map(prev).set(cleanedWord, type));
-    } catch (error) {
+    } else {
       try {
-        await WordService.addWord(user.uid, cleanedWord, type);
-        setUserWords(prev => new Map(prev).set(cleanedWord, type));
-      } catch (addError) {
-        console.error('Failed to add word:', addError);
+        await WordService.updateWord(user.uid, cleanedWord, type);
+      } catch (error) {
+        try {
+          await WordService.addWord(user.uid, cleanedWord, type);
+        } catch (addError) {
+          console.error('Failed to add word:', addError);
+          // Revert local state on error
+          setUserWords(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(cleanedWord);
+            return newMap;
+          });
+        }
       }
     }
   }, [user]);

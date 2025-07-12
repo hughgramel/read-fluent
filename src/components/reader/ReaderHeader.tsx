@@ -90,19 +90,19 @@ export function ReaderHeader({
             <div className="flex items-center gap-2 justify-start">
               <button 
                 onClick={onBackToLibrary} 
-                className={`flex items-center justify-center ${isMobile ? 'w-8 h-8 min-w-0 min-h-0 p-0' : 'gap-2 px-4 py-2'} font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors ${isMobile ? '' : 'text-base'}`}
-                style={isMobile ? { width: 32, height: 32, minWidth: 28, minHeight: 28 } : {}}
+                className={`flex items-center justify-center ${isMobile ? 'w-10 h-10 min-w-0 min-h-0 p-0' : 'gap-2 px-4 py-2'} font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors ${isMobile ? '' : 'text-base'}`}
+                style={isMobile ? { width: 40, height: 40, minWidth: 36, minHeight: 36 } : {}}
               >
-                <ArrowLeft className={isMobile ? 'w-4 h-4' : 'w-6 h-6'} />
+                <ArrowLeft className={isMobile ? 'w-6 h-6' : 'w-6 h-6'} />
               </button>
               <button 
                 onClick={onToggleSectionSidebar} 
-                className={`rounded ${isMobile ? 'w-8 h-8 min-w-0 min-h-0 p-0 flex items-center justify-center bg-gray-200 hover:bg-gray-300' : 'px-3 py-2 bg-gray-200 hover:bg-gray-300 font-bold text-sm'}`}
-                style={isMobile ? { width: 32, height: 32, minWidth: 28, minHeight: 28 } : {}}
+                className={`rounded ${isMobile ? 'w-10 h-10 min-w-0 min-h-0 p-0 flex items-center justify-center bg-gray-200 hover:bg-gray-300' : 'px-3 py-2 bg-gray-200 hover:bg-gray-300 font-bold text-sm'}`}
+                style={isMobile ? { width: 40, height: 40, minWidth: 36, minHeight: 36 } : {}}
                 title={showSectionSidebar ? 'Hide Sections' : 'Show Sections'}
               >
                 {isMobile ? (
-                  <List className="w-4 h-4 text-[#232946]" />
+                  <List className="w-6 h-6 text-[#232946]" />
                 ) : (
                   <span style={{ color: '#232946', fontWeight: 700 }}>{showSectionSidebar ? 'Hide Sections' : 'Show Sections'}</span>
                 )}
@@ -120,11 +120,11 @@ export function ReaderHeader({
               {isMobile && (
                 <button
                   onClick={onToggleSpeechPlayer}
-                  className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors"
+                  className="flex items-center justify-center h-10 w-10 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors"
                   title={isSpeechPlayerActive ? 'Hide Speech Player' : 'Show Speech Player'}
-                  style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0, borderRadius: '50%' }}
+                  style={{ width: 40, height: 40, minWidth: 40, minHeight: 40, padding: 0, borderRadius: '50%' }}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                   </svg>
                 </button>
@@ -132,10 +132,10 @@ export function ReaderHeader({
               <button 
                 onClick={onPrevPage} 
                 disabled={globalPageNumber === 1} 
-                className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
-                style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 36, height: 36 }}
+                className="flex items-center justify-center h-10 w-10 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
+                style={isMobile ? { width: 40, height: 40, minWidth: 40, minHeight: 40, padding: 0 } : { width: 44, height: 44 }}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -143,10 +143,10 @@ export function ReaderHeader({
               <button 
                 onClick={onNextPage} 
                 disabled={globalPageNumber === totalPages} 
-                className="flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
-                style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 36, height: 36 }}
+                className="flex items-center justify-center h-10 w-10 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
+                style={isMobile ? { width: 40, height: 40, minWidth: 40, minHeight: 40, padding: 0 } : { width: 44, height: 44 }}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -157,12 +157,12 @@ export function ReaderHeader({
               {/* Settings button */}
               <button
                 onClick={onShowSettings}
-                className={`flex items-center justify-center h-8 w-8 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors`}
+                className={`flex items-center justify-center h-10 w-10 min-w-0 min-h-0 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors`}
                 title="Reader Settings"
                 aria-label="Reader Settings"
-                style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0, borderRadius: '50%' } : {}}
+                style={isMobile ? { width: 40, height: 40, minWidth: 40, minHeight: 40, padding: 0, borderRadius: '50%' } : {}}
               >
-                <Settings className={isMobile ? 'w-5 h-5' : 'w-5 h-5'} />
+                <Settings className={isMobile ? 'w-6 h-6' : 'w-6 h-6'} />
               </button>
               
               {/* Fullscreen button: only show on desktop */}
@@ -173,7 +173,7 @@ export function ReaderHeader({
                   title="Fullscreen"
                   aria-label="Fullscreen"
                 >
-                  <Maximize2 className="w-5 h-5" />
+                  <Maximize2 className="w-6 h-6" />
                 </button>
               )}
               
@@ -184,7 +184,7 @@ export function ReaderHeader({
                   className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
                   title={isSpeechPlayerActive ? 'Hide Speech Player' : 'Show Speech Player'}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                   </svg>
                   {isSpeechPlayerActive ? '' : ''}
@@ -194,12 +194,12 @@ export function ReaderHeader({
               {/* Complete/Uncomplete button */}
               {isMobile ? (
                 isPageRead ? (
-                  <button onClick={onUnmarkPageComplete} className="flex items-center justify-center w-8 h-8 min-w-0 min-h-0 p-0 rounded bg-green-500 text-white" title="Uncomplete">
-                    <XCircle className="w-4 h-4" />
+                  <button onClick={onUnmarkPageComplete} className="flex items-center justify-center w-10 h-10 min-w-0 min-h-0 p-0 rounded bg-green-500 text-white" title="Uncomplete">
+                    <XCircle className="w-6 h-6" />
                   </button>
                 ) : (
-                  <button onClick={onMarkPageComplete} className="flex items-center justify-center w-8 h-8 min-w-0 min-h-0 p-0 rounded bg-blue-500 text-white" title="Complete">
-                    <CheckCircle className="w-4 h-4" />
+                  <button onClick={onMarkPageComplete} className="flex items-center justify-center w-10 h-10 min-w-0 min-h-0 p-0 rounded bg-blue-500 text-white" title="Complete">
+                    <CheckCircle className="w-6 h-6" />
                   </button>
                 )
               ) : (
