@@ -1239,7 +1239,7 @@ export default function library() {
   function DataModal() {
     if (!dataModalBook) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
         <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl max-w-md w-full relative" style={{ fontFamily: 'Inter, sans-serif' }}>
           <button
             onClick={() => setDataModalBook(null)}
@@ -1430,7 +1430,7 @@ export default function library() {
         {showTextModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ background: 'rgba(0,0,0,0.10)', backdropFilter: 'blur(1.5px)' }}
+            style={{ background: 'rgba(0,0,0,0.4)' }}
             onClick={() => setShowTextModal(true)}
           >
             <div

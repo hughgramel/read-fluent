@@ -407,7 +407,7 @@ export default function WordsPage() {
 
       {/* Add Word Modal */}
           {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" style={{ backdropFilter: 'blur(2px)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-lg max-w-md w-full relative">
                 <button
                   onClick={() => setShowAdd(false)}
