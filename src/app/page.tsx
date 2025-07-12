@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, Target, Brain, BarChart2, Clock, Zap, CheckCircle2, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // Feature interface
 interface Feature {
@@ -20,6 +21,7 @@ interface FuturePlan {
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { t } = useTranslation(['common', 'navigation', 'auth']);
 
   const features: Feature[] = [
     {
@@ -85,19 +87,19 @@ export default function LandingPage() {
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <Link href="#features" className="text-gray-600 hover:text-[#2563eb] transition-colors">
-                Features
+                {t('navigation:features')}
               </Link>
               <Link href="#future" className="text-gray-600 hover:text-[#2563eb] transition-colors">
-                Roadmap
+                {t('navigation:roadmap')}
               </Link>
               <Link href="/signin" className="text-gray-600 hover:text-[#2563eb] transition-colors">
-                Sign In
+                {t('auth:signIn')}
               </Link>
               <Link
                 href="/signup"
                 className="bg-[#2563eb] text-white px-4 py-2 rounded-lg hover:bg-[#1749b1] transition-colors"
               >
-                Get Started
+                {t('auth:getStarted')}
               </Link>
             </div>
             <div className="md:hidden flex items-center">
@@ -119,19 +121,19 @@ export default function LandingPage() {
         <div className="md:hidden fixed inset-0 z-40 bg-white">
           <div className="pt-20 px-4 space-y-4">
             <Link href="#features" className="block text-gray-600 hover:text-[#2563eb] transition-colors">
-              Features
+              {t('navigation:features')}
             </Link>
             <Link href="#future" className="block text-gray-600 hover:text-[#2563eb] transition-colors">
-              Roadmap
+              {t('navigation:roadmap')}
             </Link>
             <Link href="/signin" className="block text-gray-600 hover:text-[#2563eb] transition-colors">
-              Sign In
+              {t('auth:signIn')}
             </Link>
             <Link
               href="/signup"
               className="block bg-[#2563eb] text-white px-4 py-2 rounded-lg hover:bg-[#1749b1] transition-colors text-center"
             >
-              Get Started
+              {t('auth:getStarted')}
             </Link>
           </div>
         </div>
@@ -145,7 +147,7 @@ export default function LandingPage() {
               Read fluently, learn naturally
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Your intelligent language learning companion. Track vocabulary, analyze comprehension, and build your language skills through reading.
+              {t('common:tagline')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link

@@ -10,6 +10,7 @@ import Sidebar from '@/components/Sidebar';
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslation } from 'react-i18next';
 
 export default function AuthenticatedLayout({
   children,
@@ -17,16 +18,17 @@ export default function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { t } = useTranslation(['navigation']);
   const showSidebar = !(pathname?.startsWith('/reader') ?? false);
 
   // Bottom navigation rail for mobile (not on reader)
   const MobileNav = () => (
     <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center py-1 z-40 sm:hidden" style={{ height: '56px' }}>
-      <Link href="/library" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/library' ? 'text-blue-600' : 'text-gray-500'}`}>📚<span className="text-xs mt-0.5">Library</span></Link>
-      <Link href="/history" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/history' ? 'text-blue-600' : 'text-gray-500'}`}>💾<span className="text-xs mt-0.5">Saved</span></Link>
-      <Link href="/words" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/words' ? 'text-blue-600' : 'text-gray-500'}`}>🔤<span className="text-xs mt-0.5">Words</span></Link>
-      <Link href="/profile" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/profile' ? 'text-blue-600' : 'text-gray-500'}`}>👤<span className="text-xs mt-0.5">Profile</span></Link>
-      <Link href="/about" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/about' ? 'text-blue-600' : 'text-gray-500'}`}>ℹ️<span className="text-xs mt-0.5">About</span></Link>
+      <Link href="/library" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/library' ? 'text-blue-600' : 'text-gray-500'}`}>📚<span className="text-xs mt-0.5">{t('navigation:library')}</span></Link>
+      <Link href="/history" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/history' ? 'text-blue-600' : 'text-gray-500'}`}>💾<span className="text-xs mt-0.5">{t('navigation:saved')}</span></Link>
+      <Link href="/words" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/words' ? 'text-blue-600' : 'text-gray-500'}`}>🔤<span className="text-xs mt-0.5">{t('navigation:words')}</span></Link>
+      <Link href="/profile" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/profile' ? 'text-blue-600' : 'text-gray-500'}`}>👤<span className="text-xs mt-0.5">{t('navigation:profile')}</span></Link>
+      <Link href="/about" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/about' ? 'text-blue-600' : 'text-gray-500'}`}>ℹ️<span className="text-xs mt-0.5">{t('navigation:about')}</span></Link>
     </nav>
   );
 

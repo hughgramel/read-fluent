@@ -6,21 +6,11 @@ import { useState } from 'react';
 import { FaBookOpen, FaRegSave, FaUser, FaInfoCircle, FaPalette, FaHome } from 'react-icons/fa';
 import { MdPushPin } from 'react-icons/md';
 import { PiTextAaBold } from 'react-icons/pi';
+import { useTranslation } from 'react-i18next';
+import { useI18n } from '@/contexts/I18nContext';
+import LanguageSelector from './LanguageSelector';
 
-// Sidebar Navigation Items
-const navigation = [
-  { name: 'Home', href: '/home', icon: <FaHome /> },
-  { name: 'Library', href: '/library', icon: <FaBookOpen /> },
-  { name: 'History', href: '/history', icon: <FaRegSave /> },
-  { name: 'Words', href: '/words', icon: <PiTextAaBold /> },
-  { name: 'Profile', href: '/profile', icon: <FaUser /> },
-  { name: 'About', href: '/about', icon: <FaInfoCircle /> },
-  // Add other authenticated links here if needed
-];
-
-const bottomButtons = [
-  { name: 'Theme', icon: <FaPalette />, onClickKey: 'theme' },
-];
+// Sidebar Navigation Items - moved inside component to access translations
 
 const GRAY = 'rgb(98,108,145)';
 const ACTIVE_BG = '#e6f0fd'; // blue shade for highlight
@@ -42,25 +32,45 @@ const LANGUAGES = [
   // Add more as needed
 ];
 
-const THEMES = [
-  { key: 'auto', label: 'Auto' },
-  { key: 'light', label: 'Light theme' },
-  { key: 'dark', label: 'Dark theme' },
-  { key: 'eink', label: 'Eink theme' },
-];
+// THEMES moved inside component to access translations
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
+  const [showLanguage, setShowLanguage] = useState(false);
   const [theme, setTheme] = useState('light');
   const [pinned, setPinned] = useState(false);
+  const { t } = useTranslation(['navigation', 'common', 'profile']);
+  const { currentLanguage, supportedLanguages, changeLanguage } = useI18n();
+
+  // Sidebar Navigation Items
+  const navigation = [
+    { name: t('navigation:home'), href: '/home', icon: <FaHome /> },
+    { name: t('navigation:library'), href: '/library', icon: <FaBookOpen /> },
+    { name: t('navigation:history'), href: '/history', icon: <FaRegSave /> },
+    { name: t('navigation:words'), href: '/words', icon: <PiTextAaBold /> },
+    { name: t('navigation:profile'), href: '/profile', icon: <FaUser /> },
+    { name: t('navigation:about'), href: '/about', icon: <FaInfoCircle /> },
+  ];
+
+  const bottomButtons = [
+    { name: t('profile:theme'), icon: <FaPalette />, onClickKey: 'theme' },
+    { name: t('profile:language'), icon: <span style={{ fontSize: '20px' }}>🌐</span>, onClickKey: 'language' },
+  ];
+
+  const THEMES = [
+    { key: 'auto', label: t('profile:autoMode') },
+    { key: 'light', label: t('profile:lightMode') },
+    { key: 'dark', label: t('profile:darkMode') },
+    { key: 'eink', label: t('profile:einkMode') },
+  ];
 
   // Handle theme/language change (persist as needed)
-  const handleThemeChange = (t: string) => {
-    setTheme(t);
+  const handleThemeChange = (themeValue: string) => {
+    setTheme(themeValue);
     setShowTheme(false);
-    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.setAttribute('data-theme', themeValue);
   };
 
   // Auto-expand/collapse on hover unless pinned
@@ -70,6 +80,7 @@ export default function Sidebar() {
   // Button click handlers
   const handleBottomButtonClick = (key: string) => {
     if (key === 'theme') setShowTheme(true);
+    if (key === 'language') setShowLanguage(true);
   };
 
   return (
@@ -318,21 +329,25 @@ export default function Sidebar() {
               className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
               style={{ lineHeight: 1 }}
             >×</button>
-            <h2 className="text-xl font-bold mb-4">Theme</h2>
+            <h2 className="text-xl font-bold mb-4">{t('profile:theme')}</h2>
             <div className="flex flex-col gap-2 w-full">
-              {THEMES.map(t => (
+              {THEMES.map(themeOption => (
                 <button
-                  key={t.key}
-                  onClick={() => handleThemeChange(t.key)}
-                  className={`w-full py-2 rounded-lg text-base font-semibold ${theme === t.key ? 'bg-[#f5f7fa] text-[#2563eb]' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                  key={themeOption.key}
+                  onClick={() => handleThemeChange(themeOption.key)}
+                  className={`w-full py-2 rounded-lg text-base font-semibold ${theme === themeOption.key ? 'bg-[#f5f7fa] text-[#2563eb]' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                   style={{ textAlign: 'left', paddingLeft: 16 }}
                 >
-                  {t.label}
+                  {themeOption.label}
                 </button>
               ))}
             </div>
           </div>
         </div>
+      )}
+      {/* Language Selector */}
+      {showLanguage && (
+        <LanguageSelector onClose={() => setShowLanguage(false)} />
       )}
     </aside>
   );

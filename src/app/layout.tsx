@@ -5,6 +5,8 @@ import { M_PLUS_Rounded_1c } from 'next/font/google';
 import "./globals.css";
 import { Providers } from '@/components/Providers';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { I18nProvider } from '@/contexts/I18nContext';
+import '@/i18n/config';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -63,9 +65,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${cinzelDecorative.variable} ${playfairDisplay.variable} ${merriweather.variable} ${ebGaramond.variable} ${mplusRounded.variable} antialiased`}
       >
         <AuthProvider>
+          <I18nProvider>
             <Providers>
               {children}
             </Providers>
+          </I18nProvider>
         </AuthProvider>
       </body>
     </html>
