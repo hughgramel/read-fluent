@@ -3,16 +3,21 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary-color: #2563eb;
+  --secondary-color: #67b9e7;
   --accent-color: #67b9e7;
   --text-color: #0B1423;
   --secondary-text-color: #777777;
   --border-color: #cccccc;
   --shadow-color: #d1d5db;
+  --font-family: 'Noto Sans, Helvetica Neue, Arial, sans-serif';
 }
 
 html[data-theme='dark'] {
   --background: #121212;
   --foreground: #ededed;
+  --primary-color: #3b82f6;
+  --secondary-color: #90caf9;
   --accent-color: #90caf9;
   --text-color: #ededed;
   --secondary-text-color: #a0a0a0;
@@ -23,7 +28,9 @@ html[data-theme='dark'] {
 html[data-theme='sepia'] {
   --background: #fbf0d9;
   --foreground: #5a4b32;
-  --accent-color: #67b9e7;
+  --primary-color: #8b4513;
+  --secondary-color: #deb887;
+  --accent-color: #cd853f;
   --text-color: #5a4b32;
   --secondary-text-color: #8b7d6b;
   --border-color: #c0b8a8;
@@ -33,6 +40,8 @@ html[data-theme='sepia'] {
 html[data-theme='solarized'] {
   --background: #002b36;
   --foreground: #839496;
+  --primary-color: #268bd2;
+  --secondary-color: #2aa198;
   --accent-color: #268bd2;
   --text-color: #839496;
   --secondary-text-color: #657b83;
@@ -57,7 +66,122 @@ html[data-theme='solarized'] {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-family);
+}
+
+/* Utility classes for theme-aware styling */
+.theme-bg {
+  background-color: var(--background);
+}
+
+.theme-text {
+  color: var(--text-color);
+}
+
+.theme-text-secondary {
+  color: var(--secondary-text-color);
+}
+
+.theme-primary {
+  color: var(--primary-color);
+}
+
+.theme-secondary {
+  color: var(--secondary-color);
+}
+
+.theme-accent {
+  color: var(--accent-color);
+}
+
+.theme-border {
+  border-color: var(--border-color);
+}
+
+.theme-shadow {
+  box-shadow: 0 1px 3px 0 var(--shadow-color);
+}
+
+.theme-bg-primary {
+  background-color: var(--primary-color);
+}
+
+.theme-bg-secondary {
+  background-color: var(--secondary-color);
+}
+
+.theme-bg-accent {
+  background-color: var(--accent-color);
+}
+
+/* Button theming */
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  filter: brightness(0.9);
+}
+
+.btn-secondary {
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  filter: brightness(0.9);
+}
+
+/* Input theming */
+.input-themed {
+  background-color: var(--background);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-family);
+}
+
+.input-themed:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color), 0.1);
+}
+
+/* Select theming */
+.select-themed {
+  background-color: var(--background);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-family);
+}
+
+.select-themed:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color), 0.1);
+}
+
+/* Card theming */
+.card-themed {
+  background-color: var(--background);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 1px 3px 0 var(--shadow-color);
 }
 
 /* Custom utilities */

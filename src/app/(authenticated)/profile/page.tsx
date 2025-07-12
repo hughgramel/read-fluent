@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserService } from '@/services/userService';
 import Link from 'next/link';
 import { ReadingSessionService } from '@/services/readingSessionService';
+import ThemeSettings from '@/components/ThemeSettings';
 
 // Helper to format the date
 const formatJoinDate = (date: Date | undefined): string => {
@@ -92,7 +93,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="flex items-center justify-center pt-16">
-        <div className="text-[#232946] text-xl font-semibold">
+        <div className="theme-text text-xl font-semibold">
           Loading...
         </div>
       </div>
@@ -100,27 +101,27 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-6 py-8" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
+    <div className="w-full max-w-6xl mx-auto px-6 py-8" style={{ fontFamily: 'var(--font-family)' }}>
       <div className="flex flex-col gap-8">
         <div className="w-full">
           <div className="mb-8">
-            <h1 className="text-3xl font-extrabold text-[#232946] tracking-tight mb-2" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>
+            <h1 className="text-3xl font-extrabold theme-text tracking-tight mb-2" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>
               {user.displayName || 'User'}
             </h1>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm theme-text-secondary">
               Joined {formatJoinDate(user.createdAt)}
             </p>
           </div>
           
           <section className="mb-8">
-            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>Statistics</h2>
+            <h2 className="text-xl font-bold theme-primary tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>Statistics</h2>
             <div className="mb-6 flex items-center gap-4">
-              <label className="font-semibold text-[#232946]">Learning Language:</label>
+              <label className="font-semibold theme-text">Learning Language:</label>
               {!languageLoaded ? (
-                <span className="text-gray-400">Loading...</span>
+                <span className="theme-text-secondary">Loading...</span>
               ) : (
                 <select
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-base font-semibold text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
+                  className="select-themed font-semibold"
                   value={language || 'en'}
                   onChange={handleLanguageChange}
                   style={{ minWidth: 160 }}
@@ -130,12 +131,12 @@ export default function ProfilePage() {
               )}
             </div>
             <div className="mb-6 flex items-center gap-4">
-              <label className="font-semibold text-[#232946]">Native Language:</label>
+              <label className="font-semibold theme-text">Native Language:</label>
               {!languageLoaded ? (
-                <span className="text-gray-400">Loading...</span>
+                <span className="theme-text-secondary">Loading...</span>
               ) : (
                 <select
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-base font-semibold text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none"
+                  className="select-themed font-semibold"
                   value={nativeLanguage}
                   onChange={async (e) => {
                     setNativeLanguage(e.target.value);
@@ -256,25 +257,30 @@ export default function ProfilePage() {
               )}
             </div>
             {loadingStats ? (
-              <div className="text-center py-8 text-gray-500">Loading stats...</div>
+              <div className="text-center py-8 theme-text-secondary">Loading stats...</div>
             ) : (
               <div className="flex gap-6">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">📚</span>
                   <div>
-                    <div className="text-[#232946] font-bold text-lg">{booksCompleted}</div>
-                    <div className="text-gray-600 text-sm">Books Completed</div>
+                    <div className="theme-text font-bold text-lg">{booksCompleted}</div>
+                    <div className="theme-text-secondary text-sm">Books Completed</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">📖</span>
                   <div>
-                    <div className="text-[#232946] font-bold text-lg">{totalWordsRead.toLocaleString()}</div>
-                    <div className="text-gray-600 text-sm">Words Read</div>
+                    <div className="theme-text font-bold text-lg">{totalWordsRead.toLocaleString()}</div>
+                    <div className="theme-text-secondary text-sm">Words Read</div>
                   </div>
                 </div>
               </div>
             )}
+          </section>
+
+          {/* Theme Settings Section */}
+          <section className="mb-8">
+            <ThemeSettings />
           </section>
 
           {error && (
@@ -286,13 +292,13 @@ export default function ProfilePage() {
           <div className="flex gap-4">
             <Link
               href="/profile/manage"
-              className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+              className="btn-primary"
             >
               Manage Account
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
+              className="btn-primary"
             >
               Sign Out
             </button>

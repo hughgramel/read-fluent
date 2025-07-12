@@ -1,12 +1,12 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
+    <ThemeProvider>
       {children}
-    </AuthProvider>
+    </ThemeProvider>
   );
 } 
