@@ -10,6 +10,7 @@ import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus, FiArchive } from 'react-i
 import { uploadFileAndGetUrl } from '@/lib/firebase';
 import '@fontsource/inter';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
+import { processYouTubeUrl, convertTranscriptToBook } from '@/services/youtubeTranscriptService';
 
 // Types
 interface BookSection {
@@ -91,6 +92,11 @@ export default function library() {
   const [archivedBooks, setArchivedBooks] = useState<ArchivedBookCard[]>([]);
   const [batchMdLoading, setBatchMdLoading] = useState(false);
   const [batchMdError, setBatchMdError] = useState('');
+  
+  // YouTube transcript state
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [youtubeLoading, setYoutubeLoading] = useState(false);
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -796,6 +802,7 @@ export default function library() {
       setTextTitle('');
       setTextAuthor('');
       setTextContent('');
+      setYoutubeUrl('');
     } catch (err) {
       setTextError('Failed to create book.');
     } finally {
@@ -931,6 +938,7 @@ export default function library() {
         setTextTitle('');
         setTextAuthor('');
         setTextContent('');
+        setYoutubeUrl('');
       };
       reader.readAsText(file);
     } catch (err) {
@@ -1062,6 +1070,94 @@ export default function library() {
       });
     }
     (event.target as HTMLInputElement).value = '';
+  };
+
+  // Handle YouTube transcript import
+  const handleYouTubeImport = async () => {
+    if (!youtubeUrl.trim()) {
+      setYoutubeError('Please enter a YouTube URL');
+      return;
+    }
+
+    if (!user?.uid) {
+      setYoutubeError('User not authenticated');
+      return;
+    }
+
+    setYoutubeLoading(true);
+    setYoutubeError(null);
+
+    try {
+      // Process YouTube URL and get transcript
+      const processedTranscript = await processYouTubeUrl(youtubeUrl);
+      
+      // Convert to book format
+      const bookData = convertTranscriptToBook(processedTranscript);
+      
+      // Create book ID
+      const bookId = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
+      
+      // Create book object
+      const newBook: Book = {
+        id: bookId,
+        title: bookData.title,
+        author: bookData.author,
+        description: bookData.description,
+        sections: bookData.sections,
+        totalWords: bookData.totalWords,
+        fileName: bookData.fileName,
+        dateAdded: new Date().toISOString(),
+        css: bookData.css,
+        cover: bookData.cover,
+      };
+
+      // Upload JSON to storage
+      const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
+
+      // Save metadata
+      await saveBookMetadata(user.uid, bookId, {
+        title: newBook.title,
+        author: newBook.author,
+        fileName: newBook.fileName,
+        totalWords: newBook.totalWords,
+        storagePath,
+        downloadURL,
+        currentSection: 0,
+      });
+
+      // Reset form and close modal
+      setYoutubeUrl('');
+      setTextTitle('');
+      setTextAuthor('');
+      setTextContent('');
+      setTextFile(null);
+      setMdFile(null);
+      setShowTextModal(false);
+
+      // Refresh books list
+      const updatedBooks = await getBooks(user.uid);
+      setBooks(updatedBooks.map(meta => ({
+        id: meta.bookId,
+        title: meta.title,
+        author: meta.author,
+        description: '',
+        sections: [],
+        totalWords: meta.totalWords,
+        fileName: meta.fileName,
+        dateAdded: meta.dateAdded,
+        storagePath: meta.storagePath,
+        downloadURL: meta.downloadURL,
+        completed: meta.completed || false,
+        css: '',
+        cover: '',
+      })));
+
+    } catch (error) {
+      console.error('Error importing YouTube transcript:', error);
+      setYoutubeError(error instanceof Error ? error.message : 'Failed to import YouTube transcript');
+    } finally {
+      setYoutubeLoading(false);
+    }
   };
 
   // Prevent background scroll when modal is open
@@ -1439,7 +1535,11 @@ export default function library() {
               onClick={e => e.stopPropagation()}
             >
               <button
-                onClick={() => setShowTextModal(false)}
+                onClick={() => {
+                  setShowTextModal(false);
+                  setYoutubeUrl('');
+                  setYoutubeError(null);
+                }}
                 className="absolute top-3 right-3 text-gray-400 hover:text-[#2563eb] text-2xl font-bold transition-colors"
                 style={{ background: 'none', border: 'none', lineHeight: 1 }}
                 aria-label="Close"
@@ -1529,6 +1629,32 @@ export default function library() {
                   {mdError && <div className="text-red-600 text-sm mb-2">{mdError}</div>}
                   {mdLoading && <div className="text-blue-600 text-sm mb-2">Processing .md file...</div>}
                 </div>
+                
+                <div className="flex flex-col mb-2">
+                  <label className="font-semibold mb-1">Or import from YouTube</label>
+                  <div className="flex flex-row gap-2">
+                    <input
+                      type="text"
+                      value={youtubeUrl}
+                      onChange={e => setYoutubeUrl(e.target.value)}
+                      placeholder="Enter YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
+                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                      style={{ color: 'black' }}
+                    />
+                    <button
+                      className="px-6 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors text-base"
+                      disabled={youtubeLoading}
+                      onClick={handleYouTubeImport}
+                      type="button"
+                    >
+                      {youtubeLoading ? 'Importing...' : 'Import'}
+                    </button>
+                  </div>
+                  <span className="text-xs text-gray-500 mt-1">Import transcript from a YouTube video with captions.</span>
+                  {youtubeError && <div className="text-red-600 text-xs mt-1">{youtubeError}</div>}
+                  {youtubeLoading && <div className="text-blue-600 text-sm mt-2">Fetching YouTube transcript...</div>}
+                </div>
+                
                 {textError && <div className="text-red-600 text-sm mb-2">{textError}</div>}
                 <button
                   onClick={handleCreateTextBook}
