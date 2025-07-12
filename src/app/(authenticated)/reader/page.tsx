@@ -641,12 +641,11 @@ export default function ReaderPage() {
 
   // Helper: get underline style
   function getUnderline(type: WordType | undefined, hovered: boolean) {
-    if (!enableHighlightWords) return 'none'; // Don't show underlines if feature is disabled
-    
-    if (type === 'known') return '2px solid #16a34a'; // green underline for known words
-    if (!type) return '2px solid #dc2626'; // red underline for unknown words
-    if (type === 'tracking') return '2px solid #a78bfa'; // purple underline for tracking words
-    if (type === 'ignored') return 'none'; // no underline for ignored words
+    if (!enableHighlightWords) return 'none';
+    if (type === 'known') return hovered ? '2px solid #16a34a' : 'none'; // green on hover
+    if (type === 'ignored') return hovered ? '2px solid #222' : 'none'; // dark grey on hover
+    if (type === 'tracking') return '2px solid #a78bfa'; // purple always
+    if (!type) return '2px solid #dc2626'; // red always for unknown
     return 'none';
   }
 
@@ -675,17 +674,9 @@ export default function ReaderPage() {
     // Update database
     try {
       if (newStatus === undefined) {
-        // Remove word from database by setting it to null/undefined
-        // We need to check if this word exists first and then remove it
-        const currentWords = await WordService.getWords(user.uid);
-        const existingWord = currentWords.find(w => w.word.toLowerCase() === cleanWord);
-        if (existingWord) {
-          // Since WordService doesn't have a delete method, we'll use updateWord with a special handling
-          // For now, we'll just remove it from the local map
-          console.log('Removing word from local map:', cleanWord);
-        }
+        await WordService.deleteWord(user.uid, cleanWord);
       } else {
-        await WordService.updateWord(user.uid, cleanWord, newStatus);
+        await WordService.addWord(user.uid, cleanWord, newStatus);
       }
     } catch (error) {
       console.error('Error updating word status:', error);
@@ -1776,7 +1767,7 @@ useEffect(() => {
               <label htmlFor="enable-highlight-words" className="font-bold text-black select-none cursor-pointer">Enable highlight words</label>
             </div>
             <div className="mb-6 text-sm text-gray-600">
-              <p>When enabled, words will show colored underlines: <span className="font-semibold text-green-600">green</span> for known, <span className="font-semibold text-red-600">red</span> for unknown, <span className="font-semibold text-purple-600">purple</span> for tracking, and no underline for ignored words.</p>
+              <p>When enabled, words will show underlines as follows: <span className="font-semibold text-purple-600">purple</span> for tracking, <span className="font-semibold text-red-600">red</span> for unknown. <span className="font-semibold text-green-600">Known</span> and <span className="font-semibold text-gray-700">ignored</span> words have no underline, but show <span className="font-semibold text-green-600">green</span> (known) or <span className="font-semibold text-gray-700">dark grey</span> (ignored) underline on hover.</p>
               <p className="mt-1">Hover over words and press <kbd className="px-1 py-0.5 text-xs font-mono bg-gray-200 rounded">1</kbd> (known), <kbd className="px-1 py-0.5 text-xs font-mono bg-gray-200 rounded">2</kbd> (tracking), <kbd className="px-1 py-0.5 text-xs font-mono bg-gray-200 rounded">3</kbd> (ignored), or <kbd className="px-1 py-0.5 text-xs font-mono bg-gray-200 rounded">4</kbd> (unknown) to change word status.</p>
             </div>
             <div className="mb-6 flex items-center">

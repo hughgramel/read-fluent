@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, setDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, setDoc, doc, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 
 export type WordType = 'known' | 'tracking' | 'ignored';
 export interface Word {
@@ -29,5 +29,9 @@ export const WordService = {
   async updateWord(uid: string, word: string, type: WordType) {
     const ref = doc(db, 'users', uid, 'words', word);
     await updateDoc(ref, { type });
+  },
+  async deleteWord(uid: string, word: string) {
+    const ref = doc(db, 'users', uid, 'words', word);
+    await deleteDoc(ref);
   },
 }; 
