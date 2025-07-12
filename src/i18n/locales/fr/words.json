@@ -1,0 +1,39 @@
+{
+  "wordsTab": "Mots",
+  "sentencesTab": "Phrases",
+  "title": "Mots",
+  "totalWords": "mots au total",
+  "known": "connus",
+  "tracking": "en cours",
+  "ignored": "ignorés",
+  "searchPlaceholder": "Rechercher des mots...",
+  "filter": {
+    "all": "Tous",
+    "known": "Connus",
+    "tracking": "En cours",
+    "ignored": "Ignorés"
+  },
+  "addWord": "Ajouter un mot",
+  "add": "Ajouter",
+  "noWordsFound": "Aucun mot trouvé",
+  "addSomeWords": "Ajoutez quelques mots pour suivre votre vocabulaire !",
+  "word": "Mot",
+  "status": "Statut",
+  "language": "Langue",
+  "statusLabel": {
+    "known": "Connu",
+    "tracking": "En cours",
+    "ignored": "Ignoré"
+  },
+  "deleteWord": "Supprimer le mot",
+  "noSentencesFound": "Aucune phrase trouvée",
+  "addSentencesHint": "Ajoutez des phrases en cliquant dessus pendant la lecture",
+  "allSentencesCopied": "Toutes les phrases copiées !",
+  "copyAll": "Tout copier",
+  "copy": "Copier",
+  "addMultiple": "Ajouter plusieurs mots",
+  "multiInputPlaceholder": "Entrez des mots séparés par des espaces ou des virgules, ou utilisez des guillemets pour les phrases (ex. banane fruit \"être\")",
+  "singleInputPlaceholder": "Entrez un mot",
+  "importMigaku": "Importer un fichier Migaku .db (Bientôt disponible)",
+  "loadingLanguage": "Chargement de la langue..."
+} 

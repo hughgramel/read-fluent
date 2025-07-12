@@ -1,0 +1,21 @@
+{
+  "title": "Acerca de readfluent",
+  "subtitle": "Tu compañero inteligente para aprender idiomas. Aprende a aprovechar al máximo las funciones de readfluent.",
+  "gettingStarted": "Primeros pasos",
+  "uploadFirstBook": "Sube tu primer libro",
+  "uploadFirstBookDesc": "Haz clic en el botón \"Subir EPUB\" en tu biblioteca para agregar tu primer libro. Admitimos libros en formato EPUB estándar en tu idioma objetivo.",
+  "startReading": "Comienza a leer",
+  "startReadingDesc": "Abre tu libro y comienza a leer. Usa la función de desplazamiento automático para mantener un ritmo de lectura cómodo y ajusta la velocidad según sea necesario.",
+  "trackVocabulary": "Seguimiento de vocabulario",
+  "trackVocabularyDesc": "Haz clic en las palabras para marcarlas como conocidas, en seguimiento o ignoradas. Esto te ayuda a construir tu vocabulario y realizar un seguimiento de tu progreso.",
+  "reviewWords": "Revisa palabras",
+  "reviewWordsDesc": "Utiliza la pestaña de palabras para repasar y gestionar tu vocabulario. Puedes filtrar por estado y buscar palabras específicas.",
+  "statistics": "Estadísticas",
+  "statisticsDesc": "Consulta tus estadísticas de lectura y vocabulario para ver tu progreso a lo largo del tiempo.",
+  "contact": "Contacto",
+  "contactDesc": "Puedes contactar al desarrollador en Discord, GitHub o Reddit para soporte, sugerencias o para informar errores.",
+  "currentVersion": "La versión actual de ReadFluent es {{version}}.",
+  "attributions": "Atribuciones",
+  "overview": "Descripción general",
+  "patchNotes": "Notas de actualización"
+} 

@@ -1,0 +1,39 @@
+{
+  "wordsTab": "Words",
+  "sentencesTab": "Sentences",
+  "title": "Words",
+  "totalWords": "total words",
+  "known": "known",
+  "tracking": "tracking",
+  "ignored": "ignored",
+  "searchPlaceholder": "Search words...",
+  "filter": {
+    "all": "All",
+    "known": "Known",
+    "tracking": "Tracking",
+    "ignored": "Ignored"
+  },
+  "addWord": "Add Word",
+  "add": "Add",
+  "noWordsFound": "No words found",
+  "addSomeWords": "Add some words to track your vocabulary!",
+  "word": "Word",
+  "status": "Status",
+  "language": "Language",
+  "statusLabel": {
+    "known": "Known",
+    "tracking": "Tracking",
+    "ignored": "Ignored"
+  },
+  "deleteWord": "Delete word",
+  "noSentencesFound": "No sentences found",
+  "addSentencesHint": "Add sentences by clicking on them while reading",
+  "allSentencesCopied": "All sentences copied!",
+  "copyAll": "Copy All",
+  "copy": "Copy",
+  "addMultiple": "Add multiple words",
+  "multiInputPlaceholder": "Enter words separated by spaces or commas, or use quotes for phrases (e.g. banana fruit 'to be')",
+  "singleInputPlaceholder": "Enter word",
+  "importMigaku": "Import Migaku .db file (Coming Soon)",
+  "loadingLanguage": "Loading language..."
+} 

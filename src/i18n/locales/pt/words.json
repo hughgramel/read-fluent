@@ -1,0 +1,39 @@
+{
+  "wordsTab": "Palavras",
+  "sentencesTab": "Frases",
+  "title": "Palavras",
+  "totalWords": "palavras no total",
+  "known": "conhecidas",
+  "tracking": "em acompanhamento",
+  "ignored": "ignoradas",
+  "searchPlaceholder": "Pesquisar palavras...",
+  "filter": {
+    "all": "Todas",
+    "known": "Conhecidas",
+    "tracking": "Em acompanhamento",
+    "ignored": "Ignoradas"
+  },
+  "addWord": "Adicionar palavra",
+  "add": "Adicionar",
+  "noWordsFound": "Nenhuma palavra encontrada",
+  "addSomeWords": "Adicione algumas palavras para acompanhar seu vocabulário!",
+  "word": "Palavra",
+  "status": "Status",
+  "language": "Idioma",
+  "statusLabel": {
+    "known": "Conhecida",
+    "tracking": "Em acompanhamento",
+    "ignored": "Ignorada"
+  },
+  "deleteWord": "Excluir palavra",
+  "noSentencesFound": "Nenhuma frase encontrada",
+  "addSentencesHint": "Adicione frases clicando nelas durante a leitura",
+  "allSentencesCopied": "Todas as frases copiadas!",
+  "copyAll": "Copiar tudo",
+  "copy": "Copiar",
+  "addMultiple": "Adicionar várias palavras",
+  "multiInputPlaceholder": "Digite palavras separadas por espaços ou vírgulas, ou use aspas para frases (ex. banana fruta \"ser\")",
+  "singleInputPlaceholder": "Digite palavra",
+  "importMigaku": "Importar arquivo Migaku .db (Em breve)",
+  "loadingLanguage": "Carregando idioma..."
+} 

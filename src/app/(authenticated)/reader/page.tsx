@@ -19,6 +19,8 @@ const SpeechPlayer: any = SpeechPlayerImport;
 import { Settings, Maximize2, List, CheckCircle, XCircle, ArrowLeft, Clipboard } from 'lucide-react';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
 import { SentenceService } from '@/services/sentenceService';
+import { useTranslation } from 'react-i18next';
+import { useI18n } from '@/contexts/I18nContext';
 
 // Types
 interface BookSection {
@@ -48,6 +50,7 @@ interface ReadingProgress {
 }
 
 export default function ReaderPage() {
+  const { t } = useTranslation(['reader', 'common']);
   // All hooks must be called here, at the top level, before any return or conditional logic
   // (Move all useState, useEffect, useMemo, useCallback, useRef, etc. here)
   const router = useRouter();
@@ -1090,7 +1093,7 @@ useEffect(() => {
       if (error) {
         return (
           <div className="min-h-screen flex items-center justify-center text-red-600 text-xl">
-            {error}
+            {t('reader:error', error)}
           </div>
         );
       }
@@ -1098,7 +1101,7 @@ useEffect(() => {
       if (!book) {
         return (
           <div className="min-h-screen flex items-center justify-center text-gray-600 text-xl">
-            Book not found.
+            {t('reader:bookNotFound', 'Book not found.')}
           </div>
         );
       }
@@ -1272,7 +1275,7 @@ useEffect(() => {
         {showSectionSidebar && (
           <div className="flex flex-col items-start pr-6" style={{ minWidth: 220 }}>
             <div className="font-bold text-lg mb-2 flex items-center gap-2">
-              <span>Sections</span>
+              <span>{t('reader:sections', 'Sections')}</span>
               <label className="flex items-center gap-1 text-xs font-normal ml-2">
                 <input
                   type="checkbox"
@@ -1281,7 +1284,7 @@ useEffect(() => {
                   className="accent-[#2563eb] h-4 w-4 border-gray-300 rounded"
                   style={{ marginRight: 4 }}
                 />
-                <span>Show word count</span>
+                <span>{t('reader:showWordCount', 'Show word count')}</span>
               </label>
             </div>
             {book.sections.map((section, idx) => {

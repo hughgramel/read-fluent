@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserService } from '@/services/userService';
 import Link from 'next/link';
 import { ReadingSessionService } from '@/services/readingSessionService';
+import { useTranslation } from 'react-i18next';
 
 // Helper to format the date
 const formatJoinDate = (date: Date | undefined): string => {
@@ -30,6 +31,7 @@ const LANGUAGES = [
 export default function ProfilePage() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { t } = useTranslation(['profile', 'common']);
   const [loadingStats, setLoadingStats] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingGames, setLoadingGames] = useState(true);
@@ -93,7 +95,7 @@ export default function ProfilePage() {
     return (
       <div className="flex items-center justify-center pt-16">
         <div className="text-[#232946] text-xl font-semibold">
-          Loading...
+          {t('common:loading', 'Loading...')}
         </div>
       </div>
     );
@@ -113,9 +115,13 @@ export default function ProfilePage() {
           </div>
           
           <section className="mb-8">
-            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>Statistics</h2>
+            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>
+              {t('profile:statistics', 'Statistics')}
+            </h2>
             <div className="mb-6 flex items-center gap-4">
-              <label className="font-semibold text-[#232946]">Learning Language:</label>
+              <label className="font-semibold text-[#232946]">
+                {t('profile:learningLanguage', 'Learning Language:')}
+              </label>
               {!languageLoaded ? (
                 <span className="text-gray-400">Loading...</span>
               ) : (
@@ -130,7 +136,9 @@ export default function ProfilePage() {
               )}
             </div>
             <div className="mb-6 flex items-center gap-4">
-              <label className="font-semibold text-[#232946]">Native Language:</label>
+              <label className="font-semibold text-[#232946]">
+                {t('profile:nativeLanguage', 'Native Language:')}
+              </label>
               {!languageLoaded ? (
                 <span className="text-gray-400">Loading...</span>
               ) : (
@@ -256,21 +264,27 @@ export default function ProfilePage() {
               )}
             </div>
             {loadingStats ? (
-              <div className="text-center py-8 text-gray-500">Loading stats...</div>
+              <div className="text-center py-8 text-gray-500">
+                {t('common:loadingStats', 'Loading stats...')}
+              </div>
             ) : (
               <div className="flex gap-6">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">📚</span>
                   <div>
                     <div className="text-[#232946] font-bold text-lg">{booksCompleted}</div>
-                    <div className="text-gray-600 text-sm">Books Completed</div>
+                    <div className="text-gray-600 text-sm">
+                      {t('profile:booksCompleted', 'Books Completed')}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">📖</span>
                   <div>
                     <div className="text-[#232946] font-bold text-lg">{totalWordsRead.toLocaleString()}</div>
-                    <div className="text-gray-600 text-sm">Words Read</div>
+                    <div className="text-gray-600 text-sm">
+                      {t('profile:wordsRead', 'Words Read')}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -288,13 +302,13 @@ export default function ProfilePage() {
               href="/profile/manage"
               className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
             >
-              Manage Account
+              {t('profile:manageAccount', 'Manage Account')}
             </Link>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-4 py-2 font-bold text-white bg-[#2563eb] rounded-full shadow-sm hover:bg-[#1749b1] focus:bg-[#1749b1] border-none transition-colors text-base"
             >
-              Sign Out
+              {t('common:signOut', 'Sign Out')}
             </button>
           </div>
         </div>

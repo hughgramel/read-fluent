@@ -1,0 +1,39 @@
+{
+  "wordsTab": "Wörter",
+  "sentencesTab": "Sätze",
+  "title": "Wörter",
+  "totalWords": "Wörter insgesamt",
+  "known": "bekannt",
+  "tracking": "in Verfolgung",
+  "ignored": "ignoriert",
+  "searchPlaceholder": "Wörter suchen...",
+  "filter": {
+    "all": "Alle",
+    "known": "Bekannt",
+    "tracking": "In Verfolgung",
+    "ignored": "Ignoriert"
+  },
+  "addWord": "Wort hinzufügen",
+  "add": "Hinzufügen",
+  "noWordsFound": "Keine Wörter gefunden",
+  "addSomeWords": "Fügen Sie einige Wörter hinzu, um Ihren Wortschatz zu verfolgen!",
+  "word": "Wort",
+  "status": "Status",
+  "language": "Sprache",
+  "statusLabel": {
+    "known": "Bekannt",
+    "tracking": "In Verfolgung",
+    "ignored": "Ignoriert"
+  },
+  "deleteWord": "Wort löschen",
+  "noSentencesFound": "Keine Sätze gefunden",
+  "addSentencesHint": "Fügen Sie Sätze hinzu, indem Sie während des Lesens darauf klicken",
+  "allSentencesCopied": "Alle Sätze kopiert!",
+  "copyAll": "Alles kopieren",
+  "copy": "Kopieren",
+  "addMultiple": "Mehrere Wörter hinzufügen",
+  "multiInputPlaceholder": "Geben Sie Wörter durch Leerzeichen oder Kommas getrennt ein, oder verwenden Sie Anführungszeichen für Phrasen (z.B. Banane Frucht \"sein\")",
+  "singleInputPlaceholder": "Wort eingeben",
+  "importMigaku": "Migaku .db-Datei importieren (Demnächst verfügbar)",
+  "loadingLanguage": "Sprache wird geladen..."
+} 

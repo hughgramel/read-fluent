@@ -6,8 +6,10 @@ import { UserService } from '@/services/userService';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
 import { FiEdit2 } from 'react-icons/fi';
 import { FaCalendarCheck, FaBookOpen, FaCreditCard, FaGraduationCap, FaRegListAlt, FaInfoCircle, FaGithub, FaReddit, FaDiscord, FaFileAlt, FaCopyright, FaSyncAlt } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 
 export default function Home() {
+  const { t } = useTranslation(['home', 'common', 'about']);
   const { user } = useAuth();
   const [sessions, setSessions] = useState<ReadingSession[]>([]);
   const [dailyGoal, setDailyGoal] = useState(1500);
@@ -73,25 +75,25 @@ export default function Home() {
     <div className="min-h-screen" style={{ background: '#f7f8fa', fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
       <div className="pr-8 pb-10 transition-all duration-300" style={{ marginLeft: 80, paddingTop: 24, maxWidth: 1200 }}>
         <div className="flex flex-col gap-2 mb-10">
-          <h1 className="text-3xl font-extrabold text-[#232946] tracking-tight" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>Home</h1>
+          <h1 className="text-3xl font-extrabold text-[#232946] tracking-tight" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>{t('home:title', 'Home')}</h1>
           <div style={{ height: 4, width: 48, background: '#2563eb', borderRadius: 2 }} />
         </div>
         {/* Daily Goals Row */}
         <div className="mb-16">
           <div className="flex items-center gap-4 mb-6 mt-12">
-            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>Daily Goals</h2>
+            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>{t('home:dailyGoals', 'Daily Goals')}</h2>
             <div className="flex-1 border-t border-gray-200" />
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-6 min-h-[180px]">
             {/* Card 2: Reading */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center w-full max-w-[240px] min-w-[180px] p-4" style={{ minHeight: 260, position: 'relative' }}>
               <div className="w-full text-left mb-2 flex items-center justify-between">
-                <span className="text-lg font-semibold text-[#232946]">Reading</span>
+                <span className="text-lg font-semibold text-[#232946]">{t('home:reading', 'Reading')}</span>
                 <button
                   onClick={() => setShowGoalModal(true)}
                   style={{ background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer', color: PIN_LIGHT_GRAY, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  title="Edit goal"
-                  aria-label="Edit goal"
+                  title={t('home:editGoal', 'Edit goal')}
+                  aria-label={t('home:editGoal', 'Edit goal')}
                 >
                   <FiEdit2 size={18} />
                 </button>
@@ -104,14 +106,14 @@ export default function Home() {
                 </svg>
                 <span className="absolute text-xl font-bold text-[#232946]">{wordsReadToday} / {dailyGoal}</span>
               </div>
-              <div className="text-gray-500 text-sm text-center mb-4">Read {dailyGoal} words from any imported text.</div>
+              <div className="text-gray-500 text-sm text-center mb-4">{t('home:readingGoal', { dailyGoal, defaultValue: 'Read {{dailyGoal}} words from any imported text.' })}</div>
             </div>
           </div>
         </div>
         {/* Statistics Row Header */}
         <div className="mb-16">
           <div className="flex items-center gap-4 mb-6 mt-12">
-            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>Statistics</h2>
+            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>{t('home:statistics', 'Statistics')}</h2>
             <div className="flex-1 border-t border-gray-200" />
           </div>
           {/* Statistics Cards */}
@@ -120,35 +122,35 @@ export default function Home() {
               <FaCalendarCheck size={28} color="#2563eb" />
               <div className="flex flex-col flex-1">
                 <span className="text-2xl font-bold text-[#2563eb]">1</span>
-                <span className="text-gray-700 text-base">Days of activity</span>
+                <span className="text-gray-700 text-base">{t('home:daysOfActivity', 'Days of activity')}</span>
               </div>
             </div>
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-3 min-w-[180px]">
               <FaBookOpen size={28} color="#2563eb" />
               <div className="flex flex-col flex-1">
                 <span className="text-2xl font-bold text-[#2563eb]">0</span>
-                <span className="text-gray-700 text-base">Read words</span>
+                <span className="text-gray-700 text-base">{t('home:readWords', 'Read words')}</span>
               </div>
             </div>
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-3 min-w-[180px]">
               <FaCreditCard size={28} color="#2563eb" />
               <div className="flex flex-col flex-1">
                 <span className="text-2xl font-bold text-[#2563eb]">21</span>
-                <span className="text-gray-700 text-base">Known words</span>
+                <span className="text-gray-700 text-base">{t('home:knownWords', 'Known words')}</span>
               </div>
             </div>
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-3 min-w-[180px]">
               <FaGraduationCap size={28} color="#2563eb" />
               <div className="flex flex-col flex-1">
                 <span className="text-2xl font-bold text-[#2563eb]">0</span>
-                <span className="text-gray-700 text-base">Words currently studied</span>
+                <span className="text-gray-700 text-base">{t('home:wordsCurrentlyStudied', 'Words currently studied')}</span>
               </div>
             </div>
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-3 min-w-[180px]">
               <FaRegListAlt size={28} color="#2563eb" />
               <div className="flex flex-col flex-1">
                 <span className="text-2xl font-bold text-[#2563eb]">6</span>
-                <span className="text-gray-700 text-base">Known lemmas</span>
+                <span className="text-gray-700 text-base">{t('home:knownLemmas', 'Known lemmas')}</span>
               </div>
             </div>
           </div>
@@ -156,37 +158,37 @@ export default function Home() {
         {/* About Row Header */}
         <div className="mb-16">
           <div className="flex items-center gap-4 mb-6 mt-12">
-            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>About</h2>
+            <h2 className="text-xl font-bold text-[#2563eb] tracking-tight" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif', letterSpacing: '-0.01em', fontWeight: 700 }}>{t('about:title', 'About')}</h2>
             <div className="flex-1 border-t border-gray-200" />
           </div>
           {/* About Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* App Info */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 min-w-[260px] flex flex-col">
-              <h3 className="text-xl font-bold mb-2 text-[#232946]">ReadFluent</h3>
-              <p className="text-gray-700 mb-4">You can find more information about ReadFluent on these links.</p>
+              <h3 className="text-xl font-bold mb-2 text-[#232946]">{t('about:readfluent', 'ReadFluent')}</h3>
+              <p className="text-gray-700 mb-4">{t('about:infoLinks', 'You can find more information about ReadFluent on these links.')}</p>
               <div className="flex flex-col gap-2 mt-auto">
-                <a href="#" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaCopyright /> Attributions</a>
-                <a href="#" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaFileAlt /> Overview</a>
-                <a href="/patch-notes" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaInfoCircle /> Patch Notes</a>
+                <a href="#" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaCopyright /> {t('about:attributions', 'Attributions')}</a>
+                <a href="#" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaFileAlt /> {t('about:overview', 'Overview')}</a>
+                <a href="/patch-notes" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaInfoCircle /> {t('about:patchNotes', 'Patch Notes')}</a>
               </div>
             </div>
             {/* Contact */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 min-w-[260px] flex flex-col">
-              <h3 className="text-xl font-bold mb-2 text-[#232946]">Contact</h3>
-              <p className="text-gray-700 mb-4">You can contact the developer of ReadFluent on these platforms.</p>
+              <h3 className="text-xl font-bold mb-2 text-[#232946]">{t('about:contact', 'Contact')}</h3>
+              <p className="text-gray-700 mb-4">{t('about:contactInfo', 'You can contact the developer of ReadFluent on these platforms.')}</p>
               <div className="flex flex-col gap-2 mt-auto">
-                <a href="https://discord.gg/your-link" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaDiscord /> Discord chat</a>
-                <a href="https://github.com/your-repo" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaGithub /> Github</a>
-                <a href="https://reddit.com/r/your-subreddit" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaReddit /> Reddit</a>
+                <a href="https://discord.gg/your-link" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaDiscord /> {t('about:discord', 'Discord chat')}</a>
+                <a href="https://github.com/your-repo" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaGithub /> {t('about:github', 'Github')}</a>
+                <a href="https://reddit.com/r/your-subreddit" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaReddit /> {t('about:reddit', 'Reddit')}</a>
               </div>
             </div>
             {/* Version */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 min-w-[260px] flex flex-col">
-              <h3 className="text-xl font-bold mb-2 text-[#232946]">Version</h3>
-              <p className="text-gray-700 mb-4">The current ReadFluent version is v0.1.0.</p>
+              <h3 className="text-xl font-bold mb-2 text-[#232946]">{t('about:version', 'Version')}</h3>
+              <p className="text-gray-700 mb-4">{t('about:currentVersion', { version: 'v0.1.0', defaultValue: 'The current ReadFluent version is {{version}}.' })}</p>
               <div className="flex flex-col gap-2 mt-auto">
-                <a href="/patch-notes" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaSyncAlt /> Update notes</a>
+                <a href="/patch-notes" className="flex items-center gap-2 text-[#2563eb] font-semibold hover:underline"><FaSyncAlt /> {t('about:updateNotes', 'Update notes')}</a>
               </div>
             </div>
           </div>
@@ -203,15 +205,15 @@ export default function Home() {
               >
                 ×
               </button>
-              <h2 className="text-2xl font-extrabold mb-4 text-[#222] tracking-tight text-center">Edit daily reading goal</h2>
+              <h2 className="text-2xl font-extrabold mb-4 text-[#222] tracking-tight text-center">{t('home:editDailyGoal', 'Edit daily reading goal')}</h2>
               <div style={{ background: BLUE, color: 'white', borderRadius: 10, padding: '12px 16px', marginBottom: 24, fontSize: 15, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <span style={{ fontWeight: 700, fontSize: 18, marginRight: 8, lineHeight: 1 }}>
                   <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.18"/><path d="M12 8v4m0 4h.01" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </span>
-                <span>This setting will only affect today's and upcoming days' goal. Past days' goals will not be affected.</span>
+                <span>{t('home:goalSettingInfo', 'This setting will only affect today\'s and upcoming days\' goal. Past days\' goals will not be affected.')}</span>
               </div>
               <div className="flex flex-col gap-4 items-center">
-                <label className="font-semibold text-gray-700 w-full text-left mb-1">Goal quantity</label>
+                <label className="font-semibold text-gray-700 w-full text-left mb-1">{t('home:goalQuantity', 'Goal quantity')}</label>
                 <input
                   type="number"
                   min={100}
@@ -236,7 +238,7 @@ export default function Home() {
                   <button
                     onClick={() => setShowGoalModal(false)}
                     className="px-4 py-2 rounded-full font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors text-base border-none focus:outline-none"
-                  >Cancel</button>
+                  >{t('common:cancel', 'Cancel')}</button>
                   <button
                     onClick={async () => {
                       const num = Number(goalInput);
@@ -256,7 +258,7 @@ export default function Home() {
                     }}
                     className="px-6 py-2 rounded-full font-bold text-white transition-colors text-base border-none focus:outline-none"
                     style={{ background: BLUE }}
-                  >Save</button>
+                  >{t('common:save', 'Save')}</button>
                 </div>
               </div>
             </div>

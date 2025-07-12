@@ -8,6 +8,7 @@ import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { UserService } from '@/services/userService';
 import { SentenceService, UserSentence } from '@/services/sentenceService';
 import { Clipboard } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const FILTERS = [
   { label: 'All', value: 'all' },
@@ -17,6 +18,9 @@ const FILTERS = [
 ];
 
 export default function WordsPage() {
+  const { t } = useTranslation(['words', 'common']);
+  const [_, setRerender] = useState(0);
+  useEffect(() => { setRerender(n => n + 1); }, []);
   const { user } = useAuth();
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'known' | 'tracking' | 'ignored'>('all');
@@ -102,7 +106,7 @@ export default function WordsPage() {
     return (
       <div className="flex items-center justify-center pt-16">
         <div className="text-[#232946] text-xl font-semibold">
-          Loading...
+          {t('common:loading', 'Loading...')}
         </div>
       </div>
     );
@@ -165,14 +169,14 @@ export default function WordsPage() {
           style={{ background: 'transparent', marginBottom: -1 }}
           onClick={() => setSelectedTab('words')}
         >
-          Words
+          {t('words:wordsTab', 'Words')}
         </button>
         <button
           className={`px-4 py-2 font-semibold text-base transition-colors border-b-2 ${selectedTab === 'sentences' ? 'border-[#2563eb] text-[#2563eb]' : 'border-transparent text-gray-500 hover:text-[#2563eb]'}`}
           style={{ background: 'transparent', marginBottom: -1 }}
           onClick={() => setSelectedTab('sentences')}
         >
-          Sentences
+          {t('words:sentencesTab', 'Sentences')}
         </button>
       </div>
 
@@ -180,12 +184,12 @@ export default function WordsPage() {
         <>
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#232946] mb-2">Words</h1>
+            <h1 className="text-3xl font-bold text-[#232946] mb-2">{t('words:title', 'Words')}</h1>
             <div className="flex gap-8 text-sm text-gray-600">
-              <span><strong>{totalWords}</strong> total words</span>
-              <span><strong>{knownWords}</strong> known</span>
-              <span><strong>{trackingWords}</strong> tracking</span>
-              <span><strong>{ignoredWords}</strong> ignored</span>
+              <span><strong>{totalWords}</strong> {t('words:totalWords', 'total words')}</span>
+              <span><strong>{knownWords}</strong> {t('words:known', 'known')}</span>
+              <span><strong>{trackingWords}</strong> {t('words:tracking', 'tracking')}</span>
+              <span><strong>{ignoredWords}</strong> {t('words:ignored', 'ignored')}</span>
             </div>
           </div>
 
@@ -197,7 +201,7 @@ export default function WordsPage() {
                 <input
                   type="text"
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none transition-all"
-                  placeholder="Search words..."
+                  placeholder={t('words:searchPlaceholder', 'Search words...')}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                 />
@@ -209,7 +213,7 @@ export default function WordsPage() {
                   value={filter}
                   onChange={e => setFilter(e.target.value as 'all' | 'known' | 'tracking' | 'ignored')}
                 >
-                  {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  {FILTERS.map(f => <option key={f.value} value={f.value}>{t(`words:filter.${f.value}`, f.label)}</option>)}
                 </select>
               </div>
               {/* Add button */}
@@ -217,10 +221,10 @@ export default function WordsPage() {
                 <button
                   className="px-4 py-2 rounded-lg bg-[#2563eb] text-white font-semibold shadow-sm hover:bg-[#1749b1] transition-colors text-sm border-none focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40 flex items-center gap-2 whitespace-nowrap"
                   onClick={openAddModal}
-                  title="Add Word"
+                  title={t('words:addWord', 'Add Word')}
                 >
                   <FiPlus className="w-4 h-4" />
-                  Add
+                  {t('words:add', 'Add')}
                 </button>
               </div>
             </div>
@@ -229,8 +233,8 @@ export default function WordsPage() {
           {/* Words Table */}
           {sortedWords.length === 0 ? (
             <div className="text-center py-16 text-gray-500">
-              <div className="text-lg mb-2">No words found</div>
-              <div className="text-sm">Add some words to track your vocabulary!</div>
+              <div className="text-lg mb-2">{t('words:noWordsFound', 'No words found')}</div>
+              <div className="text-sm">{t('words:addSomeWords', 'Add some words to track your vocabulary!')}</div>
             </div>
           ) : (
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -245,7 +249,7 @@ export default function WordsPage() {
                       style={{ width: '40%' }}
                     >
                       <div className="flex items-center gap-2">
-                        Word
+                        {t('words:word', 'Word')}
                         {sortColumn === 'word' && (
                           <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                         )}
@@ -257,13 +261,13 @@ export default function WordsPage() {
                       style={{ width: '25%' }}
                     >
                       <div className="flex items-center gap-2">
-                        Status
+                        {t('words:status', 'Status')}
                         {sortColumn === 'type' && (
                           <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                         )}
                       </div>
                     </th>
-                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Language</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>{t('words:language', 'Language')}</th>
                     <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
                   </tr>
                 </thead>
@@ -298,7 +302,7 @@ export default function WordsPage() {
                               'bg-gray-100 text-gray-800'}
                           `}
                         >
-                          {word.type}
+                          {t(`words:statusLabel.${word.type}`, word.type)}
                         </span>
                       </td>
 
@@ -314,7 +318,7 @@ export default function WordsPage() {
                         <button
                           onClick={() => handleDeleteWord(word)}
                           className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                          title="Delete word"
+                          title={t('words:deleteWord', 'Delete word')}
                         >
                           <FiTrash2 className="w-4 h-4" />
                         </button>
@@ -331,8 +335,8 @@ export default function WordsPage() {
       {selectedTab === 'sentences' && (
         sentences.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
-            <div className="text-lg mb-2">No sentences found</div>
-            <div className="text-sm">Add sentences by clicking on them while reading</div>
+            <div className="text-lg mb-2">{t('words:noSentencesFound', 'No sentences found')}</div>
+            <div className="text-sm">{t('words:addSentencesHint', 'Add sentences by clicking on them while reading')}</div>
           </div>
         ) : (
           <div>
@@ -341,15 +345,15 @@ export default function WordsPage() {
                 onClick={() => {
                   const allText = sentences.map(s => s.text).join('\n');
                   navigator.clipboard.writeText(allText);
-                  setCopyToastMessage('All sentences copied!');
+                  setCopyToastMessage(t('words:allSentencesCopied', 'All sentences copied!'));
                   setShowCopyToast(true);
                   setTimeout(() => setShowCopyToast(false), 2000);
                 }}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200 sm:px-4"
               >
                 <Clipboard className="w-4 h-4" />
-                <span className="hidden sm:inline">Copy All</span>
-                <span className="sm:hidden">Copy</span>
+                <span className="hidden sm:inline">{t('words:copyAll', 'Copy All')}</span>
+                <span className="sm:hidden">{t('words:copy', 'Copy')}</span>
               </button>
             </div>
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
@@ -413,11 +417,11 @@ export default function WordsPage() {
                   onClick={() => setShowAdd(false)}
               className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
                   style={{ lineHeight: 1 }}
-                  aria-label="Close"
+                  aria-label={t('common:close', 'Close')}
                 >×</button>
-            <h2 className="text-2xl font-bold mb-6 text-[#232946] text-center">Add Word</h2>
+            <h2 className="text-2xl font-bold mb-6 text-[#232946] text-center">{t('words:addWord', 'Add Word')}</h2>
                 {!langLoaded ? (
-              <div className="text-gray-500 text-center">Loading language...</div>
+              <div className="text-gray-500 text-center">{t('words:loadingLanguage', 'Loading language...')}</div>
                 ) : (
                   <form onSubmit={async (e) => {
                     e.preventDefault();
@@ -447,13 +451,13 @@ export default function WordsPage() {
                       onChange={e => setAddMultiple(e.target.checked)}
                       className="w-4 h-4 text-[#2563eb] border-gray-300 rounded focus:ring-[#2563eb]"
                     />
-                    Add multiple words
+                    {t('words:addMultiple', 'Add multiple words')}
                       </label>
                     </div>
                     {addMultiple ? (
                       <textarea
                     className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none min-h-[100px] transition-all"
-                    placeholder='Enter words separated by spaces or commas, or use quotes for phrases (e.g. banana fruit "to be")'
+                    placeholder={t('words:multiInputPlaceholder', 'Enter words separated by spaces or commas, or use quotes for phrases (e.g. banana fruit "to be")')}
                         value={addMultiText}
                         onChange={e => setAddMultiText(e.target.value)}
                         required
@@ -461,7 +465,7 @@ export default function WordsPage() {
                     ) : (
                       <input
                     className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#232946] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all"
-                    placeholder="Enter word"
+                    placeholder={t('words:singleInputPlaceholder', 'Enter word')}
                         value={addWord}
                         onChange={e => setAddWord(e.target.value)}
                         required
@@ -473,9 +477,9 @@ export default function WordsPage() {
                         value={addType}
                         onChange={e => setAddType(e.target.value as WordType)}
                       >
-                        <option value="known">Known</option>
-                        <option value="tracking">Tracking</option>
-                        <option value="ignored">Ignored</option>
+                        <option value="known">{t('words:statusLabel.known', 'Known')}</option>
+                        <option value="tracking">{t('words:statusLabel.tracking', 'Tracking')}</option>
+                        <option value="ignored">{t('words:statusLabel.ignored', 'Ignored')}</option>
                       </select>
                       <select
                     className="rounded-lg border-2 border-gray-200 px-4 py-3 text-base font-medium text-[#2563eb] bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#e6f0fd] outline-none transition-all flex-1"
@@ -489,14 +493,14 @@ export default function WordsPage() {
                       type="submit"
                   className="rounded-lg bg-[#2563eb] text-white font-bold px-6 py-3 hover:bg-[#1749b1] transition-all text-base"
                 >
-                  Add {addMultiple ? 'Words' : 'Word'}
+                  {t('words:add', addMultiple ? 'Add Words' : 'Add Word')}
                 </button>
                     <button
                       type="button"
                   className="rounded-lg bg-gray-100 text-gray-400 font-medium px-6 py-3 cursor-not-allowed text-base"
                       disabled
                 >
-                  Import Migaku .db file (Coming Soon)
+                  {t('words:importMigaku', 'Import Migaku .db file (Coming Soon)')}
                 </button>
                   </form>
                 )}

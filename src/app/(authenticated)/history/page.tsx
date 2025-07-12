@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
 import { getBooks, getArchivedBooks, deleteArchivedBook, ArchivedBookMetadata } from '@/services/epubService';
 import { FiTrash2 } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 
 interface ArchivedBookRow {
   id: string;
@@ -19,6 +20,7 @@ interface ArchivedBookRow {
 }
 
 export default function HistoryPage() {
+  const { t } = useTranslation(['history', 'common']);
   const { user } = useAuth();
   const router = useRouter();
   const [sessions, setSessions] = useState<ReadingSession[]>([]);
@@ -181,7 +183,7 @@ export default function HistoryPage() {
     return (
       <div className="flex items-center justify-center pt-16">
         <div className="text-[#232946] text-xl font-semibold">
-          Loading...
+          {t('common:loading', 'Loading...')}
         </div>
       </div>
     );
@@ -191,7 +193,7 @@ export default function HistoryPage() {
     return (
       <div className="flex items-center justify-center pt-16">
         <div className="text-[#232946] text-xl font-semibold">
-          Loading reading history...
+          {t('history:loadingHistory', 'Loading reading history...')}
         </div>
       </div>
     );
@@ -205,13 +207,13 @@ export default function HistoryPage() {
           className={`px-4 py-2 font-semibold text-base border-b-2 transition-colors ${selectedTab === 'session' ? 'border-[#2563eb] text-[#2563eb] bg-gray-50' : 'border-transparent text-gray-500 bg-transparent hover:bg-gray-50'}`}
           onClick={() => setSelectedTab('session')}
         >
-          Session History
+          {t('history:sessionTab', 'Session History')}
         </button>
         <button
           className={`px-4 py-2 font-semibold text-base border-b-2 transition-colors ${selectedTab === 'book' ? 'border-[#2563eb] text-[#2563eb] bg-gray-50' : 'border-transparent text-gray-500 bg-transparent hover:bg-gray-50'}`}
           onClick={() => setSelectedTab('book')}
         >
-          Book History
+          {t('history:bookTab', 'Book History')}
         </button>
       </div>
       {/* Tab Content */}
@@ -219,11 +221,11 @@ export default function HistoryPage() {
         <>
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#232946] mb-2">Reading History</h1>
+            <h1 className="text-3xl font-bold text-[#232946] mb-2">{t('history:readingHistory', 'Reading History')}</h1>
             <div className="flex gap-8 text-sm text-gray-600 items-center">
-              <span><strong>{totalSessions}</strong> sessions</span>
-              <span><strong>{totalWords.toLocaleString()}</strong> total words</span>
-              <span><strong>{averageWordsPerSession.toLocaleString()}</strong> avg words/session</span>
+              <span><strong>{totalSessions}</strong> {t('history:totalSessions', 'sessions')}</span>
+              <span><strong>{totalWords.toLocaleString()}</strong> {t('history:totalWords', 'total words')}</span>
+              <span><strong>{averageWordsPerSession.toLocaleString()}</strong> {t('history:averageWordsPerSession', 'avg words/session')}</span>
               <label className="flex items-center gap-2 ml-2 select-none cursor-pointer">
                 <input
                   type="checkbox"
@@ -231,15 +233,15 @@ export default function HistoryPage() {
                   onChange={e => setMergeRows(e.target.checked)}
                   className="accent-[#2563eb] h-4 w-4 border-2 border-gray-300 rounded"
                 />
-                Merge sessions
+                {t('history:mergeSessions', 'Merge sessions')}
               </label>
             </div>
           </div>
 
           {sessions.length === 0 ? (
             <div className="text-center py-16 text-gray-500">
-              <div className="text-lg mb-2">No reading sessions yet</div>
-              <div className="text-sm">Start reading a book to track your progress!</div>
+              <div className="text-lg mb-2">{t('history:noSessionsYet', 'No reading sessions yet')}</div>
+              <div className="text-sm">{t('history:startReading', 'Start reading a book to track your progress!')}</div>
             </div>
           ) : (
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -254,7 +256,7 @@ export default function HistoryPage() {
                       style={{ width: '35%' }}
                     >
                       <div className="flex items-center gap-2">
-                        Book Title
+                        {t('history:bookTitle', 'Book Title')}
                         {sortColumn === 'book' && (
                           <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                         )}
@@ -266,7 +268,7 @@ export default function HistoryPage() {
                       style={{ width: '15%' }}
                     >
                       <div className="flex items-center gap-2">
-                        Date
+                        {t('history:date', 'Date')}
                         {sortColumn === 'timestamp' && (
                           <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                         )}
@@ -278,13 +280,13 @@ export default function HistoryPage() {
                       style={{ width: '15%' }}
                     >
                       <div className="flex items-center gap-2">
-                        Words
+                        {t('history:words', 'Words')}
                         {sortColumn === 'wordCount' && (
                           <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                         )}
                       </div>
                     </th>
-                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Time (min)</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>{t('history:time', 'Time (min)')}</th>
                     <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
                   </tr>
                 </thead>
@@ -339,7 +341,7 @@ export default function HistoryPage() {
                         <button
                           onClick={() => handleDeleteSession(session)}
                           className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                          title="Delete session"
+                          title={t('history:deleteSession', 'Delete session')}
                         >
                           <FiTrash2 className="w-4 h-4" />
                         </button>
@@ -357,12 +359,12 @@ export default function HistoryPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-[#232946]">
                 <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
-                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '35%' }}>Book Title</th>
-                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Total Words</th>
-                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Words Read</th>
-                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Percent Complete</th>
-                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Started</th>
-                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Ended</th>
+                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '35%' }}>{t('history:bookTitle', 'Book Title')}</th>
+                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>{t('history:totalWords', 'Total Words')}</th>
+                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>{t('history:wordsRead', 'Words Read')}</th>
+                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>{t('history:percentComplete', 'Percent Complete')}</th>
+                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>{t('history:dateStarted', 'Date Started')}</th>
+                <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>{t('history:dateEnded', 'Date Ended')}</th>
                 <th className="py-2 px-3 border-r border-gray-200 text-center" style={{ width: '8%' }}></th>
               </tr>
             </thead>
@@ -416,7 +418,7 @@ export default function HistoryPage() {
                       <button
                         onClick={() => handleDeleteArchivedBook(book.id)}
                         className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                        title="Delete archived book"
+                        title={t('history:deleteArchivedBook', 'Delete archived book')}
                       >
                         <FiTrash2 className="w-4 h-4" />
                       </button>

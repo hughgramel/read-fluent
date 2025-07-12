@@ -4,9 +4,6 @@ import { Cinzel_Decorative, Playfair_Display, Merriweather, EB_Garamond } from "
 import { M_PLUS_Rounded_1c } from 'next/font/google';
 import "./globals.css";
 import { Providers } from '@/components/Providers';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { I18nProvider } from '@/contexts/I18nContext';
-import '@/i18n/config';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -54,23 +51,15 @@ export const metadata: Metadata = {
   description: "Learn a new language by reading the books you love",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${cinzelDecorative.variable} ${playfairDisplay.variable} ${merriweather.variable} ${ebGaramond.variable} ${mplusRounded.variable} antialiased`}
       >
-        <AuthProvider>
-          <I18nProvider>
-            <Providers>
-              {children}
-            </Providers>
-          </I18nProvider>
-        </AuthProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

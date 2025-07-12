@@ -10,6 +10,8 @@ import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus, FiArchive } from 'react-i
 import { uploadFileAndGetUrl } from '@/lib/firebase';
 import '@fontsource/inter';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
+import { useTranslation } from 'react-i18next';
+import { useI18n } from '@/contexts/I18nContext';
 
 // Types
 interface BookSection {
@@ -91,6 +93,7 @@ export default function library() {
   const [archivedBooks, setArchivedBooks] = useState<ArchivedBookCard[]>([]);
   const [batchMdLoading, setBatchMdLoading] = useState(false);
   const [batchMdError, setBatchMdError] = useState('');
+  const { t } = useTranslation(['library', 'common']);
 
   // Auto-scroll effect
   useEffect(() => {
