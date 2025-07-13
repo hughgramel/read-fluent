@@ -81,6 +81,21 @@ export function useReaderState(user: any) {
   const [showUnmarkedPopup, setShowUnmarkedPopup] = useState({ visible: false, wordCount: 0 });
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [showSentenceSaved, setShowSentenceSaved] = useState(false);
+  
+  // Word definition popup state
+  const [wordDefinitionPopup, setWordDefinitionPopup] = useState<{
+    isVisible: boolean;
+    word: string;
+    position: { x: number; y: number };
+  }>({
+    isVisible: false,
+    word: '',
+    position: { x: 0, y: 0 }
+  });
+  
+  // Shift key state for definition popup
+  const [isShiftHeld, setIsShiftHeld] = useState(false);
+  const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-hide popups after timeout
   useEffect(() => {
@@ -495,6 +510,70 @@ export function useReaderState(user: any) {
     setHoveredWord(word);
   }, []);
 
+  // Keyboard event handlers for shift key tracking
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setIsShiftHeld(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setIsShiftHeld(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Word definition popup handlers
+  const handleWordDefinitionHover = useCallback((word: string | null, event?: React.MouseEvent) => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+
+    if (word && isShiftHeld && event) {
+      setWordDefinitionPopup({
+        isVisible: true,
+        word,
+        position: { x: event.clientX, y: event.clientY }
+      });
+    } else if (!word || !isShiftHeld) {
+      setWordDefinitionPopup(prev => ({ ...prev, isVisible: false }));
+    }
+  }, [isShiftHeld, longPressTimer]);
+
+  const handleWordDefinitionLongPress = useCallback((word: string, event: React.MouseEvent) => {
+    const timer = setTimeout(() => {
+      setWordDefinitionPopup({
+        isVisible: true,
+        word,
+        position: { x: event.clientX, y: event.clientY }
+      });
+    }, 500); // 500ms long press
+
+    setLongPressTimer(timer);
+  }, []);
+
+  const handleWordDefinitionMouseUp = useCallback(() => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  }, [longPressTimer]);
+
+  const closeWordDefinitionPopup = useCallback(() => {
+    setWordDefinitionPopup(prev => ({ ...prev, isVisible: false }));
+  }, []);
+
   // Calculate derived values
   const currentSection = book?.sections?.[currentSectionIndex];
   const currentPages = sectionPages[currentSectionIndex] || [];
@@ -537,6 +616,8 @@ export function useReaderState(user: any) {
     showCopyConfirm,
     showSentenceSaved,
     hoveredWord,
+    wordDefinitionPopup,
+    isShiftHeld,
     
     // Derived values
     currentSection,
@@ -581,5 +662,9 @@ export function useReaderState(user: any) {
     updateWordStatus,
     getWordStatus,
     handleWordHover,
+    handleWordDefinitionHover,
+    handleWordDefinitionLongPress,
+    handleWordDefinitionMouseUp,
+    closeWordDefinitionPopup,
   };
 } 

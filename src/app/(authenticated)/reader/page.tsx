@@ -10,6 +10,7 @@ import { ReaderContent } from '@/components/reader/ReaderContent';
 import { ReaderSettings } from '@/components/reader/ReaderSettings';
 import { ReaderPopups } from '@/components/reader/ReaderPopups';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
+import { WordDefinitionPopup } from '@/components/reader/WordDefinitionPopup';
 import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle } from '@/components/reader/ReaderUtils';
 import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle } from 'lucide-react';
 // @ts-ignore
@@ -50,6 +51,8 @@ export default function ReaderPage() {
     showCopyConfirm,
     showSentenceSaved,
     hoveredWord,
+    wordDefinitionPopup,
+    isShiftHeld,
     
     // Derived values
     currentSection,
@@ -90,6 +93,10 @@ export default function ReaderPage() {
     updateWordStatus,
     getWordStatus,
     handleWordHover,
+    handleWordDefinitionHover,
+    handleWordDefinitionLongPress,
+    handleWordDefinitionMouseUp,
+    closeWordDefinitionPopup,
   } = useReaderState(user);
 
   // Keyboard navigation
@@ -437,6 +444,9 @@ export default function ReaderPage() {
                 hoveredWord={hoveredWord}
                 onWordHover={handleWordHover}
                 onWordClick={handleWordClick}
+                onWordDefinitionHover={handleWordDefinitionHover}
+                onWordDefinitionLongPress={handleWordDefinitionLongPress}
+                onWordDefinitionMouseUp={handleWordDefinitionMouseUp}
               />
             </div>
           </div>
@@ -785,6 +795,14 @@ export default function ReaderPage() {
           Sentence saved!
         </div>
       )}
+      
+      {/* Word Definition Popup */}
+      <WordDefinitionPopup
+        word={wordDefinitionPopup.word}
+        position={wordDefinitionPopup.position}
+        isVisible={wordDefinitionPopup.isVisible}
+        onClose={closeWordDefinitionPopup}
+      />
     </div>
   );
 } 

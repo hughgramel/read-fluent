@@ -32,6 +32,9 @@ interface ReaderContentProps {
   hoveredWord: string | null;
   onWordHover: (word: string | null) => void;
   onWordClick?: (word: string) => void;
+  onWordDefinitionHover?: (word: string | null, event?: React.MouseEvent) => void;
+  onWordDefinitionLongPress?: (word: string, event: React.MouseEvent) => void;
+  onWordDefinitionMouseUp?: () => void;
 }
 
 export function ReaderContent({
@@ -63,6 +66,9 @@ export function ReaderContent({
   hoveredWord,
   onWordHover,
   onWordClick,
+  onWordDefinitionHover,
+  onWordDefinitionLongPress,
+  onWordDefinitionMouseUp,
 }: ReaderContentProps) {
   return (
     <div style={{ 
@@ -138,8 +144,28 @@ export function ReaderContent({
                               borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
                               cursor: enableHighlightWords ? 'pointer' : 'default',
                             }}
-                            onMouseEnter={() => enableHighlightWords && onWordHover(word)}
-                            onMouseLeave={() => enableHighlightWords && onWordHover(null)}
+                            onMouseEnter={(e) => {
+                              if (enableHighlightWords) {
+                                onWordHover(word);
+                                onWordDefinitionHover && onWordDefinitionHover(word, e);
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (enableHighlightWords) {
+                                onWordHover(null);
+                                onWordDefinitionHover && onWordDefinitionHover(null, e);
+                              }
+                            }}
+                            onMouseDown={(e) => {
+                              if (enableHighlightWords) {
+                                onWordDefinitionLongPress && onWordDefinitionLongPress(word, e);
+                              }
+                            }}
+                            onMouseUp={() => {
+                              if (enableHighlightWords) {
+                                onWordDefinitionMouseUp && onWordDefinitionMouseUp();
+                              }
+                            }}
                             onClick={enableHighlightWords && onWordClick ? (e) => { e.stopPropagation(); onWordClick(word); } : undefined}
                           >
                             {word + ' '}
@@ -163,8 +189,28 @@ export function ReaderContent({
                           borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
                           cursor: enableHighlightWords ? 'pointer' : 'default',
                         }}
-                        onMouseEnter={() => enableHighlightWords && onWordHover(word)}
-                        onMouseLeave={() => enableHighlightWords && onWordHover(null)}
+                        onMouseEnter={(e) => {
+                          if (enableHighlightWords) {
+                            onWordHover(word);
+                            onWordDefinitionHover && onWordDefinitionHover(word, e);
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (enableHighlightWords) {
+                            onWordHover(null);
+                            onWordDefinitionHover && onWordDefinitionHover(null, e);
+                          }
+                        }}
+                        onMouseDown={(e) => {
+                          if (enableHighlightWords) {
+                            onWordDefinitionLongPress && onWordDefinitionLongPress(word, e);
+                          }
+                        }}
+                        onMouseUp={() => {
+                          if (enableHighlightWords) {
+                            onWordDefinitionMouseUp && onWordDefinitionMouseUp();
+                          }
+                        }}
                         onClick={enableHighlightWords && onWordClick ? (e) => { e.stopPropagation(); onWordClick(word); } : undefined}
                       >
                         {word + ' '}
