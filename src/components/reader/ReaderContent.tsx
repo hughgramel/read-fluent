@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Clipboard } from 'lucide-react';
 import { WordType } from './ReaderTypes';
 import { getWordUnderline, cleanWord } from './ReaderUtils';
@@ -22,7 +22,6 @@ interface ReaderContentProps {
   activeWordIndex: number | null;
   currentlyHighlightedSentence: number | null;
   isSentenceSelectMode: boolean;
-  savedSentencesSet: Set<string>;
   onSentenceClick: (sentence: string, sentenceIndex: number) => void;
   onSentenceHover: (sentenceIndex: number | null) => void;
   onCopyText: () => void;
@@ -31,10 +30,10 @@ interface ReaderContentProps {
   getWordStatus: (word: string) => WordType | undefined;
   hoveredWord: string | null;
   onWordHover: (word: string | null) => void;
-  onWordClick?: (word: string) => void;
   onWordDefinitionHover?: (word: string | null, event?: React.MouseEvent) => void;
   onWordDefinitionLongPress?: (word: string, event: React.MouseEvent) => void;
   onWordDefinitionMouseUp?: () => void;
+  getWordKey?: (word: string, idx: number) => string;
 }
 
 export function ReaderContent({
@@ -56,7 +55,6 @@ export function ReaderContent({
   activeWordIndex,
   currentlyHighlightedSentence,
   isSentenceSelectMode,
-  savedSentencesSet,
   onSentenceClick,
   onSentenceHover,
   onCopyText,
@@ -65,11 +63,59 @@ export function ReaderContent({
   getWordStatus,
   hoveredWord,
   onWordHover,
-  onWordClick,
   onWordDefinitionHover,
   onWordDefinitionLongPress,
   onWordDefinitionMouseUp,
+  getWordKey,
 }: ReaderContentProps) {
+  // Track which word span is hovered (by word+index)
+  const [hoveredWordKey, setHoveredWordKey] = useState<string | null>(null);
+  const hoveredWordInfo = useRef<{ word: string; sentence: string; rect: DOMRect | null } | null>(null);
+  const [popup, setPopup] = useState<null | { word: string; sentence: string; x: number; y: number; position: 'above' | 'below'; align: 'left' | 'right' }>(null);
+  const popupTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Show popup for 2 seconds
+  const showPopup = (word: string, sentence: string, rect: DOMRect | null) => {
+    if (!rect) return;
+    // Calculate position: above or below depending on space
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceLeft = rect.left;
+    const spaceRight = viewportWidth - rect.right;
+    const position = spaceBelow > spaceAbove ? 'below' : 'above';
+    // Decide horizontal alignment: left or right
+    const align = spaceRight > spaceLeft ? 'left' : 'right';
+    // For left: popup's left edge aligns with word's left edge
+    // For right: popup's right edge aligns with word's right edge
+    const x = align === 'left' ? rect.left : rect.right;
+    const y = position === 'below' ? rect.bottom + 6 : rect.top - 6;
+    setPopup({ word, sentence, x, y, position, align });
+    if (popupTimeout.current) clearTimeout(popupTimeout.current);
+    popupTimeout.current = setTimeout(() => setPopup(null), 2000);
+  };
+
+  useEffect(() => {
+    const handleShiftClick = (e: KeyboardEvent) => {
+      if (e.key === 'Shift' && hoveredWordKey && hoveredWordInfo.current) {
+        showPopup(hoveredWordInfo.current.word, hoveredWordInfo.current.sentence, hoveredWordInfo.current.rect);
+      }
+    };
+    window.addEventListener('keydown', handleShiftClick);
+    return () => {
+      window.removeEventListener('keydown', handleShiftClick);
+      if (popupTimeout.current) clearTimeout(popupTimeout.current);
+    };
+  }, [hoveredWordKey]);
+
+  // Hide popup on mouse leave
+  const handleMouseLeave = () => {
+    setHoveredWordKey(null);
+    hoveredWordInfo.current = null;
+    setPopup(null);
+  };
+
   return (
     <div style={{ 
       fontFamily: readerFont, 
@@ -79,147 +125,147 @@ export function ReaderContent({
       color: invisibleText ? 'rgba(0,0,0,0.01)' : '#232946', 
       lineHeight: lineSpacing 
     }}>
-      {disableSentenceSpans ? (
-        <div>{flatSentences.join(' ') + ' '}</div>
-      ) : (
-        flatSentences.map((sentence, sIdx) => {
-          const words = sentence.match(/\S+/g) || [];
-          const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
-          const isSentenceHovered = highlightSentenceOnHover && sIdx === currentlyHighlightedSentence;
-          const showCurrentSentence = invisibleText && isWHeld && isSentenceHighlighted;
-          const forceVisible = showCurrentSentence || (invisibleText && isWHeld && isSentenceHighlighted);
-          
-          return (
-            <span
-              key={sIdx}
-              data-sentence-index={sIdx}
-              className={`${isSentenceHighlighted ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
-              style={{
-                marginRight: 8,
-                cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'pointer'),
-                color: showCurrentSentence
-                  ? '#232946'
-                  : (invisibleText ? 'rgba(0,0,0,0.01)' : '#232946'),
-                background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
-                borderRadius: isSentenceHovered ? '0.25em' : undefined,
-                transition: 'background 0.15s',
-                boxShadow: isSentenceHovered ? '0 -4px 0 0 rgba(56, 189, 248, 0.18)' : undefined,
-                display: 'inline',
-                verticalAlign: 'baseline',
-              }}
-              onClick={() => onSentenceClick(sentence, sIdx)}
-              onMouseEnter={highlightSentenceOnHover ? () => onSentenceHover(sIdx) : undefined}
-              onMouseLeave={highlightSentenceOnHover ? () => onSentenceHover(null) : undefined}
-            >
-              {disableWordSpans
-                ? sentence + ' '
-                : words.map((word, wIdx) => {
-                    const isWordHighlighted = isSentenceHighlighted && wIdx === activeWordIndex && !disableWordHighlighting;
-                    const wordStatus = enableHighlightWords ? getWordStatus(word) : undefined;
-                    const isHovered = hoveredWord === cleanWord(word);
-                    
-                    // Insert clipboard button before the first word of the first sentence on mobile
-                    if (isMobile && sIdx === 0 && wIdx === 0) {
-                      return (
-                        <React.Fragment key={wIdx}>
-                          <button
-                            onClick={onCopyText}
-                            className="inline-flex items-center justify-center w-7 h-7 min-w-0 min-h-0 p-0 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 shadow border border-gray-300 mr-1 align-middle"
-                            title="Copy page text"
-                            style={{ verticalAlign: 'middle' }}
-                          >
-                            <Clipboard className="w-4 h-4" />
-                          </button>
-                          <span
-                            className={isWordHighlighted ? 'speaking-highlight-word' : ''}
-                            style={{
-                              marginRight: 4,
-                              color: showCurrentSentence
-                                ? '#232946'
-                                : (invisibleText
-                                    ? (showCurrentWordWhenInvisible && isWordHighlighted
-                                        ? '#232946'
-                                        : 'rgba(0,0,0,0.001)')
-                                    : undefined),
-                              borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
-                              cursor: enableHighlightWords ? 'pointer' : 'default',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (enableHighlightWords) {
-                                onWordHover(word);
-                                onWordDefinitionHover && onWordDefinitionHover(word, e);
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (enableHighlightWords) {
-                                onWordHover(null);
-                                onWordDefinitionHover && onWordDefinitionHover(null, e);
-                              }
-                            }}
-                            onMouseDown={(e) => {
-                              if (enableHighlightWords) {
-                                onWordDefinitionLongPress && onWordDefinitionLongPress(word, e);
-                              }
-                            }}
-                            onMouseUp={() => {
-                              if (enableHighlightWords) {
-                                onWordDefinitionMouseUp && onWordDefinitionMouseUp();
-                              }
-                            }}
-                            onClick={enableHighlightWords && onWordClick ? (e) => { e.stopPropagation(); onWordClick(word); } : undefined}
-                          >
-                            {word + ' '}
-                          </span>
-                        </React.Fragment>
-                      );
-                    }
-                    return (
-                      <span
-                        key={wIdx}
-                        className={isWordHighlighted ? 'speaking-highlight-word' : ''}
-                        style={{
-                          marginRight: 4,
-                          color: showCurrentSentence
-                            ? '#232946'
-                            : (invisibleText
-                                ? (showCurrentWordWhenInvisible && isWordHighlighted
-                                    ? '#232946'
-                                    : 'rgba(0,0,0,0.001)')
-                                : undefined),
-                          borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
-                          cursor: enableHighlightWords ? 'pointer' : 'default',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (enableHighlightWords) {
-                            onWordHover(word);
-                            onWordDefinitionHover && onWordDefinitionHover(word, e);
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (enableHighlightWords) {
-                            onWordHover(null);
-                            onWordDefinitionHover && onWordDefinitionHover(null, e);
-                          }
-                        }}
-                        onMouseDown={(e) => {
-                          if (enableHighlightWords) {
-                            onWordDefinitionLongPress && onWordDefinitionLongPress(word, e);
-                          }
-                        }}
-                        onMouseUp={() => {
-                          if (enableHighlightWords) {
-                            onWordDefinitionMouseUp && onWordDefinitionMouseUp();
-                          }
-                        }}
-                        onClick={enableHighlightWords && onWordClick ? (e) => { e.stopPropagation(); onWordClick(word); } : undefined}
-                      >
-                        {word + ' '}
-                      </span>
-                    );
-                  })}
-            </span>
-          );
-        })
+      {flatSentences.map((sentence, sIdx) => {
+        const words = sentence.match(/\S+/g) || [];
+        const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
+        const isSentenceHovered = highlightSentenceOnHover && sIdx === currentlyHighlightedSentence;
+        const showCurrentSentence = invisibleText && isWHeld && isSentenceHighlighted;
+        const forceVisible = showCurrentSentence || (invisibleText && isWHeld && isSentenceHighlighted);
+        
+        return (
+          <span
+            key={sIdx}
+            data-sentence-index={sIdx}
+            className={`${isSentenceHighlighted ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
+            style={{
+              marginRight: 8,
+              cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'pointer'),
+              color: showCurrentSentence
+                ? '#232946'
+                : (invisibleText ? 'rgba(0,0,0,0.01)' : '#232946'),
+              background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
+              borderRadius: isSentenceHovered ? '0.25em' : undefined,
+              transition: 'background 0.15s',
+              boxShadow: isSentenceHovered ? '0 -4px 0 0 rgba(56, 189, 248, 0.18)' : undefined,
+              display: 'inline',
+              verticalAlign: 'baseline',
+            }}
+          >
+            {words.map((word, wIdx) => {
+              const wordStatus = enableHighlightWords ? getWordStatus(word) : undefined;
+              const wordKey = getWordKey ? getWordKey(word, wIdx) : `${word}__${wIdx}`;
+              const isHovered = hoveredWordKey === wordKey;
+              const spanRef = useRef<HTMLSpanElement>(null);
+              if (isMobile && sIdx === 0 && wIdx === 0) {
+                return (
+                  <React.Fragment key={wIdx}>
+                    <button
+                      onClick={onCopyText}
+                      className="inline-flex items-center justify-center w-7 h-7 min-w-0 min-h-0 p-0 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 shadow border border-gray-300 mr-1 align-middle"
+                      title="Copy page text"
+                      style={{ verticalAlign: 'middle' }}
+                    >
+                      <Clipboard className="w-4 h-4" />
+                    </button>
+                    <span
+                      ref={spanRef}
+                      style={{
+                        marginRight: 4,
+                        color: showCurrentSentence
+                          ? '#232946'
+                          : (invisibleText
+                              ? (showCurrentWordWhenInvisible
+                                  ? '#232946'
+                                  : 'rgba(0,0,0,0.001)')
+                              : undefined),
+                        borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                        cursor: enableHighlightWords ? 'pointer' : 'default',
+                      }}
+                      onMouseEnter={e => {
+                        setHoveredWordKey(wordKey);
+                        hoveredWordInfo.current = { word, sentence, rect: spanRef.current?.getBoundingClientRect() || null };
+                        if (onWordDefinitionHover) onWordDefinitionHover(word, e);
+                        if (enableHighlightWords) onWordHover(word);
+                      }}
+                      onMouseLeave={e => {
+                        handleMouseLeave();
+                        if (onWordDefinitionHover) onWordDefinitionHover(null, e);
+                        if (enableHighlightWords) onWordHover(null);
+                      }}
+                      onClick={() => {
+                        showPopup(word, sentence, spanRef.current?.getBoundingClientRect() || null);
+                      }}
+                    >
+                      {word + ' '}
+                    </span>
+                  </React.Fragment>
+                );
+              }
+              return (
+                <span
+                  key={wIdx}
+                  ref={spanRef}
+                  style={{
+                    marginRight: 4,
+                    color: showCurrentSentence
+                      ? '#232946'
+                      : (invisibleText
+                          ? (showCurrentWordWhenInvisible
+                              ? '#232946'
+                              : 'rgba(0,0,0,0.001)')
+                          : undefined),
+                    borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                    cursor: enableHighlightWords ? 'pointer' : 'default',
+                  }}
+                  onMouseEnter={e => {
+                    setHoveredWordKey(wordKey);
+                    hoveredWordInfo.current = { word, sentence, rect: spanRef.current?.getBoundingClientRect() || null };
+                    if (onWordDefinitionHover) onWordDefinitionHover(word, e);
+                    if (enableHighlightWords) onWordHover(word);
+                  }}
+                  onMouseLeave={e => {
+                    handleMouseLeave();
+                    if (onWordDefinitionHover) onWordDefinitionHover(null, e);
+                    if (enableHighlightWords) onWordHover(null);
+                  }}
+                  onClick={() => {
+                    showPopup(word, sentence, spanRef.current?.getBoundingClientRect() || null);
+                  }}
+                >
+                  {word + ' '}
+                </span>
+              );
+            })}
+          </span>
+        );
+      })}
+      {/* Popup for word/sentence */}
+      {popup && (
+        <div
+          style={{
+            position: 'fixed',
+            left: popup.align === 'left' ? popup.x : undefined,
+            right: popup.align === 'right' ? (window.innerWidth - popup.x) : undefined,
+            top: popup.position === 'below' ? popup.y : undefined,
+            bottom: popup.position === 'above' ? window.innerHeight - popup.y : undefined,
+            // No horizontal transform, only vertical offset
+            zIndex: 9999,
+            background: 'white',
+            color: '#232946',
+            border: '1px solid #888',
+            borderRadius: 8,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            padding: '10px 18px',
+            fontSize: 16,
+            minWidth: 120,
+            maxWidth: 320,
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>{popup.word}</div>
+          <div style={{ fontSize: 14, color: '#444' }}>{popup.sentence}</div>
+        </div>
       )}
     </div>
   );

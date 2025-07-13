@@ -9,9 +9,11 @@ interface WordDefinitionPopupProps {
   position: { x: number; y: number };
   onClose: () => void;
   isVisible: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-export function WordDefinitionPopup({ word, position, onClose, isVisible }: WordDefinitionPopupProps) {
+export function WordDefinitionPopup({ word, position, onClose, isVisible, onMouseEnter, onMouseLeave }: WordDefinitionPopupProps) {
   const [response, setResponse] = useState<WiktionaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -90,6 +92,8 @@ export function WordDefinitionPopup({ word, position, onClose, isVisible }: Word
           borderColor: 'var(--border-color)',
           boxShadow: `0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)`,
         }}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         {/* Header */}
         <div className="px-4 py-3 theme-bg-primary border-b theme-border">

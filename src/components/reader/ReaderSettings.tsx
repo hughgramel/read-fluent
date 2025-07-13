@@ -167,102 +167,6 @@ export function ReaderSettings({
 
         <div className="mb-6 flex items-center">
           <input
-            id="disable-word-highlighting"
-            type="checkbox"
-            checked={settings.disableWordHighlighting}
-            onChange={e => onSavePreferences({ disableWordHighlighting: e.target.checked })}
-            className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-          />
-          <label htmlFor="disable-word-highlighting" className="font-bold text-black select-none cursor-pointer">Disable word highlighting</label>
-        </div>
-
-        <div className="mb-6 flex items-center">
-          <input
-            id="disable-sentence-highlighting"
-            type="checkbox"
-            checked={settings.disableSentenceHighlighting}
-            onChange={e => onSavePreferences({ disableSentenceHighlighting: e.target.checked })}
-            className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-          />
-          <label htmlFor="disable-sentence-highlighting" className="font-bold text-black select-none cursor-pointer">Disable sentence highlighting</label>
-        </div>
-
-        <div className="mb-6 flex items-center">
-          <input
-            id="invisible-text"
-            type="checkbox"
-            checked={settings.invisibleText}
-            onChange={e => onSavePreferences({ invisibleText: e.target.checked })}
-            className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-          />
-          <label htmlFor="invisible-text" className="font-bold text-black select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
-        </div>
-
-        <div className="mb-6 flex items-center">
-          <input
-            id="show-current-word-when-invisible"
-            type="checkbox"
-            checked={settings.showCurrentWordWhenInvisible}
-            onChange={e => onSavePreferences({ showCurrentWordWhenInvisible: e.target.checked })}
-            className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-            disabled={!settings.invisibleText}
-          />
-          <label htmlFor="show-current-word-when-invisible" className="font-bold text-black select-none cursor-pointer">Show currently-being-read word when invisible</label>
-        </div>
-
-        <div className="mb-6 flex items-center">
-          <input
-            id="highlight-sentence-on-hover"
-            type="checkbox"
-            checked={settings.highlightSentenceOnHover}
-            onChange={e => onSavePreferences({ highlightSentenceOnHover: e.target.checked })}
-            className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-          />
-          <label htmlFor="highlight-sentence-on-hover" className="font-bold text-black select-none cursor-pointer">Highlight sentences on hover</label>
-        </div>
-
-        <div className="mb-6">
-          <label className="block font-bold mb-2 text-black">Line Spacing</label>
-          <input
-            type="range"
-            min={1.0}
-            max={2.5}
-            step={0.05}
-            value={settings.lineSpacing}
-            onChange={e => onSavePreferences({ lineSpacing: Number(e.target.value) })}
-            className="w-full accent-[#2563eb]"
-          />
-          <div className="flex justify-between text-sm text-gray-600 mt-1">
-            <span>1.0</span>
-            <span>1.5</span>
-            <span>2.5</span>
-          </div>
-        </div>
-
-        <div className="mb-6 flex items-center">
-          <input
-            id="disable-word-spans"
-            type="checkbox"
-            checked={settings.disableWordSpans}
-            onChange={e => onSavePreferences({ disableWordSpans: e.target.checked })}
-            className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-          />
-          <label htmlFor="disable-word-spans" className="font-bold text-black select-none cursor-pointer">Disable word-level spans (only wrap sentences)</label>
-        </div>
-
-        <div className="mb-6 flex items-center">
-          <input
-            id="disable-sentence-spans"
-            type="checkbox"
-            checked={settings.disableSentenceSpans}
-            onChange={e => onSavePreferences({ disableSentenceSpans: e.target.checked })}
-            className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-          />
-          <label htmlFor="disable-sentence-spans" className="font-bold text-black select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
-        </div>
-
-        <div className="mb-6 flex items-center">
-          <input
             id="show-audio-bar-on-start"
             type="checkbox"
             checked={settings.showAudioBarOnStart}
@@ -270,17 +174,6 @@ export function ReaderSettings({
             className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
           />
           <label htmlFor="show-audio-bar-on-start" className="font-bold text-black select-none cursor-pointer">Show audio bar on start</label>
-        </div>
-
-        <div className="mb-6 flex items-center">
-          <input
-            id="enable-highlight-words"
-            type="checkbox"
-            checked={settings.enableHighlightWords}
-            onChange={e => onSavePreferences({ enableHighlightWords: e.target.checked })}
-            className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-          />
-          <label htmlFor="enable-highlight-words" className="font-bold text-black select-none cursor-pointer">Enable highlight words</label>
         </div>
       </div>
     </div>

@@ -44,12 +44,11 @@ export default function ReaderPage() {
     isFetchingVoices,
     readerSettings,
     isWHeld,
+    setIsWHeld,
     currentlyHighlightedSentence,
-    savedSentencesSet,
     showWordsReadPopup,
     showUnmarkedPopup,
     showCopyConfirm,
-    showSentenceSaved,
     hoveredWord,
     wordDefinitionPopup,
     isShiftHeld,
@@ -75,8 +74,6 @@ export default function ReaderPage() {
     setShowWordsReadPopup,
     setShowUnmarkedPopup,
     setShowCopyConfirm,
-    setShowSentenceSaved,
-    setIsWHeld,
     
     // Functions
     goToPage,
@@ -97,6 +94,9 @@ export default function ReaderPage() {
     handleWordDefinitionLongPress,
     handleWordDefinitionMouseUp,
     closeWordDefinitionPopup,
+    handleDefinitionPopupMouseEnter,
+    handleDefinitionPopupMouseLeave,
+    getWordKey,
   } = useReaderState(user);
 
   // Keyboard navigation
@@ -171,24 +171,13 @@ export default function ReaderPage() {
     setCurrentlyHighlightedSentence(sentenceIndex);
   };
 
-  // Function to handle cycling word status on click/tap
-  const handleWordClick = (word: string) => {
-    if (!readerSettings.enableHighlightWords) return;
-    const currentStatus = getWordStatus(word);
-    let nextStatus: 'known' | 'tracking' | 'ignored' | 'unknown';
-    if (!currentStatus || currentStatus === 'unknown') {
-      nextStatus = 'known';
-    } else if (currentStatus === 'known') {
-      nextStatus = 'tracking';
-    } else if (currentStatus === 'tracking') {
-      nextStatus = 'ignored';
-    } else if (currentStatus === 'ignored') {
-      nextStatus = 'unknown';
-    } else {
-      nextStatus = 'known';
-    }
-    updateWordStatus(word, nextStatus);
+  // Remove long-press and word status cycling, and update click to show definition popup
+  const handleWordClick = (word: string, event?: React.MouseEvent, key?: string) => {
+    // Always show the definition popup on click
+    handleWordDefinitionHover(word, event, key);
   };
+
+
 
   // Early returns for error and !book
   if (error) {
@@ -434,7 +423,6 @@ export default function ReaderPage() {
                 activeWordIndex={activeWordIndex}
                 currentlyHighlightedSentence={currentlyHighlightedSentence}
                 isSentenceSelectMode={isSentenceSelectMode}
-                savedSentencesSet={savedSentencesSet}
                 onSentenceClick={handleSentenceClick}
                 onSentenceHover={handleSentenceHover}
                 onCopyText={handleCopyText}
@@ -443,10 +431,10 @@ export default function ReaderPage() {
                 getWordStatus={getWordStatus}
                 hoveredWord={hoveredWord}
                 onWordHover={handleWordHover}
-                onWordClick={handleWordClick}
                 onWordDefinitionHover={handleWordDefinitionHover}
                 onWordDefinitionLongPress={handleWordDefinitionLongPress}
                 onWordDefinitionMouseUp={handleWordDefinitionMouseUp}
+                getWordKey={getWordKey}
               />
             </div>
           </div>
@@ -789,12 +777,6 @@ export default function ReaderPage() {
           Copied!
         </div>
       )}
-      {/* Floating sentence saved popup */}
-      {showSentenceSaved && (
-        <div style={{ position: 'fixed', bottom: 80, right: 32, zIndex: 1000 }} className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold animate-fade-in">
-          Sentence saved!
-        </div>
-      )}
       
       {/* Word Definition Popup */}
       <WordDefinitionPopup
@@ -802,6 +784,8 @@ export default function ReaderPage() {
         position={wordDefinitionPopup.position}
         isVisible={wordDefinitionPopup.isVisible}
         onClose={closeWordDefinitionPopup}
+        onMouseEnter={handleDefinitionPopupMouseEnter}
+        onMouseLeave={handleDefinitionPopupMouseLeave}
       />
     </div>
   );

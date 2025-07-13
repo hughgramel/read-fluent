@@ -74,13 +74,11 @@ export function useReaderState(user: any) {
   // Interactive state
   const [isWHeld, setIsWHeld] = useState(false);
   const [currentlyHighlightedSentence, setCurrentlyHighlightedSentence] = useState<number | null>(null);
-  const [savedSentencesSet, setSavedSentencesSet] = useState<Set<string>>(new Set());
 
   // Popup state
   const [showWordsReadPopup, setShowWordsReadPopup] = useState({ visible: false, wordCount: 0 });
   const [showUnmarkedPopup, setShowUnmarkedPopup] = useState({ visible: false, wordCount: 0 });
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
-  const [showSentenceSaved, setShowSentenceSaved] = useState(false);
   
   // Word definition popup state
   const [wordDefinitionPopup, setWordDefinitionPopup] = useState<{
@@ -97,15 +95,16 @@ export function useReaderState(user: any) {
   const [isShiftHeld, setIsShiftHeld] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
+  // Replace hoveredDefinitionWord with a Set of hovered word keys and anchor info
+  const [hoveredDefinitionWordKeys, setHoveredDefinitionWordKeys] = useState<Set<string>>(new Set());
+  const [anchorWord, setAnchorWord] = useState<string | null>(null);
+  const [anchorPosition, setAnchorPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [popupHovered, setPopupHovered] = useState(false);
+
   // Auto-hide popups after timeout
   useEffect(() => {
-    if (showSentenceSaved) {
-      const timer = setTimeout(() => {
-        setShowSentenceSaved(false);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSentenceSaved]);
+    // Removed showSentenceSaved effect
+  }, []);
 
   useEffect(() => {
     if (showCopyConfirm) {
@@ -417,15 +416,15 @@ export function useReaderState(user: any) {
       return;
     }
     if (!user?.uid) return;
-    if (savedSentencesSet.has(sentence)) return;
+    // Removed: if (savedSentencesSet.has(sentence)) return;
     try {
-      await SentenceService.addSentence(user.uid, sentence);
-      setSavedSentencesSet(prev => new Set(prev).add(sentence));
-      setShowSentenceSaved(true);
+      // Removed: await SentenceService.addSentence(user.uid, sentence);
+      // Removed: setSavedSentencesSet(prev => new Set(prev).add(sentence));
+      // Removed: setShowSentenceSaved(true);
     } catch (err) {
       // Optionally handle error
     }
-  }, [isSentenceSelectMode, user, savedSentencesSet]);
+  }, [isSentenceSelectMode, user]);
 
   // Copy text
   const handleCopyText = useCallback(async () => {
@@ -534,22 +533,29 @@ export function useReaderState(user: any) {
   }, []);
 
   // Word definition popup handlers
-  const handleWordDefinitionHover = useCallback((word: string | null, event?: React.MouseEvent) => {
+  // Helper to generate a unique key for a word span (e.g., word+index)
+  const getWordKey = (word: string, idx: number) => `${word}__${idx}`;
+
+  // Update handleWordDefinitionHover to add/remove from the set and update anchor
+  const handleWordDefinitionHover = useCallback((word: string | null, event?: React.MouseEvent, key?: string) => {
+    setHoveredDefinitionWordKeys(prev => {
+      const next = new Set(prev);
+      if (word && key) {
+        next.add(key);
+        setAnchorWord(word);
+        if (event) setAnchorPosition({ x: event.clientX, y: event.clientY });
+      } else if (key) {
+        next.delete(key);
+      } else {
+        next.clear();
+      }
+      return next;
+    });
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
     }
-
-    if (word && isShiftHeld && event) {
-      setWordDefinitionPopup({
-        isVisible: true,
-        word,
-        position: { x: event.clientX, y: event.clientY }
-      });
-    } else if (!word || !isShiftHeld) {
-      setWordDefinitionPopup(prev => ({ ...prev, isVisible: false }));
-    }
-  }, [isShiftHeld, longPressTimer]);
+  }, [longPressTimer]);
 
   const handleWordDefinitionLongPress = useCallback((word: string, event: React.MouseEvent) => {
     const timer = setTimeout(() => {
@@ -573,6 +579,46 @@ export function useReaderState(user: any) {
   const closeWordDefinitionPopup = useCallback(() => {
     setWordDefinitionPopup(prev => ({ ...prev, isVisible: false }));
   }, []);
+
+  // Add handlers for popup mouse enter/leave
+  const handleDefinitionPopupMouseEnter = useCallback(() => {
+    setPopupHovered(true);
+  }, []);
+  const handleDefinitionPopupMouseLeave = useCallback(() => {
+    setPopupHovered(false);
+  }, []);
+
+  // Effect to control popup visibility
+  useEffect(() => {
+    if ((isShiftHeld && hoveredDefinitionWordKeys.size > 0) || popupHovered) {
+      if (anchorWord) {
+        setWordDefinitionPopup(prev => ({
+          ...prev,
+          isVisible: true,
+          word: anchorWord,
+          position: anchorPosition,
+        }));
+      }
+    } else {
+      setWordDefinitionPopup(prev => ({ ...prev, isVisible: false }));
+    }
+  }, [isShiftHeld, hoveredDefinitionWordKeys, popupHovered, anchorWord, anchorPosition]);
+
+  // Listen for Shift key changes and show/hide popup if a word is hovered
+  useEffect(() => {
+    if (isShiftHeld && hoveredDefinitionWordKeys.size > 0) {
+      if (anchorWord) {
+        setWordDefinitionPopup(prev => ({
+          ...prev,
+          isVisible: true,
+          word: anchorWord,
+          position: anchorPosition,
+        }));
+      }
+    } else if (!isShiftHeld && !popupHovered) {
+      setWordDefinitionPopup(prev => ({ ...prev, isVisible: false }));
+    }
+  }, [isShiftHeld]);
 
   // Calculate derived values
   const currentSection = book?.sections?.[currentSectionIndex];
@@ -609,15 +655,18 @@ export function useReaderState(user: any) {
     isFetchingVoices,
     readerSettings,
     isWHeld,
+    setIsWHeld,
     currentlyHighlightedSentence,
-    savedSentencesSet,
     showWordsReadPopup,
     showUnmarkedPopup,
     showCopyConfirm,
-    showSentenceSaved,
     hoveredWord,
     wordDefinitionPopup,
     isShiftHeld,
+    hoveredDefinitionWordKeys,
+    anchorWord,
+    anchorPosition,
+    popupHovered,
     
     // Derived values
     currentSection,
@@ -644,8 +693,6 @@ export function useReaderState(user: any) {
     setShowWordsReadPopup,
     setShowUnmarkedPopup,
     setShowCopyConfirm,
-    setShowSentenceSaved,
-    setIsWHeld,
     
     // Functions
     goToPage,
@@ -666,5 +713,8 @@ export function useReaderState(user: any) {
     handleWordDefinitionLongPress,
     handleWordDefinitionMouseUp,
     closeWordDefinitionPopup,
+    handleDefinitionPopupMouseEnter,
+    handleDefinitionPopupMouseLeave,
+    getWordKey,
   };
 } 
