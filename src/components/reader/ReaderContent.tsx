@@ -155,7 +155,7 @@ export function ReaderContent({
               const wordStatus = enableHighlightWords ? getWordStatus(word) : undefined;
               const wordKey = getWordKey ? getWordKey(word, wIdx) : `${word}__${wIdx}`;
               const isHovered = hoveredWordKey === wordKey;
-              const spanRef = useRef<HTMLSpanElement>(null);
+              // Remove useRef from here
               if (isMobile && sIdx === 0 && wIdx === 0) {
                 return (
                   <React.Fragment key={wIdx}>
@@ -168,7 +168,16 @@ export function ReaderContent({
                       <Clipboard className="w-4 h-4" />
                     </button>
                     <span
-                      ref={spanRef}
+                      ref={el => {
+                        if (isHovered && el) {
+                          hoveredWordInfo.current = { word, sentence, rect: el.getBoundingClientRect() };
+                        } else if (!isHovered) {
+                          // Only clear if this is the hovered word
+                          if (hoveredWordInfo.current && hoveredWordInfo.current.word === word && hoveredWordInfo.current.sentence === sentence) {
+                            hoveredWordInfo.current = null;
+                          }
+                        }
+                      }}
                       style={{
                         marginRight: 4,
                         color: showCurrentSentence
@@ -183,7 +192,6 @@ export function ReaderContent({
                       }}
                       onMouseEnter={e => {
                         setHoveredWordKey(wordKey);
-                        hoveredWordInfo.current = { word, sentence, rect: spanRef.current?.getBoundingClientRect() || null };
                         if (onWordDefinitionHover) onWordDefinitionHover(word, e);
                         if (enableHighlightWords) onWordHover(word);
                       }}
@@ -192,8 +200,9 @@ export function ReaderContent({
                         if (onWordDefinitionHover) onWordDefinitionHover(null, e);
                         if (enableHighlightWords) onWordHover(null);
                       }}
-                      onClick={() => {
-                        showPopup(word, sentence, spanRef.current?.getBoundingClientRect() || null);
+                      onClick={e => {
+                        const el = e.currentTarget as HTMLSpanElement;
+                        showPopup(word, sentence, el.getBoundingClientRect());
                       }}
                     >
                       {word + ' '}
@@ -204,7 +213,15 @@ export function ReaderContent({
               return (
                 <span
                   key={wIdx}
-                  ref={spanRef}
+                  ref={el => {
+                    if (isHovered && el) {
+                      hoveredWordInfo.current = { word, sentence, rect: el.getBoundingClientRect() };
+                    } else if (!isHovered) {
+                      if (hoveredWordInfo.current && hoveredWordInfo.current.word === word && hoveredWordInfo.current.sentence === sentence) {
+                        hoveredWordInfo.current = null;
+                      }
+                    }
+                  }}
                   style={{
                     marginRight: 4,
                     color: showCurrentSentence
@@ -219,7 +236,6 @@ export function ReaderContent({
                   }}
                   onMouseEnter={e => {
                     setHoveredWordKey(wordKey);
-                    hoveredWordInfo.current = { word, sentence, rect: spanRef.current?.getBoundingClientRect() || null };
                     if (onWordDefinitionHover) onWordDefinitionHover(word, e);
                     if (enableHighlightWords) onWordHover(word);
                   }}
@@ -228,8 +244,9 @@ export function ReaderContent({
                     if (onWordDefinitionHover) onWordDefinitionHover(null, e);
                     if (enableHighlightWords) onWordHover(null);
                   }}
-                  onClick={() => {
-                    showPopup(word, sentence, spanRef.current?.getBoundingClientRect() || null);
+                  onClick={e => {
+                    const el = e.currentTarget as HTMLSpanElement;
+                    showPopup(word, sentence, el.getBoundingClientRect());
                   }}
                 >
                   {word + ' '}
