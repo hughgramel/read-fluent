@@ -17,7 +17,42 @@ import { ReaderSettings as ReaderSettingsType } from '@/components/reader/Reader
 import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle } from 'lucide-react';
 // @ts-ignore
 import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
+import React from 'react';
 const SpeechPlayer: any = SpeechPlayerImport;
+
+// ErrorBoundary component for catching rendering errors
+class ReaderErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    // Suppress only the specific removeChild error
+    if (typeof error?.message === 'string' && error.message.includes("Failed to execute 'removeChild' on 'Node'")) {
+      // Do not set hasError, just ignore
+      return { hasError: false, error: null };
+    }
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+    // You can log errorInfo to an error reporting service here
+    // console.error('Reader rendering error:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center text-red-600 text-xl bg-white">
+          <div>
+            <div className="font-bold mb-2">A rendering error occurred in the reader.</div>
+            <div className="mb-2">{this.state.error?.message || String(this.state.error)}</div>
+            <div className="text-sm text-gray-500">Try refreshing the page or disabling browser extensions that modify the DOM.</div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function ReaderPage() {
   const { user } = useAuth();
@@ -406,88 +441,90 @@ export default function ReaderPage() {
           </div>
         </div>
       )}
-      {/* Layout: sidebar + main content */}
-      <div style={{ height: showHeader ? '64px' : isMobile ? '40px' : '0' }} />
-      <div className="flex w-full px-0 py-12" style={{ margin: '0 auto' }}>
-        
-        {/* Section Sidebar */}
-        {showSectionSidebar && (
-          <ReaderSidebar
-            book={book}
-            sectionPages={sectionPages}
-            currentSectionIndex={currentSectionIndex}
-            readPagesBySection={readPagesBySection}
-            showSectionWordCount={showSectionWordCount}
-            onGoToPage={goToPage}
-            onToggleSectionWordCount={setShowSectionWordCount}
-          />
-        )}
+      <ReaderErrorBoundary>
+        {/* Layout: sidebar + main content */}
+        <div style={{ height: showHeader ? '64px' : isMobile ? '40px' : '0' }} />
+        <div className="flex w-full px-0 py-12" style={{ margin: '0 auto' }}>
+          
+          {/* Section Sidebar */}
+          {showSectionSidebar && (
+            <ReaderSidebar
+              book={book}
+              sectionPages={sectionPages}
+              currentSectionIndex={currentSectionIndex}
+              readPagesBySection={readPagesBySection}
+              showSectionWordCount={showSectionWordCount}
+              onGoToPage={goToPage}
+              onToggleSectionWordCount={setShowSectionWordCount}
+            />
+          )}
 
-        {/* Main reading area */}
-        <div
-          className="flex-1 flex justify-center transition-all duration-300"
-          style={{
-            marginLeft: 0,
-            padding: isMobile ? '0 8px' : undefined,
-            maxWidth: isMobile ? '100vw' : '100vw',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            overflowX: isMobile ? 'hidden' : undefined,
-          }}
-        >
-          <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
-            <div className={getReaderContainerClass(effectiveSettings.readerContainerStyle)} style={{
-              ...getReaderContainerStyle(effectiveSettings.readerContainerStyle, effectiveSettings.readerFont, effectiveSettings.readerWidth, isMobile),
-              margin: '0 auto',
-              height: '100%',
+          {/* Main reading area */}
+          <div
+            className="flex-1 flex justify-center transition-all duration-300"
+            style={{
+              marginLeft: 0,
+              padding: isMobile ? '0 8px' : undefined,
+              maxWidth: isMobile ? '100vw' : '100vw',
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'flex-start',
-              color: effectiveSettings.invisibleText && !effectiveSettings.disableSentenceHighlighting && !effectiveSettings.disableWordHighlighting ? 'rgba(0,0,0,0.001)' : '#232946',
-              maxWidth: isMobile ? '95vw' : effectiveSettings.readerWidth,
-              width: isMobile ? '100%' : effectiveSettings.readerWidth,
-              padding: isMobile ? '1.25rem 0.5rem' : '1.5rem',
-              boxSizing: 'border-box',
+              alignItems: 'center',
               overflowX: isMobile ? 'hidden' : undefined,
-            }}>
-              {/* Page content */}
-              <ReaderContent
-                flatSentences={currentPageSentences}
-                readerFont={effectiveSettings.readerFont}
-                readerFontSize={effectiveSettings.readerFontSize}
-                readerWidth={effectiveSettings.readerWidth}
-                lineSpacing={effectiveSettings.lineSpacing}
-                isMobile={isMobile}
-                invisibleText={effectiveSettings.invisibleText}
-                disableSentenceSpans={effectiveSettings.disableSentenceSpans}
-                disableWordSpans={effectiveSettings.disableWordSpans}
-                disableWordHighlighting={effectiveSettings.disableWordHighlighting}
-                disableSentenceHighlighting={effectiveSettings.disableSentenceHighlighting}
-                highlightSentenceOnHover={effectiveSettings.highlightSentenceOnHover}
-                showCurrentWordWhenInvisible={effectiveSettings.showCurrentWordWhenInvisible}
-                isWHeld={isWHeld}
-                activeSentenceIndex={activeSentenceIndex}
-                activeWordIndex={activeWordIndex}
-                currentlyHighlightedSentence={currentlyHighlightedSentence}
-                isSentenceSelectMode={isSentenceSelectMode}
-                onSentenceClick={handleSentenceClick}
-                onSentenceHover={handleSentenceHover}
-                onCopyText={handleCopyText}
-                showCopyConfirm={showCopyConfirm}
-                enableHighlightWords={effectiveSettings.enableHighlightWords}
-                getWordStatus={getWordStatus}
-                hoveredWord={hoveredWord}
-                onWordHover={handleWordHover}
-                onWordDefinitionHover={handleWordDefinitionHoverWrapper}
-                onWordDefinitionLongPress={handleWordDefinitionLongPress}
-                onWordDefinitionMouseUp={handleWordDefinitionMouseUp}
-                getWordKey={getWordKey}
-              />
+            }}
+          >
+            <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
+              <div className={getReaderContainerClass(effectiveSettings.readerContainerStyle)} style={{
+                ...getReaderContainerStyle(effectiveSettings.readerContainerStyle, effectiveSettings.readerFont, effectiveSettings.readerWidth, isMobile),
+                margin: '0 auto',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                color: effectiveSettings.invisibleText && !effectiveSettings.disableSentenceHighlighting && !effectiveSettings.disableWordHighlighting ? 'rgba(0,0,0,0.001)' : '#232946',
+                maxWidth: isMobile ? '95vw' : effectiveSettings.readerWidth,
+                width: isMobile ? '100%' : effectiveSettings.readerWidth,
+                padding: isMobile ? '1.25rem 0.5rem' : '1.5rem',
+                boxSizing: 'border-box',
+                overflowX: isMobile ? 'hidden' : undefined,
+              }}>
+                {/* Page content */}
+                <ReaderContent
+                  flatSentences={currentPageSentences}
+                  readerFont={effectiveSettings.readerFont}
+                  readerFontSize={effectiveSettings.readerFontSize}
+                  readerWidth={effectiveSettings.readerWidth}
+                  lineSpacing={effectiveSettings.lineSpacing}
+                  isMobile={isMobile}
+                  invisibleText={effectiveSettings.invisibleText}
+                  disableSentenceSpans={effectiveSettings.disableSentenceSpans}
+                  disableWordSpans={effectiveSettings.disableWordSpans}
+                  disableWordHighlighting={effectiveSettings.disableWordHighlighting}
+                  disableSentenceHighlighting={effectiveSettings.disableSentenceHighlighting}
+                  highlightSentenceOnHover={effectiveSettings.highlightSentenceOnHover}
+                  showCurrentWordWhenInvisible={effectiveSettings.showCurrentWordWhenInvisible}
+                  isWHeld={isWHeld}
+                  activeSentenceIndex={activeSentenceIndex}
+                  activeWordIndex={activeWordIndex}
+                  currentlyHighlightedSentence={currentlyHighlightedSentence}
+                  isSentenceSelectMode={isSentenceSelectMode}
+                  onSentenceClick={handleSentenceClick}
+                  onSentenceHover={handleSentenceHover}
+                  onCopyText={handleCopyText}
+                  showCopyConfirm={showCopyConfirm}
+                  enableHighlightWords={effectiveSettings.enableHighlightWords}
+                  getWordStatus={getWordStatus}
+                  hoveredWord={hoveredWord}
+                  onWordHover={handleWordHover}
+                  onWordDefinitionHover={handleWordDefinitionHoverWrapper}
+                  onWordDefinitionLongPress={handleWordDefinitionLongPress}
+                  onWordDefinitionMouseUp={handleWordDefinitionMouseUp}
+                  getWordKey={getWordKey}
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </ReaderErrorBoundary>
 
       {/* Floating TTS Controls */}
       {isSpeechPlayerActive && (
