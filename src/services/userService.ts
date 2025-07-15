@@ -53,8 +53,16 @@ export class UserService {
     try {
       console.log('[UserService] Updating preferences for user:', uid, 'preferences:', preferences);
       const userDoc = doc(db, this.COLLECTION, uid);
+      // Fetch current preferences
+      const snap = await getDoc(userDoc);
+      let currentPrefs = {};
+      if (snap.exists() && snap.data().preferences) {
+        currentPrefs = snap.data().preferences;
+      }
+      // Merge new preferences with current
+      const mergedPrefs = { ...currentPrefs, ...preferences };
       await updateDoc(userDoc, {
-        preferences: preferences,
+        preferences: mergedPrefs,
         lastUpdatedAt: serverTimestamp(),
       });
       console.log('[UserService] Successfully updated preferences for user:', uid);

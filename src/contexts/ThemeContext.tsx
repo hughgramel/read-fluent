@@ -320,6 +320,7 @@ interface ThemeContextType {
   customTheme: Theme | null;
   setTheme: (theme: Theme) => void;
   setCustomTheme: (config: ThemeConfig) => void;
+  previewTheme: (theme: Theme) => void;
   resetToDefault: () => void;
   predefinedThemes: Theme[];
   isLoading: boolean;
@@ -457,6 +458,57 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const previewTheme = (theme: Theme) => {
+    // Temporarily apply the theme without saving
+    const root = document.documentElement;
+    const config = theme.config;
+    
+    // Helper function to convert hex to RGB
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+    
+    const primaryRgb = hexToRgb(config.primaryColor);
+    const secondaryRgb = hexToRgb(config.secondaryColor);
+    
+    root.style.setProperty('--primary-color', config.primaryColor);
+    root.style.setProperty('--primary-color-hover', darkenColor(config.primaryColor));
+    root.style.setProperty('--secondary-color', config.secondaryColor);
+    root.style.setProperty('--secondary-color-hover', darkenColor(config.secondaryColor));
+    root.style.setProperty('--background', config.backgroundColor);
+    root.style.setProperty('--foreground', config.textColor);
+    root.style.setProperty('--text-color', config.textColor);
+    root.style.setProperty('--font-family', config.fontFamily);
+    root.style.setProperty('--border-color', config.borderColor);
+    root.style.setProperty('--accent-color', config.accentColor);
+    root.style.setProperty('--shadow-color', config.shadowColor);
+    root.style.setProperty('--secondary-text-color', config.secondaryTextColor);
+    
+    // Set RGB values for rgba() usage
+    if (primaryRgb) {
+      root.style.setProperty('--primary-color-rgb', `${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}`);
+    }
+    if (secondaryRgb) {
+      root.style.setProperty('--secondary-color-rgb', `${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}`);
+    }
+    
+    // Update data-theme attribute for backward compatibility
+    if (theme.id === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+    } else if (theme.id === 'sepia') {
+      root.setAttribute('data-theme', 'sepia');
+    } else if (theme.id === 'solarized') {
+      root.setAttribute('data-theme', 'solarized');
+    } else {
+      root.setAttribute('data-theme', 'light');
+    }
+  };
+
   const resetToDefault = () => {
     setCurrentTheme(predefinedThemes[0]);
     setCustomThemeState(null);
@@ -467,6 +519,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     customTheme,
     setTheme,
     setCustomTheme,
+    previewTheme,
     resetToDefault,
     predefinedThemes,
     isLoading,

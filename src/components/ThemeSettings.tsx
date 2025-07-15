@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useTheme } from '@/contexts/ThemeContext';
+import React, { useState, useEffect } from 'react';
+import { useTheme, Theme } from '@/contexts/ThemeContext';
 import { ThemeConfig } from '@/types/user';
 
 export default function ThemeSettings() {
-  const { currentTheme, customTheme, setTheme, setCustomTheme, predefinedThemes, isLoading } = useTheme();
+  const { currentTheme, customTheme, setTheme, setCustomTheme, previewTheme, predefinedThemes, isLoading } = useTheme();
   const [showCustomThemeForm, setShowCustomThemeForm] = useState(false);
-  const [customConfig, setCustomConfig] = useState<ThemeConfig>({
+  const [pendingTheme, setPendingTheme] = useState<Theme | null>(null);
+  const [pendingCustomConfig, setPendingCustomConfig] = useState<ThemeConfig>({
     primaryColor: '#2563eb',
     secondaryColor: '#67b9e7',
     backgroundColor: '#ffffff',
@@ -18,6 +19,17 @@ export default function ThemeSettings() {
     shadowColor: '#d1d5db',
     secondaryTextColor: '#777777',
   });
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Initialize pending theme with current theme
+  useEffect(() => {
+    if (currentTheme) {
+      setPendingTheme(currentTheme);
+      if (currentTheme.id === 'custom' && customTheme) {
+        setPendingCustomConfig(customTheme.config);
+      }
+    }
+  }, [currentTheme, customTheme]);
 
   const fontOptions = [
     { value: 'Noto Sans, Helvetica Neue, Arial, sans-serif', label: 'Noto Sans' },
@@ -32,19 +44,46 @@ export default function ThemeSettings() {
   const handlePresetThemeChange = (themeId: string) => {
     const theme = predefinedThemes.find(t => t.id === themeId);
     if (theme) {
-      setTheme(theme);
+      setPendingTheme(theme);
       setShowCustomThemeForm(false);
+      setHasUnsavedChanges(true);
+      // Preview the theme immediately
+      previewTheme(theme);
     }
   };
 
-  const handleCustomThemeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCustomTheme(customConfig);
-    setShowCustomThemeForm(false);
+  const handleCustomConfigChange = (key: keyof ThemeConfig, value: string) => {
+    const newConfig = { ...pendingCustomConfig, [key]: value };
+    setPendingCustomConfig(newConfig);
+    setHasUnsavedChanges(true);
+    // Preview the custom theme immediately
+    const customTheme: Theme = {
+      id: 'custom',
+      name: 'Custom',
+      config: newConfig
+    };
+    previewTheme(customTheme);
   };
 
-  const handleCustomConfigChange = (key: keyof ThemeConfig, value: string) => {
-    setCustomConfig(prev => ({ ...prev, [key]: value }));
+  const handleSaveTheme = async () => {
+    if (pendingTheme) {
+      if (pendingTheme.id === 'custom') {
+        await setCustomTheme(pendingCustomConfig);
+      } else {
+        await setTheme(pendingTheme);
+      }
+      setHasUnsavedChanges(false);
+    }
+  };
+
+  const handleCancelChanges = () => {
+    setPendingTheme(currentTheme);
+    if (currentTheme?.id === 'custom' && customTheme) {
+      setPendingCustomConfig(customTheme.config);
+    }
+    setHasUnsavedChanges(false);
+    // Restore the original theme
+    previewTheme(currentTheme);
   };
 
   if (isLoading) {
@@ -70,15 +109,15 @@ export default function ThemeSettings() {
                 onClick={() => handlePresetThemeChange(theme.id)}
                 className={`
                   p-3 rounded-lg border-2 transition-all duration-200
-                  ${currentTheme.id === theme.id
+                  ${pendingTheme?.id === theme.id
                     ? 'border-primary-color theme-bg-primary text-white'
                     : 'theme-border theme-bg hover:theme-bg-accent hover:text-white'
                   }
                 `}
                 style={{
-                  backgroundColor: currentTheme.id === theme.id ? undefined : theme.config.backgroundColor,
-                  color: currentTheme.id === theme.id ? undefined : theme.config.textColor,
-                  borderColor: currentTheme.id === theme.id ? undefined : theme.config.borderColor,
+                  backgroundColor: pendingTheme?.id === theme.id ? undefined : theme.config.backgroundColor,
+                  color: pendingTheme?.id === theme.id ? undefined : theme.config.textColor,
+                  borderColor: pendingTheme?.id === theme.id ? undefined : theme.config.borderColor,
                 }}
               >
                 <div className="text-center">
@@ -105,11 +144,24 @@ export default function ThemeSettings() {
 
         {/* Custom Theme Button */}
         <div className="mt-4">
-          <button
-            onClick={() => setShowCustomThemeForm(!showCustomThemeForm)}
+                  <button
+          onClick={() => {
+            setShowCustomThemeForm(!showCustomThemeForm);
+            if (!showCustomThemeForm) {
+              const customTheme: Theme = {
+                id: 'custom',
+                name: 'Custom',
+                config: pendingCustomConfig
+              };
+              setPendingTheme(customTheme);
+              setHasUnsavedChanges(true);
+              // Preview the custom theme immediately
+              previewTheme(customTheme);
+            }
+          }}
             className={`
               btn-secondary transition-all duration-200
-              ${currentTheme.id === 'custom' ? 'btn-primary' : ''}
+              ${pendingTheme?.id === 'custom' ? 'btn-primary' : ''}
             `}
           >
             {showCustomThemeForm ? 'Hide Custom Theme' : 'Create Custom Theme'}
@@ -118,7 +170,7 @@ export default function ThemeSettings() {
 
         {/* Custom Theme Form */}
         {showCustomThemeForm && (
-          <form onSubmit={handleCustomThemeSubmit} className="mt-6 space-y-4 card-themed">
+          <div className="mt-6 space-y-4 card-themed">
             <h4 className="text-md font-semibold theme-text">Custom Theme Configuration</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -128,7 +180,7 @@ export default function ThemeSettings() {
                 </label>
                 <input
                   type="color"
-                  value={customConfig.primaryColor}
+                  value={pendingCustomConfig.primaryColor}
                   onChange={(e) => handleCustomConfigChange('primaryColor', e.target.value)}
                   className="w-full h-10 rounded border theme-border"
                 />
@@ -140,7 +192,7 @@ export default function ThemeSettings() {
                 </label>
                 <input
                   type="color"
-                  value={customConfig.secondaryColor}
+                  value={pendingCustomConfig.secondaryColor}
                   onChange={(e) => handleCustomConfigChange('secondaryColor', e.target.value)}
                   className="w-full h-10 rounded border theme-border"
                 />
@@ -152,7 +204,7 @@ export default function ThemeSettings() {
                 </label>
                 <input
                   type="color"
-                  value={customConfig.backgroundColor}
+                  value={pendingCustomConfig.backgroundColor}
                   onChange={(e) => handleCustomConfigChange('backgroundColor', e.target.value)}
                   className="w-full h-10 rounded border theme-border"
                 />
@@ -164,7 +216,7 @@ export default function ThemeSettings() {
                 </label>
                 <input
                   type="color"
-                  value={customConfig.textColor}
+                  value={pendingCustomConfig.textColor}
                   onChange={(e) => handleCustomConfigChange('textColor', e.target.value)}
                   className="w-full h-10 rounded border theme-border"
                 />
@@ -176,7 +228,7 @@ export default function ThemeSettings() {
                 </label>
                 <input
                   type="color"
-                  value={customConfig.borderColor}
+                  value={pendingCustomConfig.borderColor}
                   onChange={(e) => handleCustomConfigChange('borderColor', e.target.value)}
                   className="w-full h-10 rounded border theme-border"
                 />
@@ -188,7 +240,7 @@ export default function ThemeSettings() {
                 </label>
                 <input
                   type="color"
-                  value={customConfig.accentColor}
+                  value={pendingCustomConfig.accentColor}
                   onChange={(e) => handleCustomConfigChange('accentColor', e.target.value)}
                   className="w-full h-10 rounded border theme-border"
                 />
@@ -200,7 +252,7 @@ export default function ThemeSettings() {
                 </label>
                 <input
                   type="color"
-                  value={customConfig.shadowColor}
+                  value={pendingCustomConfig.shadowColor}
                   onChange={(e) => handleCustomConfigChange('shadowColor', e.target.value)}
                   className="w-full h-10 rounded border theme-border"
                 />
@@ -212,7 +264,7 @@ export default function ThemeSettings() {
                 </label>
                 <input
                   type="color"
-                  value={customConfig.secondaryTextColor}
+                  value={pendingCustomConfig.secondaryTextColor}
                   onChange={(e) => handleCustomConfigChange('secondaryTextColor', e.target.value)}
                   className="w-full h-10 rounded border theme-border"
                 />
@@ -224,7 +276,7 @@ export default function ThemeSettings() {
                 Font Family
               </label>
               <select
-                value={customConfig.fontFamily}
+                value={pendingCustomConfig.fontFamily}
                 onChange={(e) => handleCustomConfigChange('fontFamily', e.target.value)}
                 className="select-themed w-full"
               >
@@ -235,55 +287,50 @@ export default function ThemeSettings() {
                 ))}
               </select>
             </div>
-            
-            <div className="flex space-x-3">
-              <button
-                type="submit"
-                className="btn-primary"
-              >
-                Apply Custom Theme
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCustomThemeForm(false)}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          </div>
+        )}
+
+        {/* Save/Cancel Buttons */}
+        {hasUnsavedChanges && (
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={handleSaveTheme}
+              className="btn-primary"
+            >
+              Save Theme
+            </button>
+            <button
+              onClick={handleCancelChanges}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+          </div>
         )}
 
         {/* Current Theme Info */}
-        <div className="mt-6 card-themed">
-          <h4 className="text-md font-semibold theme-text mb-2">Current Theme</h4>
-          <div className="flex items-center space-x-4">
-            <div>
-              <div className="text-sm theme-text-secondary">Theme:</div>
-              <div className="font-medium theme-text">{currentTheme.name}</div>
-            </div>
-            <div>
-              <div className="text-sm theme-text-secondary">Font:</div>
-              <div className="font-medium theme-text" style={{ fontFamily: currentTheme.config.fontFamily }}>
-                {currentTheme.config.fontFamily.split(',')[0]}
-              </div>
-            </div>
+        <div className="mt-6 p-4 card-themed">
+          <h4 className="text-md font-semibold theme-text mb-3">Current Theme</h4>
+          <div className="flex items-center gap-3">
             <div className="flex space-x-2">
               <div
-                className="w-6 h-6 rounded-full border"
+                className="w-6 h-6 rounded-full border-2 border-gray-300"
                 style={{ backgroundColor: currentTheme.config.primaryColor }}
-                title="Primary Color"
               />
               <div
-                className="w-6 h-6 rounded-full border"
+                className="w-6 h-6 rounded-full border-2 border-gray-300"
                 style={{ backgroundColor: currentTheme.config.secondaryColor }}
-                title="Secondary Color"
               />
               <div
-                className="w-6 h-6 rounded-full border"
+                className="w-6 h-6 rounded-full border-2 border-gray-300"
                 style={{ backgroundColor: currentTheme.config.accentColor }}
-                title="Accent Color"
               />
+            </div>
+            <div>
+              <div className="font-medium theme-text">{currentTheme.name}</div>
+              <div className="text-sm theme-text-secondary">
+                {currentTheme.id === 'custom' ? 'Custom theme' : 'Predefined theme'}
+              </div>
             </div>
           </div>
         </div>

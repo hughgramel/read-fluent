@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useReaderState } from '@/hooks/useReaderState';
 import { useReaderKeyboard } from '@/hooks/useReaderKeyboard';
@@ -13,6 +13,7 @@ import { ReaderPopups } from '@/components/reader/ReaderPopups';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
 import { WordDefinitionPopup } from '@/components/reader/WordDefinitionPopup';
 import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle } from '@/components/reader/ReaderUtils';
+import { ReaderSettings as ReaderSettingsType } from '@/components/reader/ReaderTypes';
 import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle } from 'lucide-react';
 // @ts-ignore
 import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
@@ -22,6 +23,8 @@ export default function ReaderPage() {
   const { user } = useAuth();
   const { currentTheme } = useTheme();
   const speechPlayerRef = useRef(null);
+  const [pendingSettings, setPendingSettings] = useState<ReaderSettingsType | null>(null);
+  const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
 
   const {
     // State
@@ -123,10 +126,7 @@ export default function ReaderPage() {
     enableHighlightWords: readerSettings.enableHighlightWords,
   });
 
-  // Apply theme to html[data-theme]
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', currentTheme.id);
-  }, [currentTheme.id]);
+  // Theme is handled by ThemeContext, no need to manually set data-theme
 
   // Inject book CSS into the DOM, scoped to .epub-html
   useEffect(() => {
@@ -179,6 +179,38 @@ export default function ReaderPage() {
     handleWordDefinitionHover(word, event, key);
   };
 
+  // Initialize pending settings when settings modal opens
+  useEffect(() => {
+    if (showSettings) {
+      setPendingSettings(readerSettings);
+      setHasUnsavedSettings(false);
+    }
+  }, [showSettings, readerSettings]);
+
+  // Handle pending settings changes
+  const handlePendingSettingChange = (newSettings: Partial<ReaderSettingsType>) => {
+    if (pendingSettings) {
+      setPendingSettings({ ...pendingSettings, ...newSettings });
+      setHasUnsavedSettings(true);
+    }
+  };
+
+  // Save pending settings
+  const handleSaveSettings = async () => {
+    if (pendingSettings) {
+      await savePreferences(pendingSettings);
+      setHasUnsavedSettings(false);
+      setShowSettings(false);
+    }
+  };
+
+  // Cancel pending settings
+  const handleCancelSettings = () => {
+    setPendingSettings(readerSettings);
+    setHasUnsavedSettings(false);
+    setShowSettings(false);
+  };
+
 
 
   // Early returns for error and !book
@@ -197,6 +229,8 @@ export default function ReaderPage() {
       </div>
     );
   }
+
+  const effectiveSettings = (showSettings && pendingSettings) ? pendingSettings : readerSettings;
 
   return (
     <div className="page-container" style={{ fontFamily: 'var(--font-family)' }}>
@@ -391,16 +425,16 @@ export default function ReaderPage() {
           }}
         >
           <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
-            <div className={getReaderContainerClass(readerSettings.readerContainerStyle)} style={{
-              ...getReaderContainerStyle(readerSettings.readerContainerStyle, readerSettings.readerFont, readerSettings.readerWidth, isMobile),
+            <div className={getReaderContainerClass(effectiveSettings.readerContainerStyle)} style={{
+              ...getReaderContainerStyle(effectiveSettings.readerContainerStyle, effectiveSettings.readerFont, effectiveSettings.readerWidth, isMobile),
               margin: '0 auto',
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-start',
-              color: readerSettings.invisibleText && !readerSettings.disableSentenceHighlighting && !readerSettings.disableWordHighlighting ? 'rgba(0,0,0,0.001)' : '#232946',
-              maxWidth: isMobile ? '95vw' : readerSettings.readerWidth,
-              width: isMobile ? '100%' : readerSettings.readerWidth,
+              color: effectiveSettings.invisibleText && !effectiveSettings.disableSentenceHighlighting && !effectiveSettings.disableWordHighlighting ? 'rgba(0,0,0,0.001)' : '#232946',
+              maxWidth: isMobile ? '95vw' : effectiveSettings.readerWidth,
+              width: isMobile ? '100%' : effectiveSettings.readerWidth,
               padding: isMobile ? '1.25rem 0.5rem' : '1.5rem',
               boxSizing: 'border-box',
               overflowX: isMobile ? 'hidden' : undefined,
@@ -408,18 +442,18 @@ export default function ReaderPage() {
               {/* Page content */}
               <ReaderContent
                 flatSentences={currentPageSentences}
-                readerFont={readerSettings.readerFont}
-                readerFontSize={readerSettings.readerFontSize}
-                readerWidth={readerSettings.readerWidth}
-                lineSpacing={readerSettings.lineSpacing}
+                readerFont={effectiveSettings.readerFont}
+                readerFontSize={effectiveSettings.readerFontSize}
+                readerWidth={effectiveSettings.readerWidth}
+                lineSpacing={effectiveSettings.lineSpacing}
                 isMobile={isMobile}
-                invisibleText={readerSettings.invisibleText}
-                disableSentenceSpans={readerSettings.disableSentenceSpans}
-                disableWordSpans={readerSettings.disableWordSpans}
-                disableWordHighlighting={readerSettings.disableWordHighlighting}
-                disableSentenceHighlighting={readerSettings.disableSentenceHighlighting}
-                highlightSentenceOnHover={readerSettings.highlightSentenceOnHover}
-                showCurrentWordWhenInvisible={readerSettings.showCurrentWordWhenInvisible}
+                invisibleText={effectiveSettings.invisibleText}
+                disableSentenceSpans={effectiveSettings.disableSentenceSpans}
+                disableWordSpans={effectiveSettings.disableWordSpans}
+                disableWordHighlighting={effectiveSettings.disableWordHighlighting}
+                disableSentenceHighlighting={effectiveSettings.disableSentenceHighlighting}
+                highlightSentenceOnHover={effectiveSettings.highlightSentenceOnHover}
+                showCurrentWordWhenInvisible={effectiveSettings.showCurrentWordWhenInvisible}
                 isWHeld={isWHeld}
                 activeSentenceIndex={activeSentenceIndex}
                 activeWordIndex={activeWordIndex}
@@ -429,7 +463,7 @@ export default function ReaderPage() {
                 onSentenceHover={handleSentenceHover}
                 onCopyText={handleCopyText}
                 showCopyConfirm={showCopyConfirm}
-                enableHighlightWords={readerSettings.enableHighlightWords}
+                enableHighlightWords={effectiveSettings.enableHighlightWords}
                 getWordStatus={getWordStatus}
                 hoveredWord={hoveredWord}
                 onWordHover={handleWordHover}
@@ -463,8 +497,8 @@ export default function ReaderPage() {
               setIsSpeechPlayerActive(false);
             }
           }}
-          speakingRate={readerSettings.ttsSpeed}
-          voiceName={readerSettings.ttsVoice}
+          speakingRate={effectiveSettings.ttsSpeed}
+          voiceName={effectiveSettings.ttsVoice}
           onProgress={setActiveSentenceIndex}
           onCurrentReadingSentenceEnd={onCurrentReadingSentenceEnd}
           onSelectModeToggle={setIsSentenceSelectMode}
@@ -477,7 +511,11 @@ export default function ReaderPage() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={() => setShowSettings(false)}
+          onClick={() => {
+            setShowSettings(false);
+            setPendingSettings(null);
+            setHasUnsavedSettings(false);
+          }}
         >
           <div
             className="card-themed w-full relative"
@@ -492,7 +530,11 @@ export default function ReaderPage() {
             onClick={e => e.stopPropagation()}
           >
             <button
-              onClick={() => setShowSettings(false)}
+              onClick={() => {
+                setShowSettings(false);
+                setPendingSettings(null);
+                setHasUnsavedSettings(false);
+              }}
               className="absolute top-3 right-3 theme-text-secondary hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
               style={{ lineHeight: 1 }}
             >
@@ -500,26 +542,26 @@ export default function ReaderPage() {
             </button>
             <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Reader Settings</h2>
                           <div className="mb-6">
-                <label className="block font-bold mb-2 theme-text">Font Size ({readerSettings.readerFontSize}px)</label>
+                <label className="block font-bold mb-2 theme-text">Font Size ({pendingSettings?.readerFontSize || readerSettings.readerFontSize}px)</label>
               <input
                 type="range"
                 min={14}
                 max={28}
                 step={1}
-                value={readerSettings.readerFontSize}
-                onChange={e => { savePreferences({ readerFontSize: Number(e.target.value) }); }}
+                value={pendingSettings?.readerFontSize || readerSettings.readerFontSize}
+                onChange={e => { handlePendingSettingChange({ readerFontSize: Number(e.target.value) }); }}
                 className="w-full accent-[#2563eb]"
               />
             </div>
             <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Text Width ({readerSettings.readerWidth}px)</label>
+              <label className="block font-bold mb-2 theme-text">Text Width ({pendingSettings?.readerWidth || readerSettings.readerWidth}px)</label>
               <input
                 type="range"
                 min={500}
                 max={1600}
                 step={10}
-                value={readerSettings.readerWidth}
-                onChange={e => { savePreferences({ readerWidth: Number(e.target.value) }); }}
+                value={pendingSettings?.readerWidth || readerSettings.readerWidth}
+                onChange={e => { handlePendingSettingChange({ readerWidth: Number(e.target.value) }); }}
                 className="w-full accent-[#2563eb]"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
@@ -534,8 +576,8 @@ export default function ReaderPage() {
             <div className="mb-6">
               <label className="block font-bold mb-2 theme-text">Font Family</label>
               <select
-                value={readerSettings.readerFont}
-                onChange={e => { savePreferences({ readerFont: e.target.value }); }}
+                value={pendingSettings?.readerFont || readerSettings.readerFont}
+                onChange={e => { handlePendingSettingChange({ readerFont: e.target.value }); }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               >
                 <option value="serif">Serif (default)</option>
@@ -550,10 +592,13 @@ export default function ReaderPage() {
             </div>
             {/* Example sentence moved to the very bottom */}
             {(() => {
+              const currentFontSize = pendingSettings?.readerFontSize || readerSettings.readerFontSize;
+              const currentFont = pendingSettings?.readerFont || readerSettings.readerFont;
+              const currentWidth = pendingSettings?.readerWidth || readerSettings.readerWidth;
               // Log font size and width for the settings example text
-              console.log('Settings example text font size:', readerSettings.readerFontSize, 'and width:', readerSettings.readerWidth);
+              console.log('Settings example text font size:', currentFontSize, 'and width:', currentWidth);
               return (
-                <div className="mt-4 mb-4 p-5 theme-border rounded theme-text" style={{ fontFamily: readerSettings.readerFont, fontSize: readerSettings.readerFontSize, maxWidth: readerSettings.readerWidth, backgroundColor: 'var(--background)', border: '1px solid var(--border-color)' }}>
+                <div className="mt-4 mb-4 p-5 theme-border rounded theme-text" style={{ fontFamily: currentFont, fontSize: currentFontSize, maxWidth: currentWidth, backgroundColor: 'var(--background)', border: '1px solid var(--border-color)' }}>
                   Example: El rápido zorro marrón salta sobre el perro perezoso.
                 </div>
               );
@@ -561,9 +606,9 @@ export default function ReaderPage() {
             <div className="mb-6">
               <label className="block font-bold mb-2 theme-text">Container Mode</label>
               <select
-                value={readerSettings.readerContainerStyle}
+                value={pendingSettings?.readerContainerStyle || readerSettings.readerContainerStyle}
                 onChange={e => {
-                  savePreferences({ readerContainerStyle: e.target.value as any });
+                  handlePendingSettingChange({ readerContainerStyle: e.target.value as any });
                 }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               >
@@ -582,23 +627,23 @@ export default function ReaderPage() {
                 min={10}
                 max={200}
                 step={1}
-                value={readerSettings.sentencesPerPage}
+                value={pendingSettings?.sentencesPerPage || readerSettings.sentencesPerPage}
                 onChange={e => {
-                  savePreferences({ sentencesPerPage: Number(e.target.value) });
+                  handlePendingSettingChange({ sentencesPerPage: Number(e.target.value) });
                 }}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               />
             </div>
             <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">TTS Speed ({readerSettings.ttsSpeed}x)</label>
+              <label className="block font-bold mb-2 theme-text">TTS Speed ({pendingSettings?.ttsSpeed || readerSettings.ttsSpeed}x)</label>
               <input
                 type="range"
                 min={0.5}
                 max={2}
                 step={0.05}
-                value={readerSettings.ttsSpeed}
+                value={pendingSettings?.ttsSpeed || readerSettings.ttsSpeed}
                 onChange={e => {
-                  savePreferences({ ttsSpeed: Number(e.target.value) });
+                  handlePendingSettingChange({ ttsSpeed: Number(e.target.value) });
                 }}
                 className="w-full accent-[#2563eb]"
               />
@@ -608,9 +653,9 @@ export default function ReaderPage() {
               <label className="block font-bold mb-2 theme-text">Voice Option</label>
               <div className="flex gap-2 items-center">
                 <select
-                  value={readerSettings.ttsVoice}
+                  value={pendingSettings?.ttsVoice || readerSettings.ttsVoice}
                   onChange={e => {
-                    savePreferences({ ttsVoice: e.target.value });
+                    handlePendingSettingChange({ ttsVoice: e.target.value });
                   }}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
                 >
@@ -631,9 +676,9 @@ export default function ReaderPage() {
               <input
                 id="disable-word-highlighting"
                 type="checkbox"
-                checked={readerSettings.disableWordHighlighting}
+                checked={pendingSettings?.disableWordHighlighting ?? readerSettings.disableWordHighlighting}
                 onChange={e => {
-                  savePreferences({ disableWordHighlighting: e.target.checked });
+                  handlePendingSettingChange({ disableWordHighlighting: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -643,9 +688,9 @@ export default function ReaderPage() {
               <input
                 id="disable-sentence-highlighting"
                 type="checkbox"
-                checked={readerSettings.disableSentenceHighlighting}
+                checked={pendingSettings?.disableSentenceHighlighting ?? readerSettings.disableSentenceHighlighting}
                 onChange={e => {
-                  savePreferences({ disableSentenceHighlighting: e.target.checked });
+                  handlePendingSettingChange({ disableSentenceHighlighting: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -655,9 +700,9 @@ export default function ReaderPage() {
               <input
                 id="invisible-text"
                 type="checkbox"
-                checked={readerSettings.invisibleText}
+                checked={pendingSettings?.invisibleText ?? readerSettings.invisibleText}
                 onChange={e => {
-                  savePreferences({ invisibleText: e.target.checked });
+                  handlePendingSettingChange({ invisibleText: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -667,12 +712,12 @@ export default function ReaderPage() {
               <input
                 id="show-current-word-when-invisible"
                 type="checkbox"
-                checked={readerSettings.showCurrentWordWhenInvisible}
+                checked={pendingSettings?.showCurrentWordWhenInvisible ?? readerSettings.showCurrentWordWhenInvisible}
                 onChange={e => {
-                  savePreferences({ showCurrentWordWhenInvisible: e.target.checked });
+                  handlePendingSettingChange({ showCurrentWordWhenInvisible: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-                disabled={!readerSettings.invisibleText}
+                disabled={!(pendingSettings?.invisibleText ?? readerSettings.invisibleText)}
               />
               <label htmlFor="show-current-word-when-invisible" className="font-bold theme-text select-none cursor-pointer">Show currently-being-read word when invisible</label>
             </div>
@@ -682,9 +727,9 @@ export default function ReaderPage() {
               <input
                 id="highlight-sentence-on-hover"
                 type="checkbox"
-                checked={readerSettings.highlightSentenceOnHover}
+                checked={pendingSettings?.highlightSentenceOnHover ?? readerSettings.highlightSentenceOnHover}
                 onChange={e => {
-                  savePreferences({ highlightSentenceOnHover: e.target.checked });
+                  handlePendingSettingChange({ highlightSentenceOnHover: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -697,9 +742,9 @@ export default function ReaderPage() {
                 min={1.0}
                 max={2.5}
                 step={0.05}
-                value={readerSettings.lineSpacing}
+                value={pendingSettings?.lineSpacing || readerSettings.lineSpacing}
                 onChange={e => {
-                  savePreferences({ lineSpacing: Number(e.target.value) });
+                  handlePendingSettingChange({ lineSpacing: Number(e.target.value) });
                 }}
                 className="w-full accent-[#2563eb]"
               />
@@ -713,9 +758,9 @@ export default function ReaderPage() {
               <input
                 id="disable-word-spans"
                 type="checkbox"
-                checked={readerSettings.disableWordSpans}
+                checked={pendingSettings?.disableWordSpans ?? readerSettings.disableWordSpans}
                 onChange={e => {
-                  savePreferences({ disableWordSpans: e.target.checked });
+                  handlePendingSettingChange({ disableWordSpans: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -725,9 +770,9 @@ export default function ReaderPage() {
               <input
                 id="disable-sentence-spans"
                 type="checkbox"
-                checked={readerSettings.disableSentenceSpans}
+                checked={pendingSettings?.disableSentenceSpans ?? readerSettings.disableSentenceSpans}
                 onChange={e => {
-                  savePreferences({ disableSentenceSpans: e.target.checked });
+                  handlePendingSettingChange({ disableSentenceSpans: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -737,9 +782,9 @@ export default function ReaderPage() {
               <input
                 id="show-audio-bar-on-start"
                 type="checkbox"
-                checked={readerSettings.showAudioBarOnStart}
-                onChange={async e => {
-                  savePreferences({ showAudioBarOnStart: e.target.checked });
+                checked={pendingSettings?.showAudioBarOnStart ?? readerSettings.showAudioBarOnStart}
+                onChange={e => {
+                  handlePendingSettingChange({ showAudioBarOnStart: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
@@ -749,14 +794,55 @@ export default function ReaderPage() {
               <input
                 id="enable-highlight-words"
                 type="checkbox"
-                checked={readerSettings.enableHighlightWords}
-                onChange={async e => {
-                  savePreferences({ enableHighlightWords: e.target.checked });
+                checked={pendingSettings?.enableHighlightWords ?? readerSettings.enableHighlightWords}
+                onChange={e => {
+                  handlePendingSettingChange({ enableHighlightWords: e.target.checked });
                 }}
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="enable-highlight-words" className="font-bold theme-text select-none cursor-pointer">Enable highlight words</label>
             </div>
+
+            {/* Save/Cancel Buttons */}
+            {hasUnsavedSettings && (
+              <div style={{
+                position: 'fixed',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 100,
+                display: 'flex',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+              }}>
+                <div style={{
+                  pointerEvents: 'auto',
+                  background: 'rgba(255,255,255,0.98)',
+                  boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
+                  borderTop: '1px solid #e5e7eb',
+                  borderRadius: '0 0 1rem 1rem',
+                  padding: '1rem 2rem',
+                  maxWidth: 400,
+                  width: '100%',
+                  display: 'flex',
+                  gap: '1rem',
+                  justifyContent: 'center',
+                }}>
+                  <button
+                    onClick={handleSaveSettings}
+                    className="btn-primary flex-1"
+                  >
+                    Save Settings
+                  </button>
+                  <button
+                    onClick={handleCancelSettings}
+                    className="btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
