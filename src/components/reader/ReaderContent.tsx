@@ -150,11 +150,15 @@ export function ReaderContent({
               display: 'inline',
               verticalAlign: 'baseline',
             }}
+            onClick={() => {
+              if (isSentenceSelectMode) onSentenceClick(sentence, sIdx);
+            }}
           >
             {words.map((word, wIdx) => {
               const wordStatus = enableHighlightWords ? getWordStatus(word) : undefined;
               const wordKey = getWordKey ? getWordKey(word, wIdx) : `${word}__${wIdx}`;
               const isHovered = hoveredWordKey === wordKey;
+              const isActiveWord = !disableWordHighlighting && sIdx === activeSentenceIndex && wIdx === activeWordIndex;
               // Remove useRef from here
               if (isMobile && sIdx === 0 && wIdx === 0) {
                 return (
@@ -180,27 +184,34 @@ export function ReaderContent({
                       }}
                       style={{
                         marginRight: 4,
-                        color: showCurrentSentence
+                        color: isActiveWord ? '#232946' : (showCurrentSentence
                           ? '#232946'
                           : (invisibleText
                               ? (showCurrentWordWhenInvisible
                                   ? '#232946'
                                   : 'rgba(0,0,0,0.001)')
-                              : undefined),
+                              : undefined)),
+                        background: isActiveWord ? '#ffe066' : undefined,
+                        borderRadius: isActiveWord ? 4 : undefined,
+                        fontWeight: isActiveWord ? 700 : undefined,
                         borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
                         cursor: enableHighlightWords ? 'pointer' : 'default',
+                        transition: 'background 0.15s, color 0.15s',
                       }}
                       onMouseEnter={e => {
+                        if (isSentenceSelectMode) return;
                         setHoveredWordKey(wordKey);
                         if (onWordDefinitionHover) onWordDefinitionHover(word, e);
                         if (enableHighlightWords) onWordHover(word);
                       }}
                       onMouseLeave={e => {
+                        if (isSentenceSelectMode) return;
                         handleMouseLeave();
                         if (onWordDefinitionHover) onWordDefinitionHover(null, e);
                         if (enableHighlightWords) onWordHover(null);
                       }}
                       onClick={e => {
+                        if (isSentenceSelectMode) return;
                         const el = e.currentTarget as HTMLSpanElement;
                         showPopup(word, sentence, el.getBoundingClientRect());
                       }}
@@ -224,27 +235,34 @@ export function ReaderContent({
                   }}
                   style={{
                     marginRight: 4,
-                    color: showCurrentSentence
+                    color: isActiveWord ? '#232946' : (showCurrentSentence
                       ? '#232946'
                       : (invisibleText
                           ? (showCurrentWordWhenInvisible
                               ? '#232946'
                               : 'rgba(0,0,0,0.001)')
-                          : undefined),
+                          : undefined)),
+                    background: isActiveWord ? '#ffe066' : undefined,
+                    borderRadius: isActiveWord ? 4 : undefined,
+                    fontWeight: isActiveWord ? 700 : undefined,
                     borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
                     cursor: enableHighlightWords ? 'pointer' : 'default',
+                    transition: 'background 0.15s, color 0.15s',
                   }}
                   onMouseEnter={e => {
+                    if (isSentenceSelectMode) return;
                     setHoveredWordKey(wordKey);
                     if (onWordDefinitionHover) onWordDefinitionHover(word, e);
                     if (enableHighlightWords) onWordHover(word);
                   }}
                   onMouseLeave={e => {
+                    if (isSentenceSelectMode) return;
                     handleMouseLeave();
                     if (onWordDefinitionHover) onWordDefinitionHover(null, e);
                     if (enableHighlightWords) onWordHover(null);
                   }}
                   onClick={e => {
+                    if (isSentenceSelectMode) return;
                     const el = e.currentTarget as HTMLSpanElement;
                     showPopup(word, sentence, el.getBoundingClientRect());
                   }}

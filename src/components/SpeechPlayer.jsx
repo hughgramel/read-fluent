@@ -238,6 +238,13 @@ const SpeechPlayer = forwardRef(({
 
   // Control functions
   const handlePlay = () => {
+    let idx = currentSentenceIndex;
+    if (idx === null || idx === undefined || isNaN(idx) || idx < 0 || idx >= (sentences?.length || 0)) {
+      idx = 0;
+      setCurrentSentenceIndex(0);
+      if (typeof onSentenceChange === 'function') onSentenceChange(0);
+      if (typeof onSentenceSelect === 'function') onSentenceSelect(0);
+    }
     playCurrentSentence(true);
   };
   // Pause only

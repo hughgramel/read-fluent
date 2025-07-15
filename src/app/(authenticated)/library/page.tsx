@@ -751,20 +751,54 @@ export default function library() {
     }
     setTextLoading(true);
     try {
-      // Create a single-section book
+      // Split textContent into sections at each line starting with '## '
+      const lines = textContent.split(/\r?\n/);
+      let sections: { title: string; content: string; wordCount: number; id: string }[] = [];
+      let currentSectionTitle = textTitle.trim();
+      let currentSectionContent: string[] = [];
+      let sectionCount = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim().startsWith('## ')) {
+          // Save previous section
+          if (currentSectionContent.length > 0 || sectionCount === 0) {
+            sections.push({
+              title: currentSectionTitle,
+              content: currentSectionContent.join('\n').trim(),
+              wordCount: currentSectionContent.join(' ').split(/\s+/).filter(Boolean).length,
+              id: (sectionCount + 1).toString(),
+            });
+            sectionCount++;
+          }
+          currentSectionTitle = line.replace(/^## /, '').trim();
+          currentSectionContent = [];
+        } else {
+          currentSectionContent.push(line);
+        }
+      }
+      // Push last section
+      if (currentSectionContent.length > 0 || sectionCount === 0) {
+        sections.push({
+          title: currentSectionTitle,
+          content: currentSectionContent.join('\n').trim(),
+          wordCount: currentSectionContent.join(' ').split(/\s+/).filter(Boolean).length,
+          id: (sectionCount + 1).toString(),
+        });
+      }
+      if (sections.length === 0) {
+        setTextError('No sections found in text.');
+        setTextLoading(false);
+        return;
+      }
+      // Create a Book object
       const bookId = Date.now().toString();
       const newBook = {
         id: bookId,
         title: textTitle.trim(),
         author: textAuthor.trim(),
         description: '',
-        sections: [{
-          title: textTitle.trim(),
-          content: textContent.trim(),
-          wordCount: textContent.trim().split(/\s+/).filter(Boolean).length,
-          id: '1',
-        }],
-        totalWords: textContent.trim().split(/\s+/).filter(Boolean).length,
+        sections,
+        totalWords: sections.reduce((sum, s) => sum + s.wordCount, 0),
         fileName: `${textTitle.trim().replace(/\s+/g, '_')}.txt`,
         dateAdded: new Date().toISOString(),
         css: '',

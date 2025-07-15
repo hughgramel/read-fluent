@@ -162,6 +162,13 @@ export default function ReaderPage() {
     }
   }, [book?.id, readPagesBySection]);
 
+  // Effect: Close word definition popup when TTS is active or sentence select mode is on
+  useEffect(() => {
+    if (isSpeechPlayerActive || isSentenceSelectMode) {
+      closeWordDefinitionPopup();
+    }
+  }, [isSpeechPlayerActive, isSentenceSelectMode]);
+
   // Function to handle when current reading sentence ends
   const onCurrentReadingSentenceEnd = (sentenceIndex: number) => {
     setActiveSentenceIndex(null);
@@ -211,6 +218,11 @@ export default function ReaderPage() {
     setShowSettings(false);
   };
 
+  // Prevent popup from opening if TTS or sentence select mode is active
+  const handleWordDefinitionHoverWrapper = (word: string | null, event?: React.MouseEvent, key?: string) => {
+    if (isSpeechPlayerActive || isSentenceSelectMode) return;
+    handleWordDefinitionHover(word, event, key);
+  };
 
 
   // Early returns for error and !book
@@ -467,7 +479,7 @@ export default function ReaderPage() {
                 getWordStatus={getWordStatus}
                 hoveredWord={hoveredWord}
                 onWordHover={handleWordHover}
-                onWordDefinitionHover={handleWordDefinitionHover}
+                onWordDefinitionHover={handleWordDefinitionHoverWrapper}
                 onWordDefinitionLongPress={handleWordDefinitionLongPress}
                 onWordDefinitionMouseUp={handleWordDefinitionMouseUp}
                 getWordKey={getWordKey}
