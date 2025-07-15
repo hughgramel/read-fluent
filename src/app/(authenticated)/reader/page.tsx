@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useReaderState } from '@/hooks/useReaderState';
 import { useReaderKeyboard } from '@/hooks/useReaderKeyboard';
+import { useTheme } from '@/contexts/ThemeContext';
 import { ReaderHeader } from '@/components/reader/ReaderHeader';
 import { ReaderSidebar } from '@/components/reader/ReaderSidebar';
 import { ReaderContent } from '@/components/reader/ReaderContent';
@@ -19,6 +20,7 @@ const SpeechPlayer: any = SpeechPlayerImport;
 
 export default function ReaderPage() {
   const { user } = useAuth();
+  const { currentTheme } = useTheme();
   const speechPlayerRef = useRef(null);
 
   const {
@@ -123,8 +125,8 @@ export default function ReaderPage() {
 
   // Apply theme to html[data-theme]
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', readerSettings.theme);
-  }, [readerSettings.theme]);
+    document.documentElement.setAttribute('data-theme', currentTheme.id);
+  }, [currentTheme.id]);
 
   // Inject book CSS into the DOM, scoped to .epub-html
   useEffect(() => {

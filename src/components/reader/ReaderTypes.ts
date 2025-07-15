@@ -36,7 +36,6 @@ export interface ReaderSettings {
   readerWidth: number;
   readerFontSize: number;
   disableWordUnderlines: boolean;
-  theme: string;
   viewMode: 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two';
   disableWordsReadPopup: boolean;
   readerContainerStyle: 'contained' | 'border' | 'none' | 'full-width';
