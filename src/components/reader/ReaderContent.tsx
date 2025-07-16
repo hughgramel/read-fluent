@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Clipboard } from 'lucide-react';
 import { WordType } from './ReaderTypes';
 import { getWordUnderline, cleanWord } from './ReaderUtils';
+import { WordPopup } from './WordPopup';
 
 interface ReaderContentProps {
   flatSentences: string[];
@@ -72,9 +73,8 @@ export function ReaderContent({
   const [hoveredWordKey, setHoveredWordKey] = useState<string | null>(null);
   const hoveredWordInfo = useRef<{ word: string; sentence: string; rect: DOMRect | null } | null>(null);
   const [popup, setPopup] = useState<null | { word: string; sentence: string; x: number; y: number; position: 'above' | 'below'; align: 'left' | 'right' }>(null);
-  const popupTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Show popup for 2 seconds
+  // Show popup (no auto-close timeout)
   const showPopup = (word: string, sentence: string, rect: DOMRect | null) => {
     if (!rect) return;
     // Calculate position: above or below depending on space
@@ -92,8 +92,6 @@ export function ReaderContent({
     const x = align === 'left' ? rect.left : rect.right;
     const y = position === 'below' ? rect.bottom + 6 : rect.top - 6;
     setPopup({ word, sentence, x, y, position, align });
-    if (popupTimeout.current) clearTimeout(popupTimeout.current);
-    popupTimeout.current = setTimeout(() => setPopup(null), 2000);
   };
 
   useEffect(() => {
@@ -105,26 +103,36 @@ export function ReaderContent({
     window.addEventListener('keydown', handleShiftClick);
     return () => {
       window.removeEventListener('keydown', handleShiftClick);
-      if (popupTimeout.current) clearTimeout(popupTimeout.current);
     };
   }, [hoveredWordKey]);
 
-  // Hide popup on mouse leave
+  // Hide popup on mouse leave (but keep popup open)
   const handleMouseLeave = () => {
     setHoveredWordKey(null);
     hoveredWordInfo.current = null;
-    setPopup(null);
+    // Don't close popup on mouse leave anymore
+  };
+
+  // Handle clicking outside the popup to close it
+  const handleContainerClick = (e: React.MouseEvent) => {
+    // Only close popup if clicking on the container itself, not on the popup
+    if (e.target === e.currentTarget && popup) {
+      setPopup(null);
+    }
   };
 
   return (
-    <div style={{ 
-      fontFamily: readerFont, 
-      fontSize: readerFontSize, 
-      maxWidth: readerWidth, 
-      width: '100%', 
-      color: invisibleText ? 'rgba(0,0,0,0.01)' : '#232946', 
-      lineHeight: lineSpacing 
-    }}>
+    <div 
+      style={{ 
+        fontFamily: readerFont, 
+        fontSize: readerFontSize, 
+        maxWidth: readerWidth, 
+        width: '100%', 
+        color: invisibleText ? 'rgba(0,0,0,0.01)' : '#232946', 
+        lineHeight: lineSpacing 
+      }}
+      onClick={handleContainerClick}
+    >
       {flatSentences.map((sentence, sIdx) => {
         const words = sentence.match(/\S+/g) || [];
         const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
@@ -276,31 +284,14 @@ export function ReaderContent({
       })}
       {/* Popup for word/sentence */}
       {popup && (
-        <div
-          style={{
-            position: 'fixed',
-            left: popup.align === 'left' ? popup.x : undefined,
-            right: popup.align === 'right' ? (window.innerWidth - popup.x) : undefined,
-            top: popup.position === 'below' ? popup.y : undefined,
-            bottom: popup.position === 'above' ? window.innerHeight - popup.y : undefined,
-            // No horizontal transform, only vertical offset
-            zIndex: 9999,
-            background: 'white',
-            color: '#232946',
-            border: '1px solid #888',
-            borderRadius: 8,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-            padding: '10px 18px',
-            fontSize: 16,
-            minWidth: 120,
-            maxWidth: 320,
-            textAlign: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>{popup.word}</div>
-          <div style={{ fontSize: 14, color: '#444' }}>{popup.sentence}</div>
-        </div>
+        <WordPopup
+          word={popup.word}
+          sentence={popup.sentence}
+          x={popup.x}
+          y={popup.y}
+          position={popup.position}
+          align={popup.align}
+        />
       )}
     </div>
   );
