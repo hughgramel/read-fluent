@@ -288,8 +288,20 @@ const SpeechPlayer = forwardRef(({
     setTimeout(() => playCurrentSentence(false), 50);
   }, [playCurrentSentence]);
 
+  // Toggle play/pause
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      handlePause();
+    } else {
+      handlePlay();
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     repeatCurrentSentence,
+    play: handlePlay,
+    pause: handlePause,
+    togglePlayPause,
   }));
 
   // Cleanup on unmount

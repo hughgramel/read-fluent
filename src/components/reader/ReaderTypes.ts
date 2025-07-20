@@ -53,6 +53,7 @@ export interface ReaderSettings {
   nativeLanguage: string;
   showAudioBarOnStart: boolean;
   enableHighlightWords: boolean;
+  disableWordDefinitionPopup?: boolean;
 }
 
 export interface TTSVoice {

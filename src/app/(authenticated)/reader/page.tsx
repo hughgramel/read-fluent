@@ -20,6 +20,14 @@ import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
 import React from 'react';
 const SpeechPlayer: any = SpeechPlayerImport;
 
+// Type for SpeechPlayer ref
+interface SpeechPlayerRef {
+  repeatCurrentSentence: () => void;
+  play: () => void;
+  pause: () => void;
+  togglePlayPause: () => void;
+}
+
 // ErrorBoundary component for catching rendering errors
 class ReaderErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
   constructor(props: any) {
@@ -57,7 +65,7 @@ class ReaderErrorBoundary extends React.Component<{ children: React.ReactNode },
 export default function ReaderPage() {
   const { user } = useAuth();
   const { currentTheme } = useTheme();
-  const speechPlayerRef = useRef(null);
+  const speechPlayerRef = useRef<SpeechPlayerRef>(null);
   const [pendingSettings, setPendingSettings] = useState<ReaderSettingsType | null>(null);
   const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
 
@@ -148,9 +156,7 @@ export default function ReaderPage() {
     onToggleInvisibleText: () => savePreferences({ invisibleText: !readerSettings.invisibleText }),
     onToggleSectionSidebar: () => setShowSectionSidebar(v => !v),
     onRepeatSentence: () => {
-      // @ts-ignore
-      if (speechPlayerRef.current && typeof speechPlayerRef.current.repeatCurrentSentence === 'function') {
-        // @ts-ignore
+      if (speechPlayerRef.current) {
         speechPlayerRef.current.repeatCurrentSentence();
       }
     },
@@ -255,10 +261,21 @@ export default function ReaderPage() {
 
   // Prevent popup from opening if TTS or sentence select mode is active
   const handleWordDefinitionHoverWrapper = (word: string | null, event?: React.MouseEvent, key?: string) => {
-    if (isSpeechPlayerActive || isSentenceSelectMode) return;
+    if (isSpeechPlayerActive || isSentenceSelectMode || readerSettings.disableWordDefinitionPopup) return;
     handleWordDefinitionHover(word, event, key);
   };
 
+  useEffect(() => {
+    const handlePlayPauseKey = (e: KeyboardEvent) => {
+      if ((e.key === 'p' || e.key === 'w' || e.key === 'P' || e.key === 'W') && isSpeechPlayerActive) {
+        if (speechPlayerRef.current) {
+          speechPlayerRef.current.togglePlayPause();
+        }
+      }
+    };
+    window.addEventListener('keydown', handlePlayPauseKey);
+    return () => window.removeEventListener('keydown', handlePlayPauseKey);
+  }, [isSpeechPlayerActive]);
 
   // Early returns for error and !book
   if (error) {
@@ -519,6 +536,7 @@ export default function ReaderPage() {
                   onWordDefinitionLongPress={handleWordDefinitionLongPress}
                   onWordDefinitionMouseUp={handleWordDefinitionMouseUp}
                   getWordKey={getWordKey}
+                  disableWordDefinitionPopup={effectiveSettings.disableWordDefinitionPopup}
                 />
               </div>
             </div>
@@ -850,6 +868,18 @@ export default function ReaderPage() {
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="enable-highlight-words" className="font-bold theme-text select-none cursor-pointer">Enable highlight words</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="disable-word-definition-popup"
+                type="checkbox"
+                checked={pendingSettings?.disableWordDefinitionPopup ?? readerSettings.disableWordDefinitionPopup}
+                onChange={e => {
+                  handlePendingSettingChange({ disableWordDefinitionPopup: e.target.checked });
+                }}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="disable-word-definition-popup" className="font-bold theme-text select-none cursor-pointer">Disable word-definition popup (on click/shift)</label>
             </div>
 
             {/* Save/Cancel Buttons */}

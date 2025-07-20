@@ -35,6 +35,7 @@ interface ReaderContentProps {
   onWordDefinitionLongPress?: (word: string, event: React.MouseEvent) => void;
   onWordDefinitionMouseUp?: () => void;
   getWordKey?: (word: string, idx: number) => string;
+  disableWordDefinitionPopup?: boolean;
 }
 
 export function ReaderContent({
@@ -68,6 +69,7 @@ export function ReaderContent({
   onWordDefinitionLongPress,
   onWordDefinitionMouseUp,
   getWordKey,
+  disableWordDefinitionPopup = false,
 }: ReaderContentProps) {
   // Track which word span is hovered (by word+index)
   const [hoveredWordKey, setHoveredWordKey] = useState<string | null>(null);
@@ -76,6 +78,7 @@ export function ReaderContent({
 
   // Show popup (no auto-close timeout)
   const showPopup = (word: string, sentence: string, rect: DOMRect | null) => {
+    if (disableWordDefinitionPopup) return;
     if (!rect) return;
     // Calculate position: above or below depending on space
     const viewportWidth = window.innerWidth;
@@ -96,6 +99,7 @@ export function ReaderContent({
 
   useEffect(() => {
     const handleShiftClick = (e: KeyboardEvent) => {
+      if (disableWordDefinitionPopup) return;
       if (e.key === 'Shift' && hoveredWordKey && hoveredWordInfo.current) {
         showPopup(hoveredWordInfo.current.word, hoveredWordInfo.current.sentence, hoveredWordInfo.current.rect);
       }
@@ -104,7 +108,7 @@ export function ReaderContent({
     return () => {
       window.removeEventListener('keydown', handleShiftClick);
     };
-  }, [hoveredWordKey]);
+  }, [hoveredWordKey, disableWordDefinitionPopup]);
 
   // Hide popup on mouse leave (but keep popup open)
   const handleMouseLeave = () => {
@@ -120,6 +124,27 @@ export function ReaderContent({
       setPopup(null);
     }
   };
+
+  // Global click handler to close popup when clicking anywhere
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      if (popup) {
+        // Check if the click is outside the popup
+        const popupElement = document.querySelector('[data-popup="word-popup"]');
+        if (popupElement && !popupElement.contains(e.target as Node)) {
+          setPopup(null);
+        }
+      }
+    };
+
+    if (popup) {
+      document.addEventListener('click', handleGlobalClick);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleGlobalClick);
+    };
+  }, [popup]);
 
   return (
     <div 
@@ -201,7 +226,6 @@ export function ReaderContent({
                               : undefined)),
                         background: isActiveWord ? '#ffe066' : undefined,
                         borderRadius: isActiveWord ? 4 : undefined,
-                        fontWeight: isActiveWord ? 700 : undefined,
                         borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
                         cursor: enableHighlightWords ? 'pointer' : 'default',
                         transition: 'background 0.15s, color 0.15s',
@@ -252,7 +276,6 @@ export function ReaderContent({
                           : undefined)),
                     background: isActiveWord ? '#ffe066' : undefined,
                     borderRadius: isActiveWord ? 4 : undefined,
-                    fontWeight: isActiveWord ? 700 : undefined,
                     borderBottom: enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
                     cursor: enableHighlightWords ? 'pointer' : 'default',
                     transition: 'background 0.15s, color 0.15s',
@@ -291,6 +314,7 @@ export function ReaderContent({
           y={popup.y}
           position={popup.position}
           align={popup.align}
+          onClose={() => setPopup(null)}
         />
       )}
     </div>

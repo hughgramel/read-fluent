@@ -1,5 +1,5 @@
-import React from 'react';
-import { BookOpen, MessageSquare, Languages, Bookmark } from 'lucide-react';
+import React, { useState } from 'react';
+import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye } from 'lucide-react';
 
 interface WordPopupProps {
   word: string;
@@ -8,16 +8,40 @@ interface WordPopupProps {
   y: number;
   position: 'above' | 'below';
   align: 'left' | 'right';
+  onClose?: () => void;
 }
 
-export function WordPopup({ word, sentence, x, y, position, align }: WordPopupProps) {
+export function WordPopup({ word, sentence, x, y, position, align, onClose }: WordPopupProps) {
+  const [showPlaceholder, setShowPlaceholder] = useState(false);
+  const [placeholderText, setPlaceholderText] = useState('');
+
   const handlePopupClick = (e: React.MouseEvent) => {
     // Prevent clicks on the popup from bubbling up to the container
     e.stopPropagation();
   };
 
+  const handleButtonClick = (action: string) => {
+    setShowPlaceholder(true);
+    switch (action) {
+      case 'definition':
+        setPlaceholderText('Loading word definition...');
+        break;
+      case 'explain':
+        setPlaceholderText('Loading sentence explanation...');
+        break;
+      case 'translate':
+        setPlaceholderText('Loading translation...');
+        break;
+      case 'sentence':
+        setShowPlaceholder(false);
+        setPlaceholderText('');
+        break;
+    }
+  };
+
   return (
     <div
+      data-popup="word-popup"
       style={{
         position: 'fixed',
         left: align === 'left' ? x : undefined,
@@ -32,116 +56,151 @@ export function WordPopup({ word, sentence, x, y, position, align }: WordPopupPr
         boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
         padding: '12px 16px',
         fontSize: 16,
-        minWidth: 200,
-        maxWidth: 320,
+        width: 400,
+        height: 255,
         pointerEvents: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
       }}
       onClick={handlePopupClick}
     >
-      {/* Word and save button row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      {/* Word and close button row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexShrink: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>{word}</div>
-        <button
-          onClick={() => {
-            // TODO: Implement save sentence functionality
-            console.log('Save sentence:', sentence);
-          }}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 4,
-            borderRadius: 4,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          title="Save sentence"
-        >
-          <Bookmark size={16} color="#666" />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => {
+              // TODO: Implement save sentence functionality
+              console.log('Save sentence:', sentence);
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 4,
+              borderRadius: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            title="Save sentence"
+          >
+            <Bookmark size={16} color="#666" />
+          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 4,
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Close"
+            >
+              <X size={16} color="#666" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Sentence text */}
-      <div style={{ fontSize: 14, color: '#444', marginBottom: 12, lineHeight: 1.4 }}>
-        {sentence}
-      </div>
-
-      {/* Action buttons row */}
-      <div style={{ display: 'flex', gap: 8 }}>
+      {/* Action buttons row - circular and smaller, positioned below word */}
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginBottom: 8, justifyContent: 'flex-start' }}>
         <button
-          onClick={() => {
-            // TODO: Implement show word definition functionality
-            console.log('Show word definition for:', word);
-          }}
+          onClick={() => handleButtonClick('definition')}
           style={{
-            flex: 1,
             background: '#f8f9fa',
             border: '1px solid #dee2e6',
-            borderRadius: 6,
-            padding: '8px 12px',
-            fontSize: 12,
+            borderRadius: '50%',
+            padding: '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 4,
             color: '#495057',
+            width: '32px',
+            height: '32px',
           }}
           title="Show word definition"
         >
-          <BookOpen size={12} />
-          <span>Show word definition</span>
+          <BookOpen size={14} />
         </button>
         <button
-          onClick={() => {
-            // TODO: Implement explain sentence functionality
-            console.log('Explain sentence:', sentence);
-          }}
+          onClick={() => handleButtonClick('explain')}
           style={{
-            flex: 1,
             background: '#f8f9fa',
             border: '1px solid #dee2e6',
-            borderRadius: 6,
-            padding: '8px 12px',
-            fontSize: 12,
+            borderRadius: '50%',
+            padding: '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 4,
             color: '#495057',
+            width: '32px',
+            height: '32px',
           }}
           title="Explain sentence"
         >
-          <MessageSquare size={12} />
-          <span>Explain sentence</span>
+          <MessageSquare size={14} />
         </button>
         <button
-          onClick={() => {
-            // TODO: Implement translate sentence functionality
-            console.log('Translate sentence:', sentence);
-          }}
+          onClick={() => handleButtonClick('translate')}
           style={{
-            flex: 1,
             background: '#f8f9fa',
             border: '1px solid #dee2e6',
-            borderRadius: 6,
-            padding: '8px 12px',
-            fontSize: 12,
+            borderRadius: '50%',
+            padding: '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 4,
             color: '#495057',
+            width: '32px',
+            height: '32px',
           }}
           title="Translate sentence"
         >
-          <Languages size={12} />
-          <span>Translate sentence</span>
+          <Languages size={14} />
+        </button>
+        <button
+          onClick={() => handleButtonClick('sentence')}
+          style={{
+            background: '#f8f9fa',
+            border: '1px solid #dee2e6',
+            borderRadius: '50%',
+            padding: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#495057',
+            width: '32px',
+            height: '32px',
+          }}
+          title="See sentence"
+        >
+          <Eye size={14} />
         </button>
       </div>
+
+      {/* Sentence text - scrollable */}
+      <div style={{ 
+        fontSize: 14, 
+        color: '#444', 
+        lineHeight: 1.4,
+        flex: 1,
+        overflowY: 'auto',
+        minHeight: 0,
+        maxHeight: '140px'
+      }}>
+        {showPlaceholder ? placeholderText : sentence}
+      </div>
+
     </div>
   );
 } 

@@ -64,6 +64,7 @@ export function useReaderState(user: any) {
     nativeLanguage: 'en',
     showAudioBarOnStart: true,
     enableHighlightWords: false,
+    disableWordDefinitionPopup: false,
   });
 
   // Word tracking state
@@ -237,6 +238,7 @@ export function useReaderState(user: any) {
             nativeLanguage: prefs.nativeLanguage || 'en',
             showAudioBarOnStart: !!prefs.showAudioBarOnStart,
             enableHighlightWords: !!prefs.enableHighlightWords,
+            disableWordDefinitionPopup: !!prefs.disableWordDefinitionPopup,
           }));
           setIsSpeechPlayerActive(!!prefs.showAudioBarOnStart);
         }
@@ -317,9 +319,13 @@ export function useReaderState(user: any) {
     const pagesInSection = sectionPages[currentSectionIndex]?.length || 0;
     if (currentPageIndex < pagesInSection - 1) {
       setCurrentPageIndex(currentPageIndex + 1);
+      setActiveSentenceIndex(0);
+      setActiveWordIndex(0);
     } else if (currentSectionIndex < sectionPages.length - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
       setCurrentPageIndex(0);
+      setActiveSentenceIndex(0);
+      setActiveWordIndex(0);
     }
   }, [sectionPages, currentSectionIndex, currentPageIndex]);
 
