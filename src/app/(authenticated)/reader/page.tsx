@@ -530,6 +530,7 @@ export default function ReaderPage() {
                   showCopyConfirm={showCopyConfirm}
                   enableHighlightWords={effectiveSettings.enableHighlightWords}
                   getWordStatus={getWordStatus}
+                  updateWordStatus={updateWordStatus}
                   hoveredWord={hoveredWord}
                   onWordHover={handleWordHover}
                   onWordDefinitionHover={handleWordDefinitionHoverWrapper}
@@ -537,6 +538,7 @@ export default function ReaderPage() {
                   onWordDefinitionMouseUp={handleWordDefinitionMouseUp}
                   getWordKey={getWordKey}
                   disableWordDefinitionPopup={effectiveSettings.disableWordDefinitionPopup}
+                  showHeader={showHeader}
                 />
               </div>
             </div>
