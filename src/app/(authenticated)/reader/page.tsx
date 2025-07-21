@@ -664,8 +664,6 @@ export default function ReaderPage() {
               const currentFontSize = pendingSettings?.readerFontSize || readerSettings.readerFontSize;
               const currentFont = pendingSettings?.readerFont || readerSettings.readerFont;
               const currentWidth = pendingSettings?.readerWidth || readerSettings.readerWidth;
-              // Log font size and width for the settings example text
-              console.log('Settings example text font size:', currentFontSize, 'and width:', currentWidth);
               return (
                 <div className="mt-4 mb-4 p-5 theme-border rounded theme-text" style={{ fontFamily: currentFont, fontSize: currentFontSize, maxWidth: currentWidth, backgroundColor: 'var(--background)', border: '1px solid var(--border-color)' }}>
                   Example: El rápido zorro marrón salta sobre el perro perezoso.

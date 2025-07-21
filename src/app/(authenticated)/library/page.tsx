@@ -10,6 +10,10 @@ import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus, FiArchive } from 'react-i
 import { uploadFileAndGetUrl } from '@/lib/firebase';
 import '@fontsource/inter';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
+import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { WordService } from '@/services/wordService';
+import { cleanWord } from '@/components/reader/ReaderUtils';
 
 // Types
 interface BookSection {
@@ -91,6 +95,13 @@ export default function library() {
   const [archivedBooks, setArchivedBooks] = useState<ArchivedBookCard[]>([]);
   const [batchMdLoading, setBatchMdLoading] = useState(false);
   const [batchMdError, setBatchMdError] = useState('');
+  // Add state for comprehension reports
+  const [comprehensionReports, setComprehensionReports] = useState<{ [bookId: string]: any }>({});
+  const [comprehensionModalBook, setComprehensionModalBook] = useState<Book | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState('');
+  // Add state for userWords
+  const [userWords, setUserWords] = useState<{ [word: string]: 'known' | 'tracking' | 'ignored' | 'unknown' }>({});
 
   // Auto-scroll effect
   useEffect(() => {
@@ -226,6 +237,35 @@ export default function library() {
       })));
     });
   }, [user]);
+
+  // Load user words on mount
+  useEffect(() => {
+    if (!user?.uid) return;
+    WordService.getWords(user.uid).then(ws => {
+      const map: { [word: string]: 'known' | 'tracking' | 'ignored' | 'unknown' } = {};
+      ws.forEach(w => { map[cleanWord(w.word)] = w.type; });
+      setUserWords(map);
+    });
+  }, [user]);
+
+  // Fetch comprehension report for a book
+  const fetchComprehensionReport = async (bookId: string) => {
+    if (!user?.uid) return;
+    const reportRef = doc(collection(db, 'users', user.uid, 'comprehensionReports'), bookId);
+    const reportSnap = await getDoc(reportRef);
+    if (reportSnap.exists()) {
+      setComprehensionReports(prev => ({ ...prev, [bookId]: reportSnap.data() }));
+    }
+  };
+
+  // Fetch all comprehension reports for all books on mount
+  useEffect(() => {
+    if (!user?.uid || books.length === 0) return;
+    books.forEach(book => {
+      fetchComprehensionReport(book.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, books.length]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1169,13 +1209,92 @@ export default function library() {
     setArchivedBooks(prev => prev.filter(b => b.id !== archivedId));
   };
 
+  // Analyze comprehension for a book
+  const analyzeComprehension = async (book: Book) => {
+    setAnalyzing(true);
+    setAnalyzeError('');
+    try {
+      // Fetch book content (sections)
+      let allText = '';
+      if (book.sections && book.sections.length > 0) {
+        allText = book.sections.map(s => s.content).join(' ');
+      } else if (book.downloadURL) {
+        // Fetch from storage if not loaded
+        const fetched = await getBookJson(book.downloadURL);
+        if (fetched && fetched.sections && Array.isArray(fetched.sections)) {
+          allText = fetched.sections.map((s: any) => s.content).join(' ');
+        }
+      }
+      if (!allText) throw new Error('No book content found.');
+      // Tokenize words: only alphabetic, case-insensitive, remove punctuation
+      const words = (allText.match(/[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+/g) || []).map(w => w.toLowerCase());
+      const freqMap: { [word: string]: number } = {};
+      words.forEach(w => {
+        freqMap[w] = (freqMap[w] || 0) + 1;
+      });
+      // Use userWords for status
+      const knownWords: string[] = [];
+      const trackingWords: string[] = [];
+      const ignoredWords: string[] = [];
+      const unknownWords: string[] = [];
+      Object.keys(freqMap).forEach(w => {
+        const status = userWords[cleanWord(w)] || 'unknown';
+        if (status === 'known') knownWords.push(w);
+        else if (status === 'tracking') trackingWords.push(w);
+        else if (status === 'ignored') ignoredWords.push(w);
+        else unknownWords.push(w);
+      });
+      // Print word status for each word
+      words.forEach(w => {
+        const status = userWords[cleanWord(w)] || 'unknown';
+        console.log(`ANALYZE WORD: ${w} | ${status}`);
+      });
+      // Print counts and percentages
+      const total = words.length;
+      const knownCount = words.filter(w => userWords[cleanWord(w)] === 'known').length;
+      const trackingCount = words.filter(w => userWords[cleanWord(w)] === 'tracking').length;
+      const ignoredCount = words.filter(w => userWords[cleanWord(w)] === 'ignored').length;
+      const unknownCount = words.filter(w => !userWords[cleanWord(w)]).length;
+      console.log('--- COMPREHENSION DEBUG ---');
+      console.log('Total words:', total);
+      console.log('Known:', knownCount, `(${((knownCount/total)*100).toFixed(2)}%)`);
+      console.log('Tracking:', trackingCount, `(${((trackingCount/total)*100).toFixed(2)}%)`);
+      console.log('Ignored:', ignoredCount, `(${((ignoredCount/total)*100).toFixed(2)}%)`);
+      console.log('Unknown:', unknownCount, `(${((unknownCount/total)*100).toFixed(2)}%)`);
+      console.log('--------------------------');
+      const report = {
+        totalWords: words.length,
+        uniqueWords: Object.keys(freqMap).length,
+        known: knownWords.length,
+        tracking: trackingWords.length,
+        ignored: ignoredWords.length,
+        unknown: unknownWords.length,
+        freqMap,
+        knownWords,
+        trackingWords,
+        ignoredWords,
+        unknownWords,
+        analyzedAt: new Date().toISOString(),
+      };
+      // Save to Firestore
+      if (user?.uid) {
+        const reportRef = doc(collection(db, 'users', user.uid, 'comprehensionReports'), book.id);
+        await setDoc(reportRef, report);
+      }
+      setComprehensionReports(prev => ({ ...prev, [book.id]: report }));
+    } catch (err: any) {
+      setAnalyzeError(err.message || 'Failed to analyze.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   // BookCard
   function BookCard({ book, archived }: { book: Book | ArchivedBookCard; archived?: boolean }) {
-    const knownPct = 94.6;
-    const trackingPct = 3.5;
-    const unknownPct = 1.8;
+    const report = comprehensionReports[book.id];
+    const knownPct = report ? ((report.known / report.uniqueWords) * 100).toFixed(1) : null;
+    const unknownPct = report ? ((report.unknown / report.uniqueWords) * 100).toFixed(1) : null;
     const completed = (book as Book).completed;
-    // For archived, use book.wordsRead; for Book, use bookWordsRead
     const wordsRead = archived ? (book as ArchivedBookCard).wordsRead : bookWordsRead[String(book.id)] || 0;
     const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
     return (
@@ -1188,8 +1307,19 @@ export default function library() {
         aria-label={`Read ${book.title}`}
       >
         <div className="flex justify-end p-2 gap-2">
+          {!archived && (
+            <button
+              onClick={e => { e.stopPropagation(); setComprehensionModalBook(book as Book); fetchComprehensionReport(book.id); }}
+              className="text-gray-300 hover:text-blue-500 text-lg p-1 rounded transition-colors"
+              title="Comprehension Report"
+              tabIndex={-1}
+              style={{ background: 'none', border: 'none' }}
+            >
+              <FiBarChart2 className="w-5 h-5" />
+            </button>
+          )}
           {archived ? (
-          <button
+            <button
               onClick={e => { e.stopPropagation(); deleteArchivedBookHandler(book.id); }}
               className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
               title="Delete archived book"
@@ -1211,13 +1341,13 @@ export default function library() {
               </button>
               <button
                 onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, (book as Book).storagePath); }}
-            className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
-            title="Delete book"
-            tabIndex={-1}
-            style={{ background: 'none', border: 'none' }}
-          >
-            <FiTrash2 className="w-5 h-5" />
-          </button>
+                className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
+                title="Delete book"
+                tabIndex={-1}
+                style={{ background: 'none', border: 'none' }}
+              >
+                <FiTrash2 className="w-5 h-5" />
+              </button>
             </>
           )}
         </div>
@@ -1236,13 +1366,19 @@ export default function library() {
           {/* Comprehension Progress Bar */}
           <div className="w-full mt-1 mb-1">
             <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
-              <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: `${knownPct}%`, borderRadius: '999px 0 0 999px' }} />
-              <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: `${100 - unknownPct}%`, opacity: 0.3 }} />
-              <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: `${trackingPct + knownPct}%`, opacity: 0.18 }} />
+              <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: report ? `${knownPct}%` : '0%', borderRadius: '999px 0 0 999px' }} />
+              <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: report ? `${100 - Number(unknownPct)}%` : '0%', opacity: 0.3 }} />
+              <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: report ? `${Number(knownPct) + (report.ignored / report.uniqueWords) * 100}%` : '0%', opacity: 0.18 }} />
             </div>
             <div className="flex justify-between text-xs mt-1 theme-text-secondary">
-              <span>{knownPct}% Known</span>
-              <span>{unknownPct}% Unknown</span>
+              {report ? (
+                <>
+                  <span>{knownPct}% Known</span>
+                  <span>{unknownPct}% Unknown</span>
+                </>
+              ) : (
+                <span className="italic text-gray-400">No report</span>
+              )}
             </div>
           </div>
           {/* Actions */}
@@ -1300,6 +1436,62 @@ export default function library() {
             <div className="flex justify-between"><span className="font-semibold">File:</span> <span>{dataModalBook.fileName}</span></div>
             <div className="flex justify-between"><span className="font-semibold">Date Added:</span> <span>{new Date(dataModalBook.dateAdded).toLocaleString()}</span></div>
             {/* Add more analytics here later */}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Comprehension Modal
+  function ComprehensionModal() {
+    if (!comprehensionModalBook) return null;
+    const report = comprehensionReports[comprehensionModalBook.id];
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="card-themed p-8 max-w-lg w-full relative" style={{ fontFamily: 'var(--font-family)' }}>
+          <button
+            onClick={() => setComprehensionModalBook(null)}
+            className="absolute top-3 right-3 theme-text-secondary hover:theme-primary text-2xl font-bold transition-colors"
+            style={{ background: 'none', border: 'none', lineHeight: 1 }}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Comprehension Report</h2>
+          <div className="theme-text-secondary text-base space-y-3 px-2">
+            <div className="flex justify-between"><span className="font-semibold">Title:</span> <span>{comprehensionModalBook.title}</span></div>
+            <div className="flex justify-between"><span className="font-semibold">Author:</span> <span>{comprehensionModalBook.author}</span></div>
+            <div className="flex justify-between"><span className="font-semibold">Total Words:</span> <span>{comprehensionModalBook.totalWords}</span></div>
+            {report ? (
+              <>
+                <div className="flex justify-between"><span className="font-semibold">Unique Words:</span> <span>{report.uniqueWords}</span></div>
+                <div className="flex justify-between"><span className="font-semibold">Known:</span> <span>{report.known}</span></div>
+                <div className="flex justify-between"><span className="font-semibold">Unknown:</span> <span>{report.unknown}</span></div>
+                <div className="flex justify-between"><span className="font-semibold">Ignored:</span> <span>{report.ignored}</span></div>
+                <div className="flex justify-between"><span className="font-semibold">Analyzed At:</span> <span>{new Date(report.analyzedAt).toLocaleString()}</span></div>
+                <div className="mt-4">
+                  <h3 className="font-semibold mb-2">Top 10 Words</h3>
+                  <ul className="text-sm max-h-32 overflow-y-auto">
+                    {(Object.entries(report.freqMap) as [string, number][]) 
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 10)
+                      .map(([word, count]) => (
+                        <li key={word}>{word}: {count}</li>
+                      ))}
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="italic text-gray-500">No comprehension report yet. Click below to analyze.</div>
+            )}
+            {analyzeError && <div className="text-red-600 text-sm mb-2">{analyzeError}</div>}
+            <button
+              onClick={() => analyzeComprehension(comprehensionModalBook)}
+              className="btn-primary w-full mt-4 py-3 px-4 rounded-lg font-bold text-base shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
+              disabled={analyzing}
+            >
+              {analyzing ? 'Analyzing...' : (report ? 'Re-analyze Comprehension' : 'Analyze Comprehension')}
+            </button>
           </div>
         </div>
       </div>
@@ -1584,6 +1776,7 @@ export default function library() {
           </div>
         )}
       </div>
+      <ComprehensionModal />
     </div>
   );
 

@@ -38,6 +38,9 @@ interface ReaderContentProps {
   getWordKey?: (word: string, idx: number) => string;
   disableWordDefinitionPopup?: boolean;
   showHeader?: boolean;
+  readerSettings: {
+    nativeLanguage: string;
+  };
 }
 
 export function ReaderContent({
@@ -74,6 +77,7 @@ export function ReaderContent({
   getWordKey,
   disableWordDefinitionPopup = false,
   showHeader = false,
+  readerSettings,
 }: ReaderContentProps) {
   // Track which word span is hovered (by word+index)
   const [hoveredWordKey, setHoveredWordKey] = useState<string | null>(null);
@@ -111,11 +115,9 @@ export function ReaderContent({
         result.push(punctuationPart);
       }
       
-      console.log('Split sentence:', sentence, 'into:', result);
       return result;
     }
     
-    console.log('No punctuation found in sentence:', sentence, 'words:', words);
     return words;
   };
 
@@ -340,12 +342,11 @@ export function ReaderContent({
               const isLastNonPunctuationWord = !isPunctuation && 
                 words.slice(wIdx + 1).every(w => /^[.,!?;:]|["'\)\]}]$/.test(w));
               
-              // Debug logging
-              if (wIdx === words.length - 2 || wIdx === words.length - 1) {
-                console.log(`Word ${wIdx}: "${word}", isPunctuation: ${isPunctuation}, isLastNonPunctuationWord: ${isLastNonPunctuationWord}, remainingWords: [${words.slice(wIdx + 1).join(', ')}]`);
-              }
+             
               
-              const wordStatus = enableHighlightWords ? getWordStatus(word) : undefined;
+              // Clean word for status lookup
+              const cleanedWord = cleanWordForDisplay(word);
+              const wordStatus = enableHighlightWords ? getWordStatus(cleanedWord) : undefined;
               const wordKey = getWordKey ? getWordKey(word, wIdx) : `${word}__${wIdx}`;
               const isHovered = hoveredWordKey === wordKey;
               const isActiveWord = !disableWordHighlighting && sIdx === activeSentenceIndex && wIdx === activeWordIndex;
@@ -428,7 +429,6 @@ export function ReaderContent({
                   data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
                   onMouseEnter={e => {
                     if (isSentenceSelectMode || isPunctuation) return;
-                    console.log('Mouse ENTER word:', word, 'Key:', wordKey);
                     setHoveredWordKey(wordKey);
                     // Immediately set the hover info
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -438,7 +438,7 @@ export function ReaderContent({
                   }}
                   onMouseLeave={e => {
                     if (isSentenceSelectMode || isPunctuation) return;
-                    console.log('Mouse LEAVE word:', word, 'Key:', wordKey);
+
                     setHoveredWordKey(null);
                     hoveredWordInfo.current = null;
                     if (onWordDefinitionHover) onWordDefinitionHover(null, e);
@@ -471,6 +471,9 @@ export function ReaderContent({
           onWordStatusChange={(word, newStatus) => {
             updateWordStatus(word, newStatus);
           }}
+          readerFont={readerFont}
+          nativeLanguage={'en'}
+          targetLanguage={'es'}
         />
       )}
     </div>
