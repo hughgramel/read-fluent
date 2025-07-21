@@ -4,12 +4,15 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserService } from '@/services/userService';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
+import { getBooks } from '@/services/epubService';
+import Link from 'next/link';
 import { FiEdit2 } from 'react-icons/fi';
 import { FaCalendarCheck, FaBookOpen, FaCreditCard, FaGraduationCap, FaRegListAlt, FaInfoCircle, FaGithub, FaReddit, FaDiscord, FaFileAlt, FaCopyright, FaSyncAlt } from 'react-icons/fa';
 
 export default function Home() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<ReadingSession[]>([]);
+  const [books, setBooks] = useState<any[]>([]);
   const [dailyGoal, setDailyGoal] = useState(1500);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalInput, setGoalInput] = useState<string>('1500');
@@ -18,6 +21,7 @@ export default function Home() {
   useEffect(() => {
     if (!user?.uid) return;
     ReadingSessionService.getUserSessions(user.uid).then(setSessions);
+    getBooks(user.uid).then(setBooks);
   }, [user]);
 
   // On mount, load daily goal from Firebase
@@ -66,6 +70,47 @@ export default function Home() {
   const pct = Math.min(100, (wordsReadToday / dailyGoal) * 100);
   const dashoffset = 282.743 * (1 - pct / 100);
 
+  // Helper: get most recently read/progressing books (up to 5)
+  const bookProgressMap: { [bookId: string]: { lastRead: string, wordsRead: number } } = {};
+  sessions.forEach(s => {
+    if (!s.bookId) return;
+    let lastReadStr = typeof s.timestamp === 'string' ? s.timestamp : (s.timestamp instanceof Date ? s.timestamp.toISOString() : (typeof s.timestamp === 'object' && s.timestamp !== null && typeof (s.timestamp as any).toDate === 'function' ? (s.timestamp as any).toDate().toISOString() : ''));
+    if (!bookProgressMap[s.bookId] || new Date(lastReadStr) > new Date(bookProgressMap[s.bookId].lastRead)) {
+      bookProgressMap[s.bookId] = {
+        lastRead: lastReadStr,
+        wordsRead: (bookProgressMap[s.bookId]?.wordsRead || 0) + (s.wordCount || 0)
+      };
+    } else {
+      bookProgressMap[s.bookId].wordsRead += (s.wordCount || 0);
+    }
+  });
+  const booksWithProgress = books
+    .map(b => {
+      const progress = bookProgressMap[b.id];
+      const percent = b.totalWords ? Math.round(((progress?.wordsRead || 0) / b.totalWords) * 100) : 0;
+      return { ...b, ...progress, percent };
+    });
+  // Only consider books with progress for recently read/in-progress
+  const recentlyReadBooks = booksWithProgress
+    .filter(b => b.wordsRead > 0 && b.lastRead)
+    .sort((a, b) => new Date(b.lastRead).getTime() - new Date(a.lastRead).getTime())
+    .slice(0, 5);
+  let fillCount = 5 - recentlyReadBooks.length;
+  let filledBooks = [...recentlyReadBooks];
+  if (fillCount > 0) {
+    // Add top in-progress books by percent completion (not already in list, not completed)
+    const inProgress = booksWithProgress
+      .filter(b => b.wordsRead > 0 && !b.lastRead && b.percent > 0 && b.percent < 100 && !filledBooks.some(fb => fb.id === b.id))
+      .sort((a, b) => b.percent - a.percent)
+      .slice(0, fillCount);
+    filledBooks = [...filledBooks, ...inProgress];
+  }
+
+  console.log('HOME DEBUG: sessions', sessions);
+  console.log('HOME DEBUG: bookProgressMap', bookProgressMap);
+  console.log('HOME DEBUG: booksWithProgress', booksWithProgress);
+  console.log('HOME DEBUG: filledBooks', filledBooks);
+
   const PIN_LIGHT_GRAY = '#9aa1b2'; // match Sidebar.tsx
 
   return (
@@ -105,6 +150,32 @@ export default function Home() {
               </div>
               <div className="theme-text-secondary text-sm text-center mb-4">Read {dailyGoal} words from any imported text.</div>
             </div>
+          </div>
+        </div>
+        {/* Recently Read Row */}
+        <div className="mb-16">
+          <div className="flex items-center gap-4 mb-6 mt-12">
+            <h2 className="text-xl font-bold theme-primary tracking-tight" style={{ fontFamily: 'var(--font-family)', letterSpacing: '-0.01em', fontWeight: 700 }}>Recently read</h2>
+            <div className="flex-1 border-t theme-border" />
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-6 min-h-[180px]" style={{ minHeight: filledBooks.length === 0 ? 80 : 180, alignItems: filledBooks.length === 0 ? 'center' : 'flex-start', justifyContent: filledBooks.length === 0 ? 'center' : 'flex-start' }}>
+            {filledBooks.length === 0 ? (
+              <div className="text-gray-400 italic text-lg flex items-center justify-center w-full" style={{ minHeight: 80, height: 80 }}>
+                No recent reading activity.
+              </div>
+            ) : (
+              filledBooks.map(book => (
+                <div key={book.id} className="card-themed-accent p-4 flex flex-col min-w-[220px] max-w-[260px]" style={{ minHeight: 180 }}>
+                  <div className="font-bold text-lg theme-text mb-1">{book.title}</div>
+                  <div className="theme-text-secondary text-sm mb-2">{book.author || 'N/A'}</div>
+                  <div className="flex-1 flex flex-col justify-end">
+                    <div className="theme-text-secondary text-xs mb-2">{book.lastRead ? `Last read: ${new Date(book.lastRead).toLocaleDateString()}` : `Progress: ${book.percent || 0}%`}</div>
+                    <div className="theme-text-secondary text-xs mb-2">Words read: {book.wordsRead?.toLocaleString() || 0}</div>
+                    <Link href={`/reader?book=${book.id}`} className="btn-primary w-full text-center mt-2 py-2 rounded font-bold">Continue</Link>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
         {/* Statistics Row Header */}

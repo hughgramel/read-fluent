@@ -781,10 +781,12 @@ export default function library() {
   // Add handler for text book creation
   const handleCreateTextBook = async () => {
     setTextError('');
-    if (!textTitle.trim() || !textAuthor.trim() || !textContent.trim()) {
+    if (!textTitle.trim() || !textContent.trim()) {
       setTextError('Please fill in all fields.');
       return;
     }
+    // If author is empty, use 'N/A'
+    const authorValue = textAuthor.trim() ? textAuthor.trim() : 'N/A';
     if (!user?.uid) {
       setTextError('You must be signed in.');
       return;
@@ -835,7 +837,7 @@ export default function library() {
       const newBook = {
         id: bookId,
         title: textTitle.trim(),
-        author: textAuthor.trim(),
+        author: authorValue,
         description: '',
         sections,
         totalWords: sections.reduce((sum, s) => sum + s.wordCount, 0),
