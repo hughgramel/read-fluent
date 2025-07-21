@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye, CheckCircle, XCircle, HelpCircle, Bot, ListOrdered } from 'lucide-react';
+import { Bookmark as BookmarkIcon, Bookmark as BookmarkFilledIcon } from 'lucide-react';
 import { WordType } from './ReaderTypes';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import ReactMarkdown from 'react-markdown';
+import { SentenceService } from '@/services/sentenceService';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 export type DatabaseTermEntry = {
@@ -220,6 +223,9 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const [wordExplainResult, setWordExplainResult] = useState<string | null>(null);
   const [wordExplainLoading, setWordExplainLoading] = useState(false);
   const [wordExplainError, setWordExplainError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveAnim, setSaveAnim] = useState(false);
 
   // Detect mobile screen
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
@@ -460,6 +466,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     }
   };
 
+  const { user } = useAuth ? useAuth() : { user: null };
+
   return (
     <div
       data-popup="word-popup"
@@ -517,23 +525,41 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         <div style={{ fontWeight: 700, fontSize: 18 }}>{displayWord}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button
-          onClick={() => {
-            // TODO: Implement save sentence functionality
-            console.log('Save sentence:', sentence);
+          onClick={async () => {
+            if (user && user.uid) {
+              setIsSaving(true);
+              await SentenceService.addSentence(user.uid, sentence, word);
+              setIsSaving(false);
+              setIsSaved(true);
+              setSaveAnim(true);
+              setTimeout(() => setSaveAnim(false), 300);
+              console.log('Saved sentence with target word:', sentence, word);
+            } else {
+              console.log('No user, cannot save sentence');
+            }
           }}
           style={{
             background: 'transparent',
             border: 'none',
-            cursor: 'pointer',
+            cursor: isSaved ? 'default' : 'pointer',
             padding: 4,
             borderRadius: 4,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transition: 'background 0.2s, transform 0.15s',
+            color: isSaved ? '#232946' : '#666',
+            transform: saveAnim ? 'scale(1.2)' : 'scale(1)',
+            filter: isSaved ? 'brightness(1)' : 'none',
+            opacity: isSaving ? 0.7 : 1,
           }}
-          title="Save sentence"
+          title={isSaved ? 'Sentence saved' : 'Save sentence'}
+          disabled={isSaved || isSaving}
         >
-          <Bookmark size={16} color="#666" />
+          {isSaved
+            ? <BookmarkIcon size={16} color="#232323" fill="#232323" style={{ display: 'block' }} />
+            : <BookmarkIcon size={16} color="#666" style={{ display: 'block' }} />
+          }
         </button>
           {onClose && (
             <button

@@ -126,6 +126,11 @@ export function ReaderContent({
     return word.replace(/[.,!?;:]|["'\)\]}]/g, '');
   };
 
+  // Helper to clean asterisks from a word
+  function cleanWordForLookup(word: string) {
+    return word.replace(/\*+/g, '');
+  }
+
   // Show popup (no auto-close timeout)
   const showPopup = (word: string, sentence: string, rect: DOMRect | null) => {
     if (disableWordDefinitionPopup) return;
@@ -400,7 +405,8 @@ export function ReaderContent({
                       onClick={e => {
                         if (isSentenceSelectMode || isPunctuation) return;
                         const el = e.currentTarget as HTMLSpanElement;
-                        showPopup(word, sentence, el.getBoundingClientRect());
+                        const cleanedWord = cleanWordForLookup(word);
+                        showPopup(cleanedWord, sentence, el.getBoundingClientRect());
                       }}
                     >
                       {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
@@ -447,7 +453,8 @@ export function ReaderContent({
                   onClick={e => {
                     if (isSentenceSelectMode || isPunctuation) return;
                     const el = e.currentTarget as HTMLSpanElement;
-                    showPopup(word, sentence, el.getBoundingClientRect());
+                    const cleanedWord = cleanWordForLookup(word);
+                    showPopup(cleanedWord, sentence, el.getBoundingClientRect());
                   }}
                 >
                   {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}

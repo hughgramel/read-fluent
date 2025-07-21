@@ -364,13 +364,15 @@ export default function WordsPage() {
               </button>
             </div>
             <div className="card-themed overflow-hidden overflow-x-auto">
-              <table className="w-full border-collapse min-w-[600px]" style={{ tableLayout: 'fixed' }}>
+              <table className="w-full border-collapse min-w-[700px]" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="bg-gray-50 border-b theme-border text-sm sm:text-base font-semibold theme-text-secondary">
                     <th className="py-2 px-2 sm:px-3 border-r theme-border text-center w-12 sm:w-16">#</th>
-                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '60%' }}>Sentence</th>
-                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '25%' }}>Date</th>
-                    <th className="py-2 px-2 sm:px-3 text-center" style={{ width: '15%' }}></th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '30%' }}>Target Word</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '45%' }}>Sentence</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '15%' }}>Date</th>
+                    <th className="py-2 px-2 sm:px-3 text-center" style={{ width: '5%' }}></th>
+                    <th className="py-2 px-2 sm:px-3 text-center" style={{ width: '5%' }}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y theme-border">
@@ -383,9 +385,16 @@ export default function WordsPage() {
                       <td className="py-2 px-2 sm:px-3 border-r theme-border text-center theme-text-secondary font-mono whitespace-nowrap">
                         {index + 1}
                       </td>
-                      <td className="py-2 px-2 sm:px-3 border-r theme-border theme-text">
-                        <span className="font-medium theme-text break-words">
-                          {sentence.text}
+                      {/* Target Word column */}
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border theme-text font-semibold text-base text-center">
+                        {sentence.targetWord ? <span>{sentence.targetWord}</span> : <span className="text-gray-400">—</span>}
+                      </td>
+                      {/* Sentence column, bold only the target word */}
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border theme-text break-words">
+                        <span>
+                          {sentence.targetWord
+                            ? boldTargetWord(sentence.text, sentence.targetWord)
+                            : sentence.text}
                         </span>
                       </td>
                       <td className="py-2 px-2 sm:px-3 border-r theme-border whitespace-nowrap">
@@ -393,6 +402,7 @@ export default function WordsPage() {
                           {sentence.createdAt ? new Date(sentence.createdAt).toLocaleDateString() : 'Unknown'}
                         </span>
                       </td>
+                      {/* Copy button */}
                       <td className="py-2 px-2 sm:px-3 text-center whitespace-nowrap">
                         <button
                           onClick={() => {
@@ -405,6 +415,21 @@ export default function WordsPage() {
                           title="Copy sentence"
                         >
                           <Clipboard className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                      </td>
+                      {/* Remove button */}
+                      <td className="py-2 px-2 sm:px-3 text-center whitespace-nowrap">
+                        <button
+                          onClick={async () => {
+                            if (user && sentence.id) {
+                              await SentenceService.removeSentence(user.uid, sentence.id);
+                              setSentences(sentences.filter(s => s.id !== sentence.id));
+                            }
+                          }}
+                          className="text-gray-400 hover:text-red-500 transition-colors p-1.5 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 theme-border border flex items-center justify-center"
+                          title="Remove sentence"
+                        >
+                          <FiTrash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         </button>
                       </td>
                     </tr>
@@ -527,5 +552,15 @@ export default function WordsPage() {
       )}
       </div>
     </div>
+  );
+} 
+
+function boldTargetWord(sentence: string, targetWord: string) {
+  if (!targetWord) return sentence;
+  // Use regex to match the word, case-insensitive, word boundaries
+  const regex = new RegExp(`(\\b${targetWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi');
+  const parts = sentence.split(regex);
+  return parts.map((part, i) =>
+    regex.test(part) ? <b key={i} className="font-bold">{part}</b> : part
   );
 } 

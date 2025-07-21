@@ -62,6 +62,11 @@ class ReaderErrorBoundary extends React.Component<{ children: React.ReactNode },
   }
 }
 
+// Helper to clean asterisks from a word
+function cleanWordForLookup(word: string) {
+  return word.replace(/\*+/g, '');
+}
+
 export default function ReaderPage() {
   const { user } = useAuth();
   const { currentTheme } = useTheme();
@@ -262,7 +267,12 @@ export default function ReaderPage() {
   // Prevent popup from opening if TTS or sentence select mode is active
   const handleWordDefinitionHoverWrapper = (word: string | null, event?: React.MouseEvent, key?: string) => {
     if (isSpeechPlayerActive || isSentenceSelectMode || readerSettings.disableWordDefinitionPopup) return;
-    handleWordDefinitionHover(word, event, key);
+    // Clean asterisks from the word
+    const cleanedWord = word ? cleanWordForLookup(word) : word;
+    console.log('word', word);
+    console.log('cleanedWord', cleanedWord);
+  
+    handleWordDefinitionHover(cleanedWord, event, key);
   };
 
   useEffect(() => {
@@ -507,6 +517,7 @@ export default function ReaderPage() {
                 {/* Page content */}
                 <ReaderContent
                   flatSentences={currentPageSentences}
+                  readerSettings={effectiveSettings}
                   readerFont={effectiveSettings.readerFont}
                   readerFontSize={effectiveSettings.readerFontSize}
                   readerWidth={effectiveSettings.readerWidth}

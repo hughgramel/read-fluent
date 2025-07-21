@@ -12,7 +12,7 @@ const navigation = [
   { name: 'Home', href: '/home', icon: <FaHome /> },
   { name: 'Library', href: '/library', icon: <FaBookOpen /> },
   { name: 'History', href: '/history', icon: <FaRegSave /> },
-  { name: 'Words', href: '/words', icon: <PiTextAaBold /> },
+  { name: 'Saved', href: '/words', icon: <PiTextAaBold /> },
   { name: 'Profile', href: '/profile', icon: <FaUser /> },
   { name: 'About', href: '/about', icon: <FaInfoCircle /> },
   // Add other authenticated links here if needed

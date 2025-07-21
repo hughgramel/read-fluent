@@ -199,7 +199,14 @@ export function useReaderState(user: any) {
     }
     setCurrentSectionIndex(sectionIdx);
     setCurrentPageIndex(pageIdx);
-  }, [book, readerSettings.sentencesPerPage]);
+    if (isSpeechPlayerActive) {
+      setActiveSentenceIndex(0);
+      setActiveWordIndex(0);
+    } else {
+      setActiveSentenceIndex(null);
+      setActiveWordIndex(null);
+    }
+  }, [book, readerSettings.sentencesPerPage, isSpeechPlayerActive]);
 
   // Save progress on change
   useEffect(() => {
@@ -319,15 +326,25 @@ export function useReaderState(user: any) {
     const pagesInSection = sectionPages[currentSectionIndex]?.length || 0;
     if (currentPageIndex < pagesInSection - 1) {
       setCurrentPageIndex(currentPageIndex + 1);
-      setActiveSentenceIndex(0);
-      setActiveWordIndex(0);
+      if (isSpeechPlayerActive) {
+        setActiveSentenceIndex(0);
+        setActiveWordIndex(0);
+      } else {
+        setActiveSentenceIndex(null);
+        setActiveWordIndex(null);
+      }
     } else if (currentSectionIndex < sectionPages.length - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
       setCurrentPageIndex(0);
-      setActiveSentenceIndex(0);
-      setActiveWordIndex(0);
+      if (isSpeechPlayerActive) {
+        setActiveSentenceIndex(0);
+        setActiveWordIndex(0);
+      } else {
+        setActiveSentenceIndex(null);
+        setActiveWordIndex(null);
+      }
     }
-  }, [sectionPages, currentSectionIndex, currentPageIndex]);
+  }, [sectionPages, currentSectionIndex, currentPageIndex, isSpeechPlayerActive]);
 
   const prevPage = useCallback(() => {
     if (!sectionPages.length) return;
