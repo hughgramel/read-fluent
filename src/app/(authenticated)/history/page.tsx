@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
-import { getBooks, getArchivedBooks, deleteArchivedBook, ArchivedBookMetadata } from '@/services/epubService';
+import { getBooks, getArchivedBooks, deleteArchivedBook, ArchivedBookMetadata, updateBookMetadata } from '@/services/epubService';
 import { FiTrash2 } from 'react-icons/fi';
 
 interface ArchivedBookRow {
@@ -97,6 +97,14 @@ export default function HistoryPage() {
         sectionId: session.sectionId,
       });
       setSessions(prev => prev.filter(s => s.id !== session.id));
+      // Update book's wordsRead in Firestore and local state
+      const bookIdx = books.findIndex(b => b.bookId === session.bookId);
+      if (bookIdx !== -1 && session.bookId) {
+        const book = books[bookIdx];
+        const newWordsRead = Math.max(0, (book.wordsRead || 0) - (session.wordCount || 0));
+        await updateBookMetadata(user.uid, session.bookId, { wordsRead: newWordsRead });
+        setBooks(prevBooks => prevBooks.map((b, i) => i === bookIdx ? { ...b, wordsRead: newWordsRead } : b));
+      }
     } catch (error) {
       console.error('Failed to delete session:', error);
     }

@@ -14,8 +14,12 @@ export interface Book {
   totalWords: number;
   fileName: string;
   dateAdded: string;
-  css?: string;
-  cover?: string;
+  storagePath?: string;
+  downloadURL?: string;
+  completed?: boolean;
+  css: string;
+  cover: string;
+  wordsRead?: number; // Added for tracking words read
 }
 
 export interface ReadingProgress {

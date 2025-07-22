@@ -37,6 +37,7 @@ interface Book {
   completed?: boolean;
   css: string;
   cover: string;
+  wordsRead?: number;
 }
 
 interface ReadingProgress {
@@ -155,6 +156,7 @@ export default function library() {
         completed: meta.completed || false,
         css: '', // No CSS in metadata
         cover: '', // No cover in metadata
+        wordsRead: meta.wordsRead || 0, // Always include wordsRead
       })));
     });
   }, [user]);
@@ -562,6 +564,7 @@ export default function library() {
         dateAdded: new Date().toISOString(),
         css: bookCss,
         cover: coverUrl,
+        wordsRead: 0,
       };
       const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as unknown as Record<string, unknown>);
       const savedMeta = await saveBookMetadata(user.uid, bookId, {
@@ -572,6 +575,7 @@ export default function library() {
         storagePath,
         downloadURL,
         currentSection: 0, // Start at section 0
+        wordsRead: newBook.wordsRead || 0,
       });
       // Add the new book metadata to the shelf immediately
       setBooks(prevBooks => [
@@ -590,6 +594,7 @@ export default function library() {
           completed: false,
           css: newBook.css,
           cover: '',
+          wordsRead: 0,
         }
       ]);
       setIsUploading(false);
@@ -714,7 +719,7 @@ export default function library() {
   const toggleCompleted = async (book: Book) => {
     if (!user?.uid) return;
     const newCompleted = !book.completed;
-    await updateBookMetadata(user.uid, book.id, { completed: newCompleted });
+    await updateBookMetadata(user.uid, book.id, { completed: newCompleted, wordsRead: book.wordsRead || 0 });
     // Update local state
     setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, completed: newCompleted } : b));
   };
@@ -735,9 +740,14 @@ export default function library() {
   }
 
   // Group books
-  const activeBooks = books.filter((b) => getBookStatus(b) === 'active');
-  const notStarted = books.filter((b) => getBookStatus(b) === 'notStarted');
+  const activeBooks = books.filter((b) => b.wordsRead && b.wordsRead > 0 && b.wordsRead < b.totalWords);
+  const notStarted = books.filter((b) => b.wordsRead === 0);
   const completed = books.filter((b) => getBookStatus(b) === 'completed');
+  const toReadBooks = books.filter(book => !book.wordsRead || book.wordsRead === 0);
+  const currentlyReadingBooks = books.filter(book => book.wordsRead && book.wordsRead > 0 && book.wordsRead < book.totalWords);
+  console.log(books);
+  console.log('LIBRARY DEBUG: toReadBooks', toReadBooks);
+  console.log('LIBRARY DEBUG: currentlyReadingBooks', currentlyReadingBooks);
 
   // Helper: get today's date string (YYYY-MM-DD)
   function getToday() {
@@ -845,6 +855,7 @@ export default function library() {
         dateAdded: new Date().toISOString(),
         css: '',
         cover: '',
+        wordsRead: 0,
       };
       // Upload JSON to storage
       const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -857,6 +868,7 @@ export default function library() {
         storagePath,
         downloadURL,
         currentSection: 0,
+        wordsRead: newBook.wordsRead || 0,
       });
       // Add to local state
       setBooks(prevBooks => [
@@ -866,6 +878,7 @@ export default function library() {
           storagePath,
           downloadURL,
           completed: false,
+          wordsRead: 0,
         }
       ]);
       setShowTextModal(false);
@@ -978,6 +991,7 @@ export default function library() {
           dateAdded: new Date().toISOString(),
           css: '',
           cover: '',
+          wordsRead: 0,
         };
         // Upload JSON to storage
         const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -990,6 +1004,7 @@ export default function library() {
           storagePath,
           downloadURL,
           currentSection: 0,
+          wordsRead: newBook.wordsRead || 0,
         });
         // Add to local state
         setBooks(prevBooks => [
@@ -999,6 +1014,7 @@ export default function library() {
             storagePath,
             downloadURL,
             completed: false,
+            wordsRead: 0,
           }
         ]);
         setShowTextModal(false);
@@ -1093,6 +1109,7 @@ export default function library() {
           dateAdded: new Date().toISOString(),
           css: '',
           cover: '',
+          wordsRead: 0,
         };
         // Upload JSON to storage
         const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -1105,6 +1122,7 @@ export default function library() {
           storagePath,
           downloadURL,
           currentSection: 0,
+          wordsRead: newBook.wordsRead || 0,
         });
         uploaded++;
       } catch (err) {

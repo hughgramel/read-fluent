@@ -86,25 +86,13 @@ export default function Home() {
   });
   const booksWithProgress = books
     .map(b => {
-      const progress = bookProgressMap[b.id];
-      const percent = b.totalWords ? Math.round(((progress?.wordsRead || 0) / b.totalWords) * 100) : 0;
-      return { ...b, ...progress, percent };
+      const percent = b.totalWords ? Math.round(((b.wordsRead || 0) / b.totalWords) * 100) : 0;
+      return { ...b, percent };
     });
-  // Only consider books with progress for recently read/in-progress
-  const recentlyReadBooks = booksWithProgress
-    .filter(b => b.wordsRead > 0 && b.lastRead)
-    .sort((a, b) => new Date(b.lastRead).getTime() - new Date(a.lastRead).getTime())
+  const filledBooks = booksWithProgress
+    .filter(b => (b.wordsRead || 0) > 0)
+    .sort((a, b) => (b.percent || 0) - (a.percent || 0))
     .slice(0, 5);
-  let fillCount = 5 - recentlyReadBooks.length;
-  let filledBooks = [...recentlyReadBooks];
-  if (fillCount > 0) {
-    // Add top in-progress books by percent completion (not already in list, not completed)
-    const inProgress = booksWithProgress
-      .filter(b => b.wordsRead > 0 && !b.lastRead && b.percent > 0 && b.percent < 100 && !filledBooks.some(fb => fb.id === b.id))
-      .sort((a, b) => b.percent - a.percent)
-      .slice(0, fillCount);
-    filledBooks = [...filledBooks, ...inProgress];
-  }
 
   console.log('HOME DEBUG: sessions', sessions);
   console.log('HOME DEBUG: bookProgressMap', bookProgressMap);

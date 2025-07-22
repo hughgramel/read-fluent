@@ -18,6 +18,7 @@ export interface BookMetadata {
   dateAdded: string;
   currentSection?: number; // Optional, for reading progress
   completed?: boolean; // Optional, for completed status
+  wordsRead?: number; // Optional, for tracking words read
 }
 
 export async function uploadEpub(userId: string, file: File, metadata: Record<string, unknown>) {

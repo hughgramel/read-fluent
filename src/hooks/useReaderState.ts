@@ -361,14 +361,13 @@ export function useReaderState(user: any) {
   const handleMarkPageComplete = useCallback(async () => {
     const isPageRead = !!readPagesBySection[currentSectionIndex]?.has(currentPageIndex);
     if (isPageRead) return;
-    
+    const pageWordCount = getPageWordCount(sectionPages, currentSectionIndex, currentPageIndex);
     setReadPagesBySection(prev => {
       const copy = { ...prev };
       if (!copy[currentSectionIndex]) copy[currentSectionIndex] = new Set();
       copy[currentSectionIndex].add(currentPageIndex);
       return copy;
     });
-    
     if (user?.uid && book) {
       const session = {
         userId: user.uid,
@@ -376,34 +375,41 @@ export function useReaderState(user: any) {
         bookTitle: book.title || '',
         sectionId: `${currentSectionIndex}-${currentPageIndex}`,
         sectionTitle: book.sections[currentSectionIndex]?.title || '',
-        wordCount: getPageWordCount(sectionPages, currentSectionIndex, currentPageIndex),
+        wordCount: pageWordCount,
         timestamp: new Date(),
       };
       await ReadingSessionService.addSession(session);
+      // Update book's wordsRead in Firestore
+      const newWordsRead = (book.wordsRead || 0) + pageWordCount;
+      await updateBookMetadata(user.uid, book.id, { wordsRead: newWordsRead });
+      setBook(prev => prev ? { ...prev, wordsRead: newWordsRead } : prev);
     }
-    setTotalWordsRead(wr => wr + getPageWordCount(sectionPages, currentSectionIndex, currentPageIndex));
+    setTotalWordsRead(wr => wr + pageWordCount);
   }, [readPagesBySection, currentSectionIndex, currentPageIndex, user, book, sectionPages]);
 
   // Unmark page complete
   const handleUnmarkPageComplete = useCallback(async () => {
     const isPageRead = !!readPagesBySection[currentSectionIndex]?.has(currentPageIndex);
     if (!isPageRead) return;
-    
+    const pageWordCount = getPageWordCount(sectionPages, currentSectionIndex, currentPageIndex);
     setReadPagesBySection(prev => {
       const copy = { ...prev };
       if (copy[currentSectionIndex]) copy[currentSectionIndex].delete(currentPageIndex);
       return copy;
     });
-    
     if (user?.uid && book) {
       await ReadingSessionService.removeSession({
         userId: user.uid,
         bookId: book.id,
         sectionId: `${currentSectionIndex}-${currentPageIndex}`,
       });
+      // Update book's wordsRead in Firestore
+      const newWordsRead = Math.max(0, (book.wordsRead || 0) - pageWordCount);
+      await updateBookMetadata(user.uid, book.id, { wordsRead: newWordsRead });
+      setBook(prev => prev ? { ...prev, wordsRead: newWordsRead } : prev);
     }
     setTotalWordsRead(wr => {
-      const newWr = Math.max(0, wr - getPageWordCount(sectionPages, currentSectionIndex, currentPageIndex));
+      const newWr = Math.max(0, wr - pageWordCount);
       if (book) {
         window.dispatchEvent(new CustomEvent('rf-words-read-updated', { detail: { bookId: book.id, totalWordsRead: newWr } }));
       }
