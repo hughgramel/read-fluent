@@ -73,7 +73,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
+    <div className="min-h-screen bg-white pb-8 sm:pb-0" style={{ fontFamily: 'Noto Sans, Helvetica Neue, Arial, Helvetica, Geneva, sans-serif' }}>
       {/* Navigation */}
       <nav className="fixed w-full bg-white/80 backdrop-blur-md z-50 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -100,10 +100,14 @@ export default function LandingPage() {
                 Get Started
               </Link>
             </div>
-            <div className="md:hidden flex items-center">
+            {/* Always show Sign In on the right, even on mobile */}
+            <div className="flex items-center md:hidden">
+              <Link href="/signin" className="text-gray-600 hover:text-[#2563eb] transition-colors px-3 py-2 font-medium">
+                Sign In
+              </Link>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-gray-600 hover:text-[#2563eb]"
+                className="text-gray-600 hover:text-[#2563eb] ml-2"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -124,9 +128,7 @@ export default function LandingPage() {
             <Link href="#future" className="block text-gray-600 hover:text-[#2563eb] transition-colors">
               Roadmap
             </Link>
-            <Link href="/signin" className="block text-gray-600 hover:text-[#2563eb] transition-colors">
-              Sign In
-            </Link>
+            {/* Removed Sign In from mobile menu */}
             <Link
               href="/signup"
               className="block bg-[#2563eb] text-white px-4 py-2 rounded-lg hover:bg-[#1749b1] transition-colors text-center"

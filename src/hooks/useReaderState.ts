@@ -65,6 +65,11 @@ export function useReaderState(user: any) {
     showAudioBarOnStart: true,
     enableHighlightWords: false,
     disableWordDefinitionPopup: false,
+    enableSwipeNavigation: true,
+    enableDoubleTapNavigation: true,
+    autoMarkPageComplete: false,
+    disableClipboardButton: false,
+    enableMarkdown: false,
   });
 
   // Word tracking state
@@ -246,6 +251,11 @@ export function useReaderState(user: any) {
             showAudioBarOnStart: !!prefs.showAudioBarOnStart,
             enableHighlightWords: !!prefs.enableHighlightWords,
             disableWordDefinitionPopup: !!prefs.disableWordDefinitionPopup,
+            enableSwipeNavigation: prefs.enableSwipeNavigation !== undefined ? prefs.enableSwipeNavigation : true,
+            enableDoubleTapNavigation: prefs.enableDoubleTapNavigation !== undefined ? prefs.enableDoubleTapNavigation : true,
+            autoMarkPageComplete: prefs.autoMarkPageComplete !== undefined ? prefs.autoMarkPageComplete : false,
+            disableClipboardButton: !!prefs.disableClipboardButton,
+            enableMarkdown: !!prefs.enableMarkdown,
           }));
           setIsSpeechPlayerActive(!!prefs.showAudioBarOnStart);
         }
@@ -343,6 +353,10 @@ export function useReaderState(user: any) {
         setActiveSentenceIndex(null);
         setActiveWordIndex(null);
       }
+    }
+    // If "automatically mark page complete" is enabled, mark page as complete
+    if (readerSettings.autoMarkPageComplete) {
+      handleMarkPageComplete();
     }
   }, [sectionPages, currentSectionIndex, currentPageIndex, isSpeechPlayerActive]);
 

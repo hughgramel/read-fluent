@@ -43,6 +43,11 @@ export interface UserPreferences {
   showAudioBarOnStart?: boolean; // NEW: show audio bar on start (default true)
   enableHighlightWords?: boolean; // Enable word highlighting based on status
   disableWordDefinitionPopup?: boolean; // Disable word definition popup
+  disableClipboardButton?: boolean; // Hide clipboard button in reader
+  enableMarkdown?: boolean; // Render page content as markdown
+  enableSwipeNavigation?: boolean; // Enable swipe left/right for prev/next page
+  enableDoubleTapNavigation?: boolean; // Enable double-tap left/right for prev/next page
+  autoMarkPageComplete?: boolean; // Automatically mark page complete when going to next page
 }
 
 export interface UserStats {

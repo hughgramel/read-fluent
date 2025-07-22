@@ -73,6 +73,81 @@ export default function ReaderPage() {
   const speechPlayerRef = useRef<SpeechPlayerRef>(null);
   const [pendingSettings, setPendingSettings] = useState<ReaderSettingsType | null>(null);
   const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
+  const swipeStartX = useRef<number | null>(null);
+  const swipeStartY = useRef<number | null>(null);
+
+  // Double-tap detection
+  const lastTapRef = useRef<number>(0);
+  const lastTapSideRef = useRef<'left' | 'right' | null>(null);
+
+  function handleReaderTap(e: React.TouchEvent) {
+    if (!isMobile || !readerSettings.enableDoubleTapNavigation) return;
+    const now = Date.now();
+    const tapX = e.touches[0].clientX;
+    const width = (e.target as HTMLElement).clientWidth || window.innerWidth;
+    const side = tapX < width / 2 ? 'left' : 'right';
+    if (lastTapRef.current && now - lastTapRef.current < 350 && lastTapSideRef.current === side) {
+      // Double tap detected
+      if (side === 'right') {
+        if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
+        nextPage();
+      } else {
+        prevPage();
+      }
+      lastTapRef.current = 0;
+      lastTapSideRef.current = null;
+    } else {
+      lastTapRef.current = now;
+      lastTapSideRef.current = side;
+    }
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (!isMobile || !readerSettings.enableSwipeNavigation) return;
+    swipeStartX.current = e.touches[0].clientX;
+    swipeStartY.current = e.touches[0].clientY;
+  }
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (!isMobile) return;
+    // Double-tap detection
+    if (readerSettings.enableDoubleTapNavigation) {
+      const now = Date.now();
+      const tapX = e.changedTouches[0].clientX;
+      const width = (e.target as HTMLElement).clientWidth || window.innerWidth;
+      const side = tapX < width / 2 ? 'left' : 'right';
+      if (lastTapRef.current && now - lastTapRef.current < 350 && lastTapSideRef.current === side) {
+        // Double tap detected
+        if (side === 'right') {
+          if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
+          nextPage();
+        } else {
+          prevPage();
+        }
+        lastTapRef.current = 0;
+        lastTapSideRef.current = null;
+        swipeStartX.current = null;
+        swipeStartY.current = null;
+        return;
+      } else {
+        lastTapRef.current = now;
+        lastTapSideRef.current = side;
+      }
+    }
+    // Swipe detection
+    if (!readerSettings.enableSwipeNavigation || swipeStartX.current === null || swipeStartY.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - swipeStartX.current;
+    const deltaY = e.changedTouches[0].clientY - swipeStartY.current;
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX > 0) {
+        prevPage();
+      } else {
+        if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
+        nextPage();
+      }
+    }
+    swipeStartX.current = null;
+    swipeStartY.current = null;
+  }
 
   const {
     // State
@@ -475,15 +550,37 @@ export default function ReaderPage() {
           
           {/* Section Sidebar */}
           {showSectionSidebar && (
-            <ReaderSidebar
-              book={book}
-              sectionPages={sectionPages}
-              currentSectionIndex={currentSectionIndex}
-              readPagesBySection={readPagesBySection}
-              showSectionWordCount={showSectionWordCount}
-              onGoToPage={goToPage}
-              onToggleSectionWordCount={setShowSectionWordCount}
-            />
+            isMobile ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowSectionSidebar(false)}>
+                <div className="bg-white rounded-2xl shadow-lg p-4 max-w-md w-full relative" style={{ fontFamily: 'var(--font-family)', maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => setShowSectionSidebar(false)}
+                    className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
+                    style={{ lineHeight: 1 }}
+                    aria-label="Close"
+                  >×</button>
+                  <ReaderSidebar
+                    book={book}
+                    sectionPages={sectionPages}
+                    currentSectionIndex={currentSectionIndex}
+                    readPagesBySection={readPagesBySection}
+                    showSectionWordCount={showSectionWordCount}
+                    onGoToPage={goToPage}
+                    onToggleSectionWordCount={setShowSectionWordCount}
+                  />
+                </div>
+              </div>
+            ) : (
+              <ReaderSidebar
+                book={book}
+                sectionPages={sectionPages}
+                currentSectionIndex={currentSectionIndex}
+                readPagesBySection={readPagesBySection}
+                showSectionWordCount={showSectionWordCount}
+                onGoToPage={goToPage}
+                onToggleSectionWordCount={setShowSectionWordCount}
+              />
+            )
           )}
 
           {/* Main reading area */}
@@ -498,6 +595,8 @@ export default function ReaderPage() {
               alignItems: 'center',
               overflowX: isMobile ? 'hidden' : undefined,
             }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
             <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
               <div className={getReaderContainerClass(effectiveSettings.readerContainerStyle)} style={{
@@ -514,10 +613,27 @@ export default function ReaderPage() {
                 boxSizing: 'border-box',
                 overflowX: isMobile ? 'hidden' : undefined,
               }}>
+                {/* Clipboard button (mobile, only if not disabled) */}
+                {isMobile && !readerSettings.disableClipboardButton && (
+                  <button
+                    onClick={handleCopyText}
+                    className="mb-4 flex items-center gap-2 px-3 py-2 text-sm font-medium theme-text-secondary hover:theme-text transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg theme-border border sm:px-4"
+                    style={{ alignSelf: 'flex-start' }}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" strokeWidth="2" fill="none"/></svg>
+                    <span className="hidden sm:inline">Copy Page</span>
+                    <span className="sm:hidden">Copy</span>
+                  </button>
+                )}
                 {/* Page content */}
                 <ReaderContent
                   flatSentences={currentPageSentences}
-                  readerSettings={effectiveSettings}
+                  readerSettings={{
+                    ...readerSettings,
+                    disableClipboardButton: !!readerSettings.disableClipboardButton,
+                    nativeLanguage: readerSettings.nativeLanguage,
+                    enableMarkdown: !!readerSettings.enableMarkdown
+                  }}
                   readerFont={effectiveSettings.readerFont}
                   readerFontSize={effectiveSettings.readerFontSize}
                   readerWidth={effectiveSettings.readerWidth}
@@ -891,6 +1007,56 @@ export default function ReaderPage() {
                 className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
               />
               <label htmlFor="disable-word-definition-popup" className="font-bold theme-text select-none cursor-pointer">Disable word-definition popup (on click/shift)</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="enable-swipe-navigation"
+                type="checkbox"
+                checked={pendingSettings?.enableSwipeNavigation ?? readerSettings.enableSwipeNavigation ?? true}
+                onChange={e => handlePendingSettingChange({ enableSwipeNavigation: e.target.checked })}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="enable-swipe-navigation" className="font-bold theme-text select-none cursor-pointer">Enable swipe left/right for page navigation</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="enable-double-tap-navigation"
+                type="checkbox"
+                checked={pendingSettings?.enableDoubleTapNavigation ?? readerSettings.enableDoubleTapNavigation ?? true}
+                onChange={e => handlePendingSettingChange({ enableDoubleTapNavigation: e.target.checked })}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="enable-double-tap-navigation" className="font-bold theme-text select-none cursor-pointer">Enable double-tap left/right for page navigation</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="auto-mark-page-complete"
+                type="checkbox"
+                checked={pendingSettings?.autoMarkPageComplete ?? readerSettings.autoMarkPageComplete ?? false}
+                onChange={e => handlePendingSettingChange({ autoMarkPageComplete: e.target.checked })}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="auto-mark-page-complete" className="font-bold theme-text select-none cursor-pointer">Automatically mark page complete when going to next page</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="disable-clipboard-button"
+                type="checkbox"
+                checked={pendingSettings?.disableClipboardButton ?? readerSettings.disableClipboardButton ?? false}
+                onChange={e => handlePendingSettingChange({ disableClipboardButton: e.target.checked })}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="disable-clipboard-button" className="font-bold theme-text select-none cursor-pointer">Hide clipboard button in reader</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="enable-markdown"
+                type="checkbox"
+                checked={pendingSettings?.enableMarkdown ?? readerSettings.enableMarkdown ?? false}
+                onChange={e => handlePendingSettingChange({ enableMarkdown: e.target.checked })}
+                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+              />
+              <label htmlFor="enable-markdown" className="font-bold theme-text select-none cursor-pointer">Render page content as markdown</label>
             </div>
 
             {/* Save/Cancel Buttons */}

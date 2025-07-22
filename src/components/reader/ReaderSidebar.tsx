@@ -48,12 +48,14 @@ export function ReaderSidebar({
               style={{ fontWeight: idx === currentSectionIndex ? 700 : 500, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
               onClick={() => onGoToPage(idx, 0)}
             >
-              <span>{getSectionTitle(section, idx)}</span>
-              {allRead ? (
-                <FiCheck className="text-green-500 ml-2" />
-              ) : totalPages > 0 ? (
-                <span className="ml-2 text-green-600 font-bold">{readPages} / {totalPages}</span>
-              ) : null}
+              <span className="flex-1 min-w-0 truncate">{getSectionTitle(section, idx)}</span>
+              <span className="flex items-center justify-end ml-2" style={{ minWidth: 36, maxWidth: 48 }}>
+                {allRead ? (
+                  <FiCheck className="text-green-500" style={{ width: 20, height: 20 }} />
+                ) : totalPages > 0 ? (
+                  <span className="text-green-600 font-bold" style={{ minWidth: 32, textAlign: 'right', display: 'inline-block' }}>{readPages} / {totalPages}</span>
+                ) : null}
+              </span>
             </button>
             {showSectionWordCount && (
               <div className="pl-4 pb-1 text-xs text-gray-400" style={{ fontSize: 12 }}>

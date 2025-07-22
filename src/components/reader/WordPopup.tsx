@@ -238,8 +238,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const displayWord = cleanWordForDisplay(word);
 
   // Default languages if not provided
-  const interfaceLang = 'en';
-  const targetLang = 'es';
+  const interfaceLang = nativeLanguage || 'en';
+  const targetLang = targetLanguage || 'es';
 
   const handlePopupClick = (e: React.MouseEvent) => {
     // Prevent clicks on the popup from bubbling up to the container
@@ -356,19 +356,29 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   }, [displayWord]);
 
   // Gemini API call utility using @google/generative-ai
-  async function callGemini(prompt: string): Promise<string> {
+  async function callGemini(prompt: string | { systemPrompt: string, userPrompt: string }): Promise<string> {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || (typeof window !== 'undefined' ? (window as any).NEXT_PUBLIC_GEMINI_API_KEY : undefined);
     if (!apiKey) throw new Error('Gemini API key not set');
     const ai = new GoogleGenerativeAI(apiKey);
     const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    if (typeof prompt === 'string') {
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } else {
+      // Use systemPrompt as context, userPrompt as the main prompt
+      const result = await model.generateContent({ contents: [
+        { role: 'system', parts: [{ text: prompt.systemPrompt }] },
+        { role: 'user', parts: [{ text: prompt.userPrompt }] },
+      ] });
+      return result.response.text();
+    }
   }
 
   // Prompts
-  const wordExplainPrompt = `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nWord: [WORD]\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language en.\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`;
-  const sentenceBreakdownPrompt = `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk, #2 reworded meaning, #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [TARGET_LANG]. ONLY output text IN en.`;
-  const sentenceTranslationPrompt = `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: es.`;
+  const wordExplainSystemPrompt = `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language [INTERFACE_LANG].\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`;
+  const wordExplainUserPrompt = `[SENTENCE]. Explain usage of word(s): [WORD] (lang: [TARGET_LANG])`;
+  const sentenceBreakdownPrompt = `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [TARGET_LANG]. ONLY output text IN en.`;
+  const sentenceTranslationPrompt = `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [TARGET_LANG].`;
 
   // Handle Word Explanation tab
   useEffect(() => {
@@ -376,7 +386,10 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       setWordExplainResult(null);
       setWordExplainError(null);
       setWordExplainLoading(true);
-      callGemini(wordExplainPrompt.replace('[WORD]', word))
+      const systemPrompt = wordExplainSystemPrompt.replace('[INTERFACE_LANG]', interfaceLang);
+      const userPrompt = wordExplainUserPrompt.replace('[SENTENCE]', sentence).replace('[WORD]', word).replace('[TARGET_LANG]', targetLang);
+      const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      callGemini(combinedPrompt)
         .then(setWordExplainResult)
         .catch(e => setWordExplainError(e.message))
         .finally(() => setWordExplainLoading(false));
@@ -402,12 +415,17 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       setTranslateResult(null);
       setTranslateError(null);
       setTranslateLoading(true);
-      callGemini(sentenceTranslationPrompt.replace('[WORD]', word).replace('[SENTENCE]', sentence))
+      const prompt = sentenceTranslationPrompt
+        .replace('[WORD]', word)
+        .replace('[SENTENCE]', sentence)
+        .replace('[TARGET_LANG]', targetLang)
+        .replace('[NATIVE_LANG]', interfaceLang);
+      callGemini(prompt)
         .then(setTranslateResult)
         .catch(e => setTranslateError(e.message))
         .finally(() => setTranslateLoading(false));
     }
-  }, [activeTab, sentence, nativeLanguage]);
+  }, [activeTab, sentence, nativeLanguage, targetLanguage]);
 
   const getStatusConfig = (status: WordType) => {
     switch (status) {
@@ -446,18 +464,35 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const statusConfig = getStatusConfig(wordStatus);
   const StatusIcon = statusConfig.icon;
 
+  // In handleButtonClick, always reset loading, error, and result state for the selected tab
   const handleButtonClick = (action: string) => {
     setShowPlaceholder(true);
     setActiveTab(action as any);
     switch (action) {
       case 'definition':
-        setPlaceholderText('Loading word definition...');
+        setPlaceholderText('');
+        setDictLoading(false);
+        setDictError(null);
+        setDictEntries([]);
+        setLemmaEntry(null);
         break;
       case 'explain':
-        setPlaceholderText('Loading sentence explanation...');
+        setPlaceholderText('');
+        setExplainLoading(false);
+        setExplainError(null);
+        setExplainResult(null);
         break;
       case 'translate':
-        setPlaceholderText('Loading translation...');
+        setPlaceholderText('');
+        setTranslateLoading(false);
+        setTranslateError(null);
+        setTranslateResult(null);
+        break;
+      case 'word-explain':
+        setPlaceholderText('');
+        setWordExplainLoading(false);
+        setWordExplainError(null);
+        setWordExplainResult(null);
         break;
       case 'sentence':
         setShowPlaceholder(false);
@@ -798,7 +833,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         )}
         {activeTab === 'word-explain' && (
           <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4, overflowY: 'auto', maxHeight: isMobile ? '120px' : '140px' }}>
-            {wordExplainLoading && <div>Loading word explanation...</div>}
+            {wordExplainLoading && !wordExplainResult && !wordExplainError && <div>Loading word explanation...</div>}
             {wordExplainError && <div className="text-red-500">{wordExplainError}</div>}
             {wordExplainResult && <ReactMarkdown>{wordExplainResult}</ReactMarkdown>}
           </div>
@@ -827,12 +862,17 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         )}
         {activeTab === 'translate' && (
           <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4, overflowY: 'auto', maxHeight: isMobile ? '120px' : '140px' }}>
-            {translateLoading && <div>Loading translation...</div>}
+            {translateLoading && !translateResult && !translateError && <div>Loading translation...</div>}
             {translateError && <div className="text-red-500">{translateError}</div>}
-            {translateResult && <ReactMarkdown>{translateResult}</ReactMarkdown>}
+            {translateResult && (
+              <>
+                <div style={{ fontWeight: 500, marginBottom: 6 }}><ReactMarkdown>{translateResult}</ReactMarkdown></div>
+                <div style={{ fontStyle: 'italic', color: '#888', fontSize: isMobile ? 12 : 13 }}>{sentence}</div>
+              </>
+            )}
           </div>
         )}
-        {activeTab !== 'definition' && (showPlaceholder ? placeholderText : sentence)}
+        {activeTab !== 'definition' && activeTab !== 'translate' && (showPlaceholder ? placeholderText : sentence)}
       </div>
 
       {/* Word status indicator - bottom right */}

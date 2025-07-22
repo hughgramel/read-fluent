@@ -248,7 +248,7 @@ export default function WordsPage() {
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 {/* Table Header */}
                 <thead>
-                  <tr className="bg-gray-50 border-b theme-border text-base font-semibold theme-text-secondary">
+                  <tr className="theme-bg-secondary border-b theme-border text-base font-semibold theme-text-secondary">
                     <th className="py-2 px-3 border-r theme-border text-center w-16">#</th>
                     <th 
                       className="py-2 px-3 border-r theme-border text-left cursor-pointer hover:bg-gray-100"
@@ -268,13 +268,17 @@ export default function WordsPage() {
                       style={{ width: '25%' }}
                     >
                       <div className="flex items-center gap-2">
-                        Status
+                        <span className="hidden sm:inline">Status</span>
+                        <span className="inline sm:hidden">St.</span>
                         {sortColumn === 'type' && (
                           <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                         )}
                       </div>
                     </th>
-                    <th className="py-2 px-3 border-r theme-border text-left" style={{ width: '15%' }}>Language</th>
+                    <th className="py-2 px-3 border-r theme-border text-left truncate" style={{ width: '15%' }}>
+                      <span className="hidden sm:inline">Language</span>
+                      <span className="inline sm:hidden">Lang</span>
+                    </th>
                     <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
                   </tr>
                 </thead>
@@ -307,14 +311,20 @@ export default function WordsPage() {
                               word.type === 'tracking' ? 'bg-purple-100 text-purple-800' :
                               word.type === 'ignored' ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'}
+                            flex items-center justify-center gap-1
                           `}
                         >
-                          {word.type}
+                          <span className="hidden sm:inline">{word.type}</span>
+                          <span className="inline sm:hidden">
+                            {word.type === 'known' && <span title="Known">✔️</span>}
+                            {word.type === 'tracking' && <span title="Learning">📖</span>}
+                            {word.type === 'ignored' && <span title="Ignored">🚫</span>}
+                          </span>
                         </span>
                       </td>
 
                       {/* Language */}
-                      <td className="py-2 px-3 border-r theme-border whitespace-nowrap">
+                      <td className="py-2 px-3 border-r theme-border whitespace-nowrap truncate">
                         <span className="theme-text-secondary font-medium">
                           {profileLang || 'en'}
                         </span>

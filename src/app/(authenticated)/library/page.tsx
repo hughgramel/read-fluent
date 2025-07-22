@@ -1629,7 +1629,7 @@ export default function library() {
   return (
     <div className="page-container min-h-screen w-full">
       <div
-        className="pr-8 pb-10 transition-all duration-300"
+        className="pr-8 pb-10 transition-all duration-300 sm:pb-10 pb-4"
         style={{
           marginLeft: sidebarExpanded ? 80 : 32,
           paddingTop: 24,
@@ -1645,7 +1645,7 @@ export default function library() {
           <div className="flex items-center gap-3">
             {/* Add Text Button */}
             <button
-              className="flex items-center justify-center rounded-full btn-primary w-11 h-11 shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
+              className="flex items-center justify-center rounded-full btn-primary w-11 h-11 shadow-sm transition-colors border-none focus:outline-none focus:ring-2 sm:w-11 sm:h-11 w-9 h-9 text-base sm:text-xl"
               style={{ fontSize: 24, marginRight: 0 }}
               title="Add Text Book"
               onClick={() => setShowTextModal(true)}
@@ -1654,7 +1654,7 @@ export default function library() {
             </button>
             {/* Upload EPUB Button */}
           <button
-            className="btn-primary px-7 py-2 rounded-full font-bold shadow-sm transition-colors text-base border-none focus:outline-none focus:ring-2"
+            className="btn-primary px-7 py-2 rounded-full font-bold shadow-sm transition-colors text-base border-none focus:outline-none focus:ring-2 sm:px-7 sm:py-2 px-4 py-1 text-sm"
             disabled={isUploading}
             onClick={() => document.getElementById('epub-upload-input')?.click()}
             style={{ fontFamily: 'var(--font-family)', boxShadow: '0 2px 8px 0 rgba(37,99,235,0.06)' }}
@@ -1690,51 +1690,51 @@ export default function library() {
             onClick={() => setShowTextModal(false)}
           >
             <div
-              className="card-themed p-12 max-w-2xl w-full relative"
-              style={{ fontFamily: 'var(--font-family)', color: 'var(--text-color)', minWidth: 400 }}
+              className="card-themed sm:p-12 p-3 sm:max-w-2xl max-w-xs w-[95vw] max-h-[90vh] overflow-y-auto"
+              style={{ fontFamily: 'var(--font-family)', color: 'var(--text-color)', minWidth: 0 }}
               onClick={e => e.stopPropagation()}
             >
               <button
                 onClick={() => setShowTextModal(false)}
-                className="absolute top-3 right-3 theme-text-secondary hover:theme-primary text-2xl font-bold transition-colors"
+                className="absolute top-2 right-2 theme-text-secondary hover:theme-primary text-xl sm:text-2xl font-bold transition-colors p-1 sm:p-2"
                 style={{ background: 'none', border: 'none', lineHeight: 1 }}
                 aria-label="Close"
               >
                 ×
               </button>
-              <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Add Text Book</h2>
+              <h2 className="text-xl sm:text-2xl font-extrabold mb-3 sm:mb-4 theme-text tracking-tight text-center">Add Text Book</h2>
               <div className="theme-text-secondary text-base space-y-3 px-2">
                 <div className="flex flex-col mb-2">
-                  <label className="font-semibold mb-1">Title</label>
-                                      <input
-                      type="text"
-                      value={textTitle}
-                      onChange={e => setTextTitle(e.target.value)}
-                      className="input-themed"
-                    />
+                  <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Title</label>
+                  <input
+                    type="text"
+                    value={textTitle}
+                    onChange={e => setTextTitle(e.target.value)}
+                    className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg"
+                  />
                 </div>
                 <div className="flex flex-col mb-2">
-                  <label className="font-semibold mb-1">Author</label>
-                                      <input
-                      type="text"
-                      value={textAuthor}
-                      onChange={e => setTextAuthor(e.target.value)}
-                      className="input-themed"
-                    />
+                  <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Author</label>
+                  <input
+                    type="text"
+                    value={textAuthor}
+                    onChange={e => setTextAuthor(e.target.value)}
+                    className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg"
+                  />
                 </div>
                 <div className="flex flex-col mb-2">
-                  <label className="font-semibold mb-1">Text Content</label>
-                                      <textarea
-                      value={textContent}
-                      onChange={e => setTextContent(e.target.value)}
-                      rows={16}
-                      className="input-themed"
-                      style={{ minHeight: 220 }}
-                    />
+                  <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Text Content</label>
+                  <textarea
+                    value={textContent}
+                    onChange={e => setTextContent(e.target.value)}
+                    rows={5}
+                    className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg sm:min-h-[220px] min-h-[100px] max-h-[140px]"
+                    style={{ resize: 'vertical' }}
+                  />
                 </div>
                 <div className="flex flex-col mb-2">
                   <label className="font-semibold mb-1">Or upload .txt file</label>
-                  <label htmlFor="text-upload-input" className="btn-primary inline-block w-fit px-6 py-2 rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base mb-2">
+                  <label htmlFor="text-upload-input" className="btn-primary inline-block w-fit px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base sm:text-base text-sm mb-2">
                     Choose .txt File
                     <input
                       id="text-upload-input"
@@ -1749,7 +1749,7 @@ export default function library() {
                 <div className="flex flex-col mb-2">
                   <label className="font-semibold mb-1">Or upload .md file</label>
                   <div className="flex flex-row gap-2">
-                    <label htmlFor="md-upload-input" className="btn-primary inline-block w-fit px-6 py-2 rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base mb-2">
+                    <label htmlFor="md-upload-input" className="btn-primary inline-block w-fit px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base sm:text-base text-sm mb-2">
                       Choose .md File
                       <input
                         id="md-upload-input"
@@ -1760,7 +1760,7 @@ export default function library() {
                       />
                     </label>
                     <button
-                      className="btn-primary px-6 py-2 rounded-lg font-semibold shadow-sm transition-colors text-base mb-2"
+                      className="btn-primary px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors text-base sm:text-base text-sm mb-2"
                       disabled={batchMdLoading}
                       onClick={() => document.getElementById('batch-md-upload-input')?.click()}
                       type="button"
@@ -1784,13 +1784,13 @@ export default function library() {
                   {mdLoading && <div className="text-blue-600 text-sm mb-2">Processing .md file...</div>}
                 </div>
                 {textError && <div className="text-red-600 text-sm mb-2">{textError}</div>}
-                                  <button
-                    onClick={handleCreateTextBook}
-                    className="btn-primary w-full mt-4 py-3 px-4 rounded-lg font-bold text-base shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
-                    disabled={textLoading}
-                  >
-                    {textLoading ? 'Adding...' : 'Add Book'}
-                  </button>
+                <button
+                  onClick={handleCreateTextBook}
+                  className="btn-primary w-full mt-4 py-2 sm:py-3 px-3 sm:px-4 rounded-md sm:rounded-lg font-bold text-base sm:text-base text-sm shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
+                  disabled={textLoading}
+                >
+                  {textLoading ? 'Adding...' : 'Add Book'}
+                </button>
               </div>
             </div>
           </div>
@@ -1823,8 +1823,8 @@ export default function library() {
                 <BookCard book={book} archived={archived} />
               </div>
             )) : (
-              <div className="col-span-full flex flex-col items-center justify-center text-gray-300 italic h-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 min-w-[90vw] max-w-xs">
-                <span className="text-base text-gray-400">No books in this shelf yet.</span>
+              <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl bg-[#f7ecd9] min-w-[90vw] max-w-xs">
+                <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
               </div>
             )}
           </div>
@@ -1833,8 +1833,8 @@ export default function library() {
           {books.length > 0 ? books.map((book) => (
               <BookCard key={book.id} book={book} archived={archived} />
           )) : (
-            <div className="col-span-full flex flex-col items-center justify-center text-gray-300 italic h-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
-              <span className="text-base text-gray-400">No books in this shelf yet.</span>
+            <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl bg-[#f7ecd9]">
+              <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
             </div>
           )}
         </div>

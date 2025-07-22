@@ -215,7 +215,7 @@ export default function HistoryPage() {
             style={{
               borderColor: selectedTab === 'session' ? 'var(--primary-color)' : 'transparent',
               color: selectedTab === 'session' ? 'var(--primary-color)' : 'var(--secondary-text-color)',
-              backgroundColor: selectedTab === 'session' ? '#f9fafb' : 'transparent'
+              backgroundColor: 'transparent'
             }}
             onClick={() => setSelectedTab('session')}
           >
@@ -226,7 +226,7 @@ export default function HistoryPage() {
             style={{
               borderColor: selectedTab === 'book' ? 'var(--primary-color)' : 'transparent',
               color: selectedTab === 'book' ? 'var(--primary-color)' : 'var(--secondary-text-color)',
-              backgroundColor: selectedTab === 'book' ? '#f9fafb' : 'transparent'
+              backgroundColor: 'transparent'
             }}
             onClick={() => setSelectedTab('book')}
           >
