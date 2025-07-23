@@ -43,6 +43,8 @@ export function useReaderState(user: any) {
 
   // Settings state
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>({
+    targetLanguage: 'es',
+    dictionary: 'none',
     readerFont: 'serif',
     readerWidth: 1200,
     readerFontSize: 18,
@@ -248,6 +250,8 @@ export function useReaderState(user: any) {
             disableWordSpans: !!prefs.disableWordSpans,
             disableSentenceSpans: !!prefs.disableSentenceSpans,
             nativeLanguage: prefs.nativeLanguage || 'en',
+            targetLanguage: prefs.targetLanguage || 'es',
+            dictionary: prefs.dictionary || 'none',
             showAudioBarOnStart: !!prefs.showAudioBarOnStart,
             enableHighlightWords: !!prefs.enableHighlightWords,
             disableWordDefinitionPopup: !!prefs.disableWordDefinitionPopup,
@@ -399,6 +403,7 @@ export function useReaderState(user: any) {
       setBook(prev => prev ? { ...prev, wordsRead: newWordsRead } : prev);
     }
     setTotalWordsRead(wr => wr + pageWordCount);
+    await recalculateWordsRead();
   }, [readPagesBySection, currentSectionIndex, currentPageIndex, user, book, sectionPages]);
 
   // Unmark page complete
@@ -429,6 +434,7 @@ export function useReaderState(user: any) {
       }
       return newWr;
     });
+    await recalculateWordsRead();
   }, [readPagesBySection, currentSectionIndex, currentPageIndex, user, book, sectionPages]);
 
   // Save preferences
@@ -672,6 +678,17 @@ export function useReaderState(user: any) {
     globalPageNumber = sectionPages.slice(0, currentSectionIndex).reduce((acc, arr) => acc + arr.length, 0) + currentPageIndex + 1;
   }
   const isPageRead = !!readPagesBySection[currentSectionIndex]?.has(currentPageIndex);
+
+  // Helper to recalculate total words read from sessions
+  async function recalculateWordsRead() {
+    if (user?.uid && book) {
+      const sessions = await ReadingSessionService.getBookSessions(user.uid, book.id);
+      const total = sessions.reduce((sum, s) => sum + (s.wordCount || 0), 0);
+      await updateBookMetadata(user.uid, book.id, { wordsRead: total });
+      setBook(prev => prev ? { ...prev, wordsRead: total } : prev);
+      setTotalWordsRead(total);
+    }
+  }
 
   return {
     // State

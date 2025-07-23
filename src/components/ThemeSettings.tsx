@@ -97,7 +97,7 @@ export default function ThemeSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold theme-text mb-4">Theme Settings</h3>
+        <h2 className="text-xl font-bold theme-primary tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>Theme Settings</h2>
         
         {/* Preset Themes */}
         <div className="space-y-3">

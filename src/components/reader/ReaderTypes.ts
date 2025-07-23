@@ -55,6 +55,8 @@ export interface ReaderSettings {
   disableWordSpans: boolean;
   disableSentenceSpans: boolean;
   nativeLanguage: string;
+  targetLanguage: string;
+  dictionary: string;
   showAudioBarOnStart: boolean;
   enableHighlightWords: boolean;
   disableWordDefinitionPopup?: boolean;

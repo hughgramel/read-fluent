@@ -1,0 +1,14 @@
+[
+  {
+    "name": "No dictionary",
+    "collection": "none"
+  },
+  {
+    "name": "Spanish-English dictionary",
+    "collection": "dictionary_es"
+  }, 
+  {
+    "name": "French Monolingual Dictionary",
+    "collection": "kty-fr-fr"
+  }
+] 

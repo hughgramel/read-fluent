@@ -8,6 +8,8 @@ import { getBooks } from '@/services/epubService';
 import Link from 'next/link';
 import { FiEdit2 } from 'react-icons/fi';
 import { FaCalendarCheck, FaBookOpen, FaCreditCard, FaGraduationCap, FaRegListAlt, FaInfoCircle, FaGithub, FaReddit, FaDiscord, FaFileAlt, FaCopyright, FaSyncAlt } from 'react-icons/fa';
+import LibraryPage from '../library/page';
+import { BookCard, Book } from '../library/page';
 
 export default function Home() {
   const { user } = useAuth();
@@ -89,10 +91,12 @@ export default function Home() {
       const percent = b.totalWords ? Math.round(((b.wordsRead || 0) / b.totalWords) * 100) : 0;
       return { ...b, percent };
     });
-  const filledBooks = booksWithProgress
+  const filledBooks: Book[] = booksWithProgress
     .filter(b => (b.wordsRead || 0) > 0)
     .sort((a, b) => (b.percent || 0) - (a.percent || 0))
     .slice(0, 5);
+
+  console.log('HOME DEBUG: books', books);
 
   console.log('HOME DEBUG: sessions', sessions);
   console.log('HOME DEBUG: bookProgressMap', bookProgressMap);
@@ -100,6 +104,18 @@ export default function Home() {
   console.log('HOME DEBUG: filledBooks', filledBooks);
 
   const PIN_LIGHT_GRAY = '#9aa1b2'; // match Sidebar.tsx
+
+  // Handler to open a book (navigate to reader)
+  const openBook = (book: Book) => {
+    window.location.href = `/reader?book=${book.id}`;
+  };
+
+  // Build a bookWordsRead map for BookCard
+  const bookWordsRead: { [key: string]: number } = {};
+  sessions.forEach(s => {
+    if (!s.bookId) return;
+    bookWordsRead[s.bookId] = (bookWordsRead[s.bookId] || 0) + (s.wordCount || 0);
+  });
 
   return (
     <div className="page-container">
@@ -140,32 +156,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        {/* Recently Read Row */}
-        <div className="mb-16">
-          <div className="flex items-center gap-4 mb-6 mt-12">
-            <h2 className="text-xl font-bold theme-primary tracking-tight" style={{ fontFamily: 'var(--font-family)', letterSpacing: '-0.01em', fontWeight: 700 }}>Recently read</h2>
-            <div className="flex-1 border-t theme-border" />
-          </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-6 min-h-[180px]" style={{ minHeight: filledBooks.length === 0 ? 80 : 180, alignItems: filledBooks.length === 0 ? 'center' : 'flex-start', justifyContent: filledBooks.length === 0 ? 'center' : 'flex-start' }}>
-            {filledBooks.length === 0 ? (
-              <div className="text-gray-400 italic text-lg flex items-center justify-center w-full" style={{ minHeight: 80, height: 80 }}>
-                No recent reading activity.
-              </div>
-            ) : (
-              filledBooks.map(book => (
-                <div key={book.id} className="card-themed-accent p-4 flex flex-col min-w-[220px] max-w-[260px]" style={{ minHeight: 180 }}>
-                  <div className="font-bold text-lg theme-text mb-1">{book.title}</div>
-                  <div className="theme-text-secondary text-sm mb-2">{book.author || 'N/A'}</div>
-                  <div className="flex-1 flex flex-col justify-end">
-                    <div className="theme-text-secondary text-xs mb-2">{book.lastRead ? `Last read: ${new Date(book.lastRead).toLocaleDateString()}` : `Progress: ${book.percent || 0}%`}</div>
-                    <div className="theme-text-secondary text-xs mb-2">Words read: {book.wordsRead?.toLocaleString() || 0}</div>
-                    <Link href={`/reader?book=${book.id}`} className="btn-primary w-full text-center mt-2 py-2 rounded font-bold">Continue</Link>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        
         {/* Statistics Row Header */}
         <div className="mb-16">
           <div className="flex items-center gap-4 mb-6 mt-12">

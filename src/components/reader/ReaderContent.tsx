@@ -4,6 +4,7 @@ import { WordType } from './ReaderTypes';
 import { getWordUnderline, cleanWord } from './ReaderUtils';
 import { WordPopup } from './WordPopup';
 import ReactMarkdown from 'react-markdown';
+import { Components } from 'react-markdown';
 
 interface ReaderContentProps {
   flatSentences: string[];
@@ -44,6 +45,7 @@ interface ReaderContentProps {
     enableMarkdown: boolean;
     disableClipboardButton: boolean;
     targetLanguage?: string;
+    dictionary?: string;
   };
 }
 
@@ -125,9 +127,9 @@ export function ReaderContent({
     return words;
   };
 
-  // Function to clean word for display (remove punctuation)
+  // Function to clean word for display (remove punctuation but preserve apostrophes for French)
   const cleanWordForDisplay = (word: string) => {
-    return word.replace(/[.,!?;:]|["'\)\]}]/g, '');
+    return word.replace(/[.,!?;:]|["\)\]}]/g, '');
   };
 
   // Helper to clean asterisks from a word
@@ -302,7 +304,175 @@ export function ReaderContent({
     };
   }, [popup]);
 
-  // If markdown is enabled, render the content as markdown
+  // Helper to render a sentence with word spans (for use in both normal and markdown mode)
+  const renderSentenceWithSpans = (sentence: string, sIdx: number) => {
+    const words = splitSentenceWithPunctuation(sentence);
+    const isSentenceHighlighted = sIdx === activeSentenceIndex && !disableSentenceHighlighting;
+    const isSentenceHovered = highlightSentenceOnHover && sIdx === currentlyHighlightedSentence;
+    const showCurrentSentence = invisibleText && isWHeld && isSentenceHighlighted;
+    return (
+      <span
+        key={sIdx}
+        data-sentence-index={sIdx}
+        className={`${isSentenceHighlighted ? 'speaking-highlight' : ''} ${isSentenceSelectMode ? 'sentence-selectable' : ''}`}
+        style={{
+          marginRight: 8,
+          cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'pointer'),
+          color: showCurrentSentence
+            ? '#232946'
+            : (invisibleText ? 'rgba(0,0,0,0.01)' : '#232946'),
+          background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
+          borderRadius: isSentenceHovered ? '0.25em' : undefined,
+          transition: 'background 0.15s',
+          boxShadow: isSentenceHovered ? '0 -4px 0 0 rgba(56, 189, 248, 0.18)' : undefined,
+          display: 'inline',
+          verticalAlign: 'baseline',
+        }}
+        onClick={() => {
+          if (isSentenceSelectMode) onSentenceClick(sentence, sIdx);
+        }}
+      >
+        {words.map((word, wIdx) => {
+          const isPunctuation = /^[.,!?;:]|["'\)\]}]$/.test(word);
+          const isLastNonPunctuationWord = !isPunctuation && words.slice(wIdx + 1).every(w => /^[.,!?;:]|["'\)\]}]$/.test(w));
+          const cleanedWord = cleanWordForDisplay(word);
+          const wordStatus = enableHighlightWords ? getWordStatus(cleanedWord) : undefined;
+          const wordKey = getWordKey ? getWordKey(word, wIdx) : `${word}__${wIdx}`;
+          const isHovered = hoveredWordKey === wordKey;
+          const isActiveWord = !disableWordHighlighting && sIdx === activeSentenceIndex && wIdx === activeWordIndex;
+          if (isMobile && sIdx === 0 && wIdx === 0 && !readerSettings.disableClipboardButton) {
+            return (
+              <React.Fragment key={wIdx}>
+                <button
+                  onClick={onCopyText}
+                  className="inline-flex items-center justify-center w-7 h-7 min-w-0 min-h-0 p-0 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 shadow border border-gray-300 mr-1 align-middle"
+                  title="Copy page text"
+                  style={{ verticalAlign: 'middle' }}
+                >
+                  <Clipboard className="w-4 h-4" />
+                </button>
+                <span
+                  style={{
+                    marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
+                    color: isActiveWord ? '#232946' : (showCurrentSentence
+                      ? '#232946'
+                      : (invisibleText
+                          ? (showCurrentWordWhenInvisible
+                              ? '#232946'
+                              : 'rgba(0,0,0,0.001)')
+                          : undefined)),
+                    background: isActiveWord ? '#ffe066' : undefined,
+                    borderRadius: isActiveWord ? 4 : undefined,
+                    borderBottom: !isPunctuation && enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                    cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                  data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
+                  onMouseEnter={e => {
+                    if (isSentenceSelectMode || isPunctuation) return;
+                    setHoveredWordKey(wordKey);
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    hoveredWordInfo.current = { word, sentence, rect };
+                    if (onWordDefinitionHover) onWordDefinitionHover(word, e);
+                    if (enableHighlightWords) onWordHover(word);
+                  }}
+                  onMouseLeave={e => {
+                    if (isSentenceSelectMode || isPunctuation) return;
+                    setHoveredWordKey(null);
+                    hoveredWordInfo.current = null;
+                    if (onWordDefinitionHover) onWordDefinitionHover(null, e);
+                    if (enableHighlightWords) onWordHover(null);
+                  }}
+                  onClick={e => {
+                    if (isSentenceSelectMode || isPunctuation) return;
+                    const el = e.currentTarget as HTMLSpanElement;
+                    const cleanedWord = cleanWordForLookup(word);
+                    showPopup(cleanedWord, sentence, el.getBoundingClientRect());
+                  }}
+                >
+                  {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
+                </span>
+              </React.Fragment>
+            );
+          }
+          return (
+            <span
+              key={wIdx}
+              style={{
+                marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
+                color: isActiveWord ? '#232946' : (showCurrentSentence
+                  ? '#232946'
+                  : (invisibleText
+                      ? (showCurrentWordWhenInvisible
+                          ? '#232946'
+                          : 'rgba(0,0,0,0.001)')
+                      : undefined)),
+                background: isActiveWord ? '#ffe066' : undefined,
+                borderRadius: isActiveWord ? 4 : undefined,
+                borderBottom: !isPunctuation && enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
+              onMouseEnter={e => {
+                if (isSentenceSelectMode || isPunctuation) return;
+                setHoveredWordKey(wordKey);
+                const rect = e.currentTarget.getBoundingClientRect();
+                hoveredWordInfo.current = { word, sentence, rect };
+                if (onWordDefinitionHover) onWordDefinitionHover(word, e);
+                if (enableHighlightWords) onWordHover(word);
+              }}
+              onMouseLeave={e => {
+                if (isSentenceSelectMode || isPunctuation) return;
+                setHoveredWordKey(null);
+                hoveredWordInfo.current = null;
+                if (onWordDefinitionHover) onWordDefinitionHover(null, e);
+                if (enableHighlightWords) onWordHover(null);
+              }}
+              onClick={e => {
+                if (isSentenceSelectMode || isPunctuation) return;
+                const el = e.currentTarget as HTMLSpanElement;
+                const cleanedWord = cleanWordForLookup(word);
+                showPopup(cleanedWord, sentence, el.getBoundingClientRect());
+              }}
+            >
+              {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
+
+  // Markdown custom renderers for p, li, etc.
+  const markdownComponents: Components = {
+    p: (props: React.PropsWithChildren<React.HTMLAttributes<HTMLParagraphElement>>) => {
+      const { children } = props;
+      const flat = React.Children.toArray(children);
+      const text = flat.map(child => (typeof child === 'string' ? child : '')).join(' ');
+      if (!text.trim()) return <p {...props}>{children}</p>;
+      const sentences = text.match(/[^.!?\n]+[.!?]?/g) || [text];
+      return (
+        <p {...props} style={{ ...(props.style || {}), marginBottom: '1em' }}>
+          {sentences.map((sentence: string, idx: number) => renderSentenceWithSpans(sentence, idx))}
+        </p>
+      );
+    },
+    li: (props: React.PropsWithChildren<React.LiHTMLAttributes<HTMLLIElement>>) => {
+      const { children } = props;
+      const flat = React.Children.toArray(children);
+      const text = flat.map(child => (typeof child === 'string' ? child : '')).join(' ');
+      if (!text.trim()) return <li {...props}>{children}</li>;
+      const sentences = text.match(/[^.!?\n]+[.!?]?/g) || [text];
+      return (
+        <li {...props}>
+          {sentences.map((sentence: string, idx: number) => renderSentenceWithSpans(sentence, idx))}
+        </li>
+      );
+    },
+    // Let headers, ul, ol, etc, render as normal
+  };
+
   if (readerSettings.enableMarkdown) {
     return (
       <div
@@ -315,7 +485,9 @@ export function ReaderContent({
           lineHeight: lineSpacing,
         }}
       >
-        <ReactMarkdown>{flatSentences.join('\n')}</ReactMarkdown>
+        <ReactMarkdown components={markdownComponents}>
+          {flatSentences.join('\n')}
+        </ReactMarkdown>
       </div>
     );
   }
@@ -547,8 +719,10 @@ export function ReaderContent({
             updateWordStatus(word, newStatus);
           }}
           readerFont={readerFont}
-          nativeLanguage={(readerSettings as any).nativeLanguage || 'en'}
-          targetLanguage={(readerSettings as any).targetLanguage || 'es'}
+          // Ensure these are always non-undefined strings
+          nativeLanguage={readerSettings.nativeLanguage || 'en'}
+          targetLanguage={readerSettings.targetLanguage || 'es'}
+          dictionaryCollection={readerSettings.dictionary || 'none'}
         />
       )}
     </div>

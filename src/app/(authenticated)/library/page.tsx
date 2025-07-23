@@ -23,7 +23,7 @@ interface BookSection {
   id: string;
 }
 
-interface Book {
+export interface Book {
   id: string;
   title: string;
   author: string;
@@ -47,7 +47,7 @@ interface ReadingProgress {
 }
 
 // Minimal type for archived book cards
-interface ArchivedBookCard {
+export interface ArchivedBookCard {
   id: string;
   title: string;
   author: string;
@@ -56,6 +56,144 @@ interface ArchivedBookCard {
   dateEnded: string;
   completed: boolean;
   wordsRead: number;
+}
+
+export function BookCard({ book, archived = false, openBook = () => {}, bookWordsRead = {}, comprehensionReports = {}, setComprehensionModalBook = () => {}, fetchComprehensionReport = () => {}, setDataModalBook = () => {}, toggleCompleted = () => {}, archiveBookHandler = () => {}, deleteBookHandler = () => {}, deleteArchivedBookHandler = () => {} }: {
+  book: Book | ArchivedBookCard;
+  archived?: boolean;
+  openBook?: (book: Book) => void;
+  bookWordsRead?: { [key: string]: number };
+  comprehensionReports?: any;
+  setComprehensionModalBook?: (book: Book) => void;
+  fetchComprehensionReport?: (bookId: string) => void;
+  setDataModalBook?: (book: Book) => void;
+  toggleCompleted?: (book: Book) => void;
+  archiveBookHandler?: (book: Book) => void;
+  deleteBookHandler?: (bookId: string, storagePath?: string) => void;
+  deleteArchivedBookHandler?: (archivedId: string) => void;
+}) {
+  const report = comprehensionReports[book.id];
+  const knownPct = report ? ((report.known / report.uniqueWords) * 100).toFixed(1) : null;
+  const unknownPct = report ? ((report.unknown / report.uniqueWords) * 100).toFixed(1) : null;
+  const completed = (book as Book).completed;
+  const wordsRead = archived ? (book as ArchivedBookCard).wordsRead : bookWordsRead[String(book.id)] || 0;
+  const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
+  return (
+    <div
+      className={`${archived ? 'card-themed-secondary' : 'card-themed-primary'} flex flex-col w-full max-w-[250px] min-h-[250px] aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group`}
+      style={{ fontFamily: 'var(--font-family)', minHeight: 320, padding: 0, opacity: archived ? 0.7 : 1 }}
+      onClick={archived ? undefined : () => openBook(book as Book)}
+      tabIndex={0}
+      role="button"
+      aria-label={`Read ${book.title}`}
+    >
+      <div className="flex justify-end p-2 gap-2">
+        {!archived && (
+          <button
+            onClick={e => { e.stopPropagation(); setComprehensionModalBook(book as Book); fetchComprehensionReport(book.id); }}
+            className="text-gray-300 hover:text-blue-500 text-lg p-1 rounded transition-colors"
+            title="Comprehension Report"
+            tabIndex={-1}
+            style={{ background: 'none', border: 'none' }}
+          >
+            <FiBarChart2 className="w-5 h-5" />
+          </button>
+        )}
+        {archived ? (
+          <button
+            onClick={e => { e.stopPropagation(); deleteArchivedBookHandler(book.id); }}
+            className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
+            title="Delete archived book"
+            tabIndex={-1}
+            style={{ background: 'none', border: 'none' }}
+          >
+            <FiTrash2 className="w-5 h-5" />
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={e => { e.stopPropagation(); archiveBookHandler(book as Book); }}
+              className="text-gray-300 hover:text-yellow-500 text-lg p-1 rounded transition-colors"
+              title="Archive book"
+              tabIndex={-1}
+              style={{ background: 'none', border: 'none' }}
+            >
+              <FiArchive className="w-5 h-5" />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, (book as Book).storagePath); }}
+              className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
+              title="Delete book"
+              tabIndex={-1}
+              style={{ background: 'none', border: 'none' }}
+            >
+              <FiTrash2 className="w-5 h-5" />
+            </button>
+          </>
+        )}
+      </div>
+      <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
+        <h3 className="font-bold theme-text text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
+        {/* Reading Progress Bar */}
+        <div className="w-full mb-1">
+          <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
+            <div className="absolute left-0 top-0 h-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: 'var(--primary-color)' }} />
+          </div>
+          <div className="flex justify-between text-xs mt-1 theme-text-secondary">
+            <span>{book.author}</span>
+            <span className="text-right">{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()} words</span>
+          </div>
+        </div>
+        {/* Comprehension Progress Bar */}
+        <div className="w-full mt-1 mb-1">
+          <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
+            <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: report ? `${knownPct}%` : '0%', borderRadius: '999px 0 0 999px' }} />
+            <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: report ? `${100 - Number(unknownPct)}%` : '0%', opacity: 0.3 }} />
+            <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: report ? `${Number(knownPct) + (report.ignored / report.uniqueWords) * 100}%` : '0%', opacity: 0.18 }} />
+          </div>
+          <div className="flex justify-between text-xs mt-1 theme-text-secondary">
+            {report ? (
+              <>
+                <span>{knownPct}% Known</span>
+                <span>{unknownPct}% Unknown</span>
+              </>
+            ) : (
+              <span className="italic text-gray-400">No report</span>
+            )}
+          </div>
+        </div>
+        {/* Actions */}
+        {!archived && (
+        <div className="flex gap-2 mt-2">
+          <button
+              onClick={e => { e.stopPropagation(); setDataModalBook(book as Book); }}
+            className="flex-1 flex items-center justify-center gap-1 rounded-lg border theme-border theme-primary font-semibold py-1.5 px-2 text-sm transition-colors"
+            style={{ 
+              backgroundColor: 'var(--background)',
+              borderColor: 'var(--primary-color)',
+              color: 'var(--primary-color)'
+            }}
+            tabIndex={-1}
+          >
+            <FiBarChart2 className="w-4 h-4" /> Data
+          </button>
+          <button
+              onClick={e => { e.stopPropagation(); toggleCompleted(book as Book); }}
+              className={`flex-1 flex items-center justify-center gap-1 rounded-lg border font-semibold py-1.5 px-2 text-sm transition-colors ${(book as Book).completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'theme-border theme-primary'}`}
+              style={(book as Book).completed ? {} : { 
+                backgroundColor: 'var(--background)',
+                borderColor: 'var(--primary-color)',
+                color: 'var(--primary-color)'
+              }}
+            tabIndex={-1}
+          >
+              <FiCheckCircle className="w-4 h-4" /> {(book as Book).completed ? 'Uncomplete' : 'Complete'}
+          </button>
+        </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function library() {
@@ -740,11 +878,11 @@ export default function library() {
   }
 
   // Group books
-  const activeBooks = books.filter((b) => b.wordsRead && b.wordsRead > 0 && b.wordsRead < b.totalWords);
+  const activeBooks = books.filter((b) => b.wordsRead && b.wordsRead > 0 && !b.completed);
   const notStarted = books.filter((b) => b.wordsRead === 0);
   const completed = books.filter((b) => getBookStatus(b) === 'completed');
   const toReadBooks = books.filter(book => !book.wordsRead || book.wordsRead === 0);
-  const currentlyReadingBooks = books.filter(book => book.wordsRead && book.wordsRead > 0 && book.wordsRead < book.totalWords);
+  const currentlyReadingBooks = books.filter(book => book.wordsRead && book.wordsRead > 0 && !book.completed);
   console.log(books);
   console.log('LIBRARY DEBUG: toReadBooks', toReadBooks);
   console.log('LIBRARY DEBUG: currentlyReadingBooks', currentlyReadingBooks);
@@ -1309,132 +1447,6 @@ export default function library() {
     }
   };
 
-  // BookCard
-  function BookCard({ book, archived }: { book: Book | ArchivedBookCard; archived?: boolean }) {
-    const report = comprehensionReports[book.id];
-    const knownPct = report ? ((report.known / report.uniqueWords) * 100).toFixed(1) : null;
-    const unknownPct = report ? ((report.unknown / report.uniqueWords) * 100).toFixed(1) : null;
-    const completed = (book as Book).completed;
-    const wordsRead = archived ? (book as ArchivedBookCard).wordsRead : bookWordsRead[String(book.id)] || 0;
-    const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
-    return (
-      <div
-        className={`${archived ? 'card-themed-secondary' : 'card-themed-primary'} flex flex-col w-full max-w-[250px] min-h-[250px] aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group`}
-        style={{ fontFamily: 'var(--font-family)', minHeight: 320, padding: 0, opacity: archived ? 0.7 : 1 }}
-        onClick={archived ? undefined : () => openBook(book as Book)}
-        tabIndex={0}
-        role="button"
-        aria-label={`Read ${book.title}`}
-      >
-        <div className="flex justify-end p-2 gap-2">
-          {!archived && (
-            <button
-              onClick={e => { e.stopPropagation(); setComprehensionModalBook(book as Book); fetchComprehensionReport(book.id); }}
-              className="text-gray-300 hover:text-blue-500 text-lg p-1 rounded transition-colors"
-              title="Comprehension Report"
-              tabIndex={-1}
-              style={{ background: 'none', border: 'none' }}
-            >
-              <FiBarChart2 className="w-5 h-5" />
-            </button>
-          )}
-          {archived ? (
-            <button
-              onClick={e => { e.stopPropagation(); deleteArchivedBookHandler(book.id); }}
-              className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
-              title="Delete archived book"
-              tabIndex={-1}
-              style={{ background: 'none', border: 'none' }}
-            >
-              <FiTrash2 className="w-5 h-5" />
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={e => { e.stopPropagation(); archiveBookHandler(book as Book); }}
-                className="text-gray-300 hover:text-yellow-500 text-lg p-1 rounded transition-colors"
-                title="Archive book"
-                tabIndex={-1}
-                style={{ background: 'none', border: 'none' }}
-              >
-                <FiArchive className="w-5 h-5" />
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); deleteBookHandler(book.id, (book as Book).storagePath); }}
-                className="text-gray-300 hover:text-red-500 text-lg p-1 rounded transition-colors"
-                title="Delete book"
-                tabIndex={-1}
-                style={{ background: 'none', border: 'none' }}
-              >
-                <FiTrash2 className="w-5 h-5" />
-              </button>
-            </>
-          )}
-        </div>
-        <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
-          <h3 className="font-bold theme-text text-lg leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
-          {/* Reading Progress Bar */}
-          <div className="w-full mb-1">
-            <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
-              <div className="absolute left-0 top-0 h-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: 'var(--primary-color)' }} />
-            </div>
-            <div className="flex justify-between text-xs mt-1 theme-text-secondary">
-              <span>{book.author}</span>
-              <span className="text-right">{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()} words</span>
-            </div>
-          </div>
-          {/* Comprehension Progress Bar */}
-          <div className="w-full mt-1 mb-1">
-            <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
-              <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: report ? `${knownPct}%` : '0%', borderRadius: '999px 0 0 999px' }} />
-              <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: report ? `${100 - Number(unknownPct)}%` : '0%', opacity: 0.3 }} />
-              <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: report ? `${Number(knownPct) + (report.ignored / report.uniqueWords) * 100}%` : '0%', opacity: 0.18 }} />
-            </div>
-            <div className="flex justify-between text-xs mt-1 theme-text-secondary">
-              {report ? (
-                <>
-                  <span>{knownPct}% Known</span>
-                  <span>{unknownPct}% Unknown</span>
-                </>
-              ) : (
-                <span className="italic text-gray-400">No report</span>
-              )}
-            </div>
-          </div>
-          {/* Actions */}
-          {!archived && (
-          <div className="flex gap-2 mt-2">
-            <button
-                onClick={e => { e.stopPropagation(); setDataModalBook(book as Book); }}
-              className="flex-1 flex items-center justify-center gap-1 rounded-lg border theme-border theme-primary font-semibold py-1.5 px-2 text-sm transition-colors"
-              style={{ 
-                backgroundColor: 'var(--background)',
-                borderColor: 'var(--primary-color)',
-                color: 'var(--primary-color)'
-              }}
-              tabIndex={-1}
-            >
-              <FiBarChart2 className="w-4 h-4" /> Data
-            </button>
-            <button
-                onClick={e => { e.stopPropagation(); toggleCompleted(book as Book); }}
-                className={`flex-1 flex items-center justify-center gap-1 rounded-lg border font-semibold py-1.5 px-2 text-sm transition-colors ${(book as Book).completed ? 'border-gray-300 text-gray-400 bg-gray-100' : 'theme-border theme-primary'}`}
-                style={(book as Book).completed ? {} : { 
-                  backgroundColor: 'var(--background)',
-                  borderColor: 'var(--primary-color)',
-                  color: 'var(--primary-color)'
-                }}
-              tabIndex={-1}
-            >
-                <FiCheckCircle className="w-4 h-4" /> {(book as Book).completed ? 'Uncomplete' : 'Complete'}
-            </button>
-          </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   // Modal for Data
   function DataModal() {
     if (!dataModalBook) return null;
@@ -1820,10 +1832,10 @@ export default function library() {
           <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
             {books.length > 0 ? books.map((book) => (
               <div key={book.id} className="snap-center flex-shrink-0 w-[90vw] max-w-xs">
-                <BookCard book={book} archived={archived} />
+                <BookCard book={book} archived={archived} openBook={openBook} bookWordsRead={bookWordsRead} comprehensionReports={comprehensionReports} setComprehensionModalBook={setComprehensionModalBook} fetchComprehensionReport={fetchComprehensionReport} setDataModalBook={setDataModalBook} toggleCompleted={toggleCompleted} archiveBookHandler={archiveBookHandler} deleteBookHandler={deleteBookHandler} deleteArchivedBookHandler={deleteArchivedBookHandler} />
               </div>
             )) : (
-              <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl bg-[#f7ecd9] min-w-[90vw] max-w-xs">
+              <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl bg-[#f7ecd9] min-w-[90vw] max-w-xs p-6" style={{padding: '1.5rem'}}>
                 <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
               </div>
             )}
@@ -1831,9 +1843,9 @@ export default function library() {
         ) : (
         <div className="flex flex-wrap gap-x-4 gap-y-6 min-h-[180px]">
           {books.length > 0 ? books.map((book) => (
-              <BookCard key={book.id} book={book} archived={archived} />
+              <BookCard key={book.id} book={book} archived={archived} openBook={openBook} bookWordsRead={bookWordsRead} comprehensionReports={comprehensionReports} setComprehensionModalBook={setComprehensionModalBook} fetchComprehensionReport={fetchComprehensionReport} setDataModalBook={setDataModalBook} toggleCompleted={toggleCompleted} archiveBookHandler={archiveBookHandler} deleteBookHandler={deleteBookHandler} deleteArchivedBookHandler={deleteArchivedBookHandler} />
           )) : (
-            <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl bg-[#f7ecd9]">
+            <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl bg-[#f7ecd9] p-6" style={{padding: '1.5rem'}}>
               <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
             </div>
           )}

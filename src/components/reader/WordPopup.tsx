@@ -7,6 +7,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import ReactMarkdown from 'react-markdown';
 import { SentenceService } from '@/services/sentenceService';
 import { useAuth } from '@/contexts/AuthContext';
+import { MultiLanguageTransformer } from '@/language/multi-language-transformer';
 
 
 export type DatabaseTermEntry = {
@@ -40,8 +41,12 @@ interface WordPopupProps {
   wordStatus?: WordType;
   onWordStatusChange?: (word: string, newStatus: WordType) => void;
   readerFont?: string;
-  nativeLanguage?: string;
-  targetLanguage?: string;
+  /** User's interface language (for Gemini prompts, e.g. 'en', 'fr', etc.) */
+  nativeLanguage: string;
+  /** User's target language (for Gemini prompts, e.g. 'es', 'ja', etc.) */
+  targetLanguage: string;
+  /** Firestore collection name for dictionary, or 'none' for no dictionary */
+  dictionaryCollection: string;
 }
 
 // Utility to render Yomitan/Wiktionary structured-content JSON
@@ -54,24 +59,24 @@ function renderStructuredContent(node: any, key?: React.Key, readerFont?: string
     return node;
   }
   // Debug: log each part
-  if (node.tag) {
-    console.log('[DICT DEBUG] tag:', node.tag, 'data:', node.data, 'content:', node.content);
-  }
-  if (node.notes) {
-    console.log('[DICT DEBUG] notes:', node.notes);
-  }
-  if (node.source) {
-    console.log('[DICT DEBUG] source:', node.source);
-  }
-  if (node.terms) {
-    console.log('[DICT DEBUG] terms:', node.terms);
-  }
-  if (node.tags) {
-    console.log('[DICT DEBUG] tags:', node.tags);
-  }
-  if (node.rules) {
-    console.log('[DICT DEBUG] rules:', node.rules);
-  }
+  // if (node.tag) {
+  //   console.log('[DICT DEBUG] tag:', node.tag, 'data:', node.data, 'content:', node.content);
+  // }
+  // if (node.notes) {
+  //   console.log('[DICT DEBUG] notes:', node.notes);
+  // }
+  // if (node.source) {
+  //   console.log('[DICT DEBUG] source:', node.source);
+  // }
+  // if (node.terms) {
+  //   console.log('[DICT DEBUG] terms:', node.terms);
+  // }
+  // if (node.tags) {
+  //   console.log('[DICT DEBUG] tags:', node.tags);
+  // }
+  // if (node.rules) {
+  //   console.log('[DICT DEBUG] rules:', node.rules);
+  // }
   // Special styling for span tags (used for vt/vr etc)
   if (node.tag === 'span') {
     return <span key={key} style={{
@@ -205,7 +210,18 @@ function parseBreakdownOutput(output: string) {
   return groups;
 }
 
-export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage }: WordPopupProps) {
+// Helper to dynamically import and register only the needed language transforms
+const languageTransformImports: Record<string, () => Promise<any>> = {
+  fr: () => import('@/language/fr/french-transforms').then(m => m.frenchTransforms),
+  es: () => import('@/language/es/spanish-transforms').then(m => m.spanishTransforms),
+  de: () => import('@/language/de/german-transforms').then(m => m.germanTransforms),
+  en: () => import('@/language/en/english-transforms').then(m => m.englishTransforms),
+  ar: () => import('@/language/ar/arabic-transforms').then(m => m.arabicTransforms),
+  eo: () => import('@/language/eo/esperanto-transforms').then(m => m.esperantoTransforms),
+  // Add more as needed
+};
+
+export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage, dictionaryCollection }: WordPopupProps) {
   const [showPlaceholder, setShowPlaceholder] = useState(false);
   const [placeholderText, setPlaceholderText] = useState('');
   const [activeTab, setActiveTab] = useState<'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'>('definition');
@@ -226,20 +242,63 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveAnim, setSaveAnim] = useState(false);
+  // For debugging: store last Gemini prompt for each tab
+  const [lastWordExplainPrompt, setLastWordExplainPrompt] = useState<string | null>(null);
+  const [lastExplainPrompt, setLastExplainPrompt] = useState<string | null>(null);
+  const [lastTranslatePrompt, setLastTranslatePrompt] = useState<string | null>(null);
 
   // Detect mobile screen
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
 
-  // Clean word for display (remove punctuation)
-  const cleanWordForDisplay = (word: string) => {
-    return word.replace(/[.,!?;:]|["'\)\]}]/g, '').toLowerCase();
+  // Initialize transformer for only the target language
+  const [transformer, setTransformer] = useState<MultiLanguageTransformer | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const lang = targetLanguage || 'fr';
+    const load = async () => {
+      const t: MultiLanguageTransformer = new MultiLanguageTransformer();
+      if (languageTransformImports[lang]) {
+        const transforms = await languageTransformImports[lang]();
+        const { LanguageTransformer } = await import('@/language/language-transformer');
+        const languageTransformer = new LanguageTransformer();
+        languageTransformer.addDescriptor(transforms);
+        t._languageTransformers.set(lang, languageTransformer);
+      }
+      if (isMounted) setTransformer(t);
+    };
+    load();
+    return () => { isMounted = false; };
+  }, [targetLanguage]);
+
+  // Analyze the word using the transformer and target language
+  const analysis = React.useMemo(() => {
+    if (!word || !targetLanguage || !transformer) return null;
+    
+    const results = transformer.transform(targetLanguage, word);
+    if (results && results.length > 0) {
+      console.log("TRANSFORMER DEBUG: results", results);
+      console.log('[TRANSFORMER] Word:', word, 'Lang:', targetLanguage, 'Analysis:', results[0]);
+      return results[0]; // Use the first (most likely) analysis
+    }
+    return null;
+  }, [word, targetLanguage, transformer]);
+
+  // Use lemma for dictionary lookup if available
+  const transformedWord = analysis?.lemma || word;
+  const displayLemma = analysis?.lemma || '';
+  const displayConditions = analysis?.conditions || [];
+  const displayTrace = analysis?.trace || [];
+
+  // Clean word for display (remove punctuation but preserve apostrophes for French)
+  const cleanWordForDisplay = (w: string) => {
+    return w.replace(/[.,!?;:]|["\)\]}]/g, '').toLowerCase();
   };
+  const displayWord = cleanWordForDisplay(transformedWord);
 
-  const displayWord = cleanWordForDisplay(word);
-
-  // Default languages if not provided
-  const interfaceLang = nativeLanguage || 'en';
-  const targetLang = targetLanguage || 'es';
+  // Remove fallback defaults for interfaceLang/targetLang
+  const interfaceLang = nativeLanguage;
+  const targetLang = targetLanguage;
 
   const handlePopupClick = (e: React.MouseEvent) => {
     // Prevent clicks on the popup from bubbling up to the container
@@ -260,6 +319,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
 
   // Yomitan-style dictionary lookup
   useEffect(() => {
+    if (dictionaryCollection === 'none') {
+      setDictLoading(false);
+      setDictError(null);
+      setDictEntries([]);
+      setLemmaEntry(null);
+      return;
+    }
+    // Only fetch if not 'none'
     const fetchYomitanEntries = async () => {
       setDictLoading(true);
       setDictError(null);
@@ -267,8 +334,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       setLemmaEntry(null);
       try {
         const db = getFirestore();
-        // 1. Fetch the index document for the word
-        const indexRef = doc(db, 'dictionary_es', displayWord);
+        // 1. Fetch the index document for the word from the main dictionary collection
+        const indexRef = doc(db, dictionaryCollection, displayWord);
         const indexSnap = await getDoc(indexRef);
         if (!indexSnap.exists()) {
           setDictError('No dictionary entry found.');
@@ -288,7 +355,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         } else if (Array.isArray(indexData.definitions_json)) {
           indexArr = indexData.definitions_json;
         }
-        // 2. For each entry, fetch the actual definition document
+        
+        // 2. Fetch tags from the separate tags collection
+        const tagsCollection = `${dictionaryCollection}-tags`;
+        const tagsRef = doc(db, tagsCollection, displayWord);
+        const tagsSnap = await getDoc(tagsRef);
+        let tagsData = tagsSnap.exists() ? tagsSnap.data() : null;
+        
+        // 3. For each entry, fetch the actual definition document
         const allEntries: any[] = [];
         let lemmaWord = displayWord;
         let lemmaTags: string[] = [];
@@ -303,9 +377,10 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
           allEntries.push({ word: entryWord, tags: entryTags });
         }
         setDictEntries(allEntries);
-        // If the selected word is an alternative, fetch the lemma's full entry
+        
+        // 4. If the selected word is an alternative, fetch the lemma's full entry
         if (displayWord !== lemmaWord) {
-          const lemmaRef = doc(db, 'dictionary_es', lemmaWord);
+          const lemmaRef = doc(db, dictionaryCollection, lemmaWord);
           const lemmaSnap = await getDoc(lemmaRef);
           let lemmaData = lemmaSnap.exists() ? lemmaSnap.data() : null;
           let lemmaJson = lemmaData && lemmaData.definitions_json ? lemmaData.definitions_json : null;
@@ -317,17 +392,25 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
           } else if (lemmaJson) {
             lemmaParsed = lemmaJson;
           }
+          
+          // Also fetch lemma tags from tags collection
+          const lemmaTagsRef = doc(db, tagsCollection, lemmaWord);
+          const lemmaTagsSnap = await getDoc(lemmaTagsRef);
+          let lemmaTagsData = lemmaTagsSnap.exists() ? lemmaTagsSnap.data() : null;
+          
           // Debug: print lemma object
           console.log('[DICT DEBUG] Fetched lemma object for', lemmaWord, lemmaData);
+          console.log('[DICT DEBUG] Fetched lemma tags for', lemmaWord, lemmaTagsData);
           setLemmaEntry({
             word: lemmaWord,
             tags: lemmaTags,
             definition: lemmaParsed,
-            raw: lemmaData
+            raw: lemmaData,
+            tagsData: lemmaTagsData
           });
         } else {
           // If the selected word is the lemma, fetch and show its entry as before
-          const defRef = doc(db, 'dictionary_es', lemmaWord);
+          const defRef = doc(db, dictionaryCollection, lemmaWord);
           const defSnap = await getDoc(defRef);
           let defData = defSnap.exists() ? defSnap.data() : null;
           let defJson = defData && defData.definitions_json ? defData.definitions_json : null;
@@ -343,7 +426,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
             word: lemmaWord,
             tags: lemmaTags,
             definition: defParsed,
-            raw: defData
+            raw: defData,
+            tagsData: tagsData
           });
         }
         setDictLoading(false);
@@ -353,7 +437,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       }
     };
     fetchYomitanEntries();
-  }, [displayWord]);
+  }, [displayWord, dictionaryCollection]);
 
   // Gemini API call utility using @google/generative-ai
   async function callGemini(prompt: string | { systemPrompt: string, userPrompt: string }): Promise<string> {
@@ -377,8 +461,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   // Prompts
   const wordExplainSystemPrompt = `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language [INTERFACE_LANG].\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`;
   const wordExplainUserPrompt = `[SENTENCE]. Explain usage of word(s): [WORD] (lang: [TARGET_LANG])`;
-  const sentenceBreakdownPrompt = `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [TARGET_LANG]. ONLY output text IN en.`;
-  const sentenceTranslationPrompt = `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [TARGET_LANG].`;
+  const sentenceBreakdownPrompt = `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [TARGET_LANG]. ONLY output text IN [INTERFACE_LANG].`;
+  const sentenceTranslationPrompt = `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [INTERFACE_LANG].`;
 
   // Handle Word Explanation tab
   useEffect(() => {
@@ -389,12 +473,13 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       const systemPrompt = wordExplainSystemPrompt.replace('[INTERFACE_LANG]', interfaceLang);
       const userPrompt = wordExplainUserPrompt.replace('[SENTENCE]', sentence).replace('[WORD]', word).replace('[TARGET_LANG]', targetLang);
       const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      setLastWordExplainPrompt(combinedPrompt);
       callGemini(combinedPrompt)
         .then(setWordExplainResult)
         .catch(e => setWordExplainError(e.message))
         .finally(() => setWordExplainLoading(false));
     }
-  }, [activeTab, word, nativeLanguage]);
+  }, [activeTab, word, nativeLanguage, targetLanguage]);
 
   // Handle Explain tab
   useEffect(() => {
@@ -402,12 +487,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       setExplainResult(null);
       setExplainError(null);
       setExplainLoading(true);
-      callGemini(sentenceBreakdownPrompt.replace('[WORD]', word).replace('[SENTENCE]', sentence))
+      const prompt = sentenceBreakdownPrompt.replace('[WORD]', word).replace('[SENTENCE]', sentence).replace('[INTERFACE_LANG]', interfaceLang).replace('[TARGET_LANG]', targetLang);
+      setLastExplainPrompt(prompt);
+      callGemini(prompt)
         .then(setExplainResult)
         .catch(e => setExplainError(e.message))
         .finally(() => setExplainLoading(false));
     }
-  }, [activeTab, sentence, nativeLanguage]);
+  }, [activeTab, sentence, nativeLanguage, targetLanguage]);
 
   // Handle Translate tab
   useEffect(() => {
@@ -419,7 +506,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         .replace('[WORD]', word)
         .replace('[SENTENCE]', sentence)
         .replace('[TARGET_LANG]', targetLang)
-        .replace('[NATIVE_LANG]', interfaceLang);
+        .replace('[INTERFACE_LANG]', interfaceLang);
+      setLastTranslatePrompt(prompt);
       callGemini(prompt)
         .then(setTranslateResult)
         .catch(e => setTranslateError(e.message))
@@ -733,9 +821,13 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       }}>
         {activeTab === 'definition' && (
           <div>
-            {dictLoading && <div>Loading dictionary...</div>}
-            {dictError && <div className="text-red-500">{dictError}</div>}
-            {!dictLoading && !dictError && dictEntries.length > 0 && (
+            {dictionaryCollection === 'none' ? (
+              <div className="text-gray-500 italic">No dictionary selected.</div>
+            ) : dictLoading ? (
+              <div>Loading dictionary...</div>
+            ) : dictError ? (
+              <div className="text-red-500">{dictError}</div>
+            ) : !dictLoading && !dictError && dictEntries.length > 0 && (
               <div>
                 {/* Alternatives/inflections list at the top */}
                 
@@ -776,32 +868,39 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
                       const numbered = renderNumberedDefinitions(defArr, readerFont);
                       if (numbered) return numbered;
                       // Otherwise, fallback to previous rendering
-                      return defArr.map((term: any, idx: number) => (
-                        <div key={idx} style={{ marginBottom: 8, paddingLeft: 8, borderLeft: '2px solid #e0e7ff' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                            <span style={{ fontWeight: 600 }}>{term.expression}</span>
-                            {term.reading && <span style={{ color: '#888', fontSize: 13 }}>({term.reading})</span>}
-                            {term.termTags && <span style={{ background: '#f3e8ff', color: '#a21caf', borderRadius: 4, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>{term.termTags}</span>}
-                            {term.definitionTags && <span style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: 4, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>{term.definitionTags}</span>}
-                            {term.tags && <span style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: 4, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>{term.tags}</span>}
-                            {term.rules && <span style={{ background: '#fef9c3', color: '#b45309', borderRadius: 4, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>{term.rules}</span>}
+                      return defArr.map((term: any, idx: number) => {
+                        // Get tags from the separate tags collection if available
+                        const tagsData = lemmaEntry.tagsData;
+                        const termTags = tagsData?.termTags || term.termTags;
+                        const definitionTags = tagsData?.definitionTags || term.definitionTags;
+                        
+                        return (
+                          <div key={idx} style={{ marginBottom: 8, paddingLeft: 8, borderLeft: '2px solid #e0e7ff' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <span style={{ fontWeight: 600 }}>{term.expression}</span>
+                              {term.reading && <span style={{ color: '#888', fontSize: 13 }}>({term.reading})</span>}
+                              {termTags && <span style={{ background: '#f3e8ff', color: '#a21caf', borderRadius: 4, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>{termTags}</span>}
+                              {definitionTags && <span style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: 4, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>{definitionTags}</span>}
+                              {term.tags && <span style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: 4, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>{term.tags}</span>}
+                              {term.rules && <span style={{ background: '#fef9c3', color: '#b45309', borderRadius: 4, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>{term.rules}</span>}
+                            </div>
+                            <div style={{ marginLeft: 8 }}>
+                              {Array.isArray(term.glossary) && term.glossary.length > 0 && (
+                                <ul style={{ margin: 0, padding: 0, listStyle: 'disc inside' }}>
+                                  {term.glossary.map((g: any, gi: number) => (
+                                    <li key={gi} style={{ marginBottom: 2 }}>
+                                      <span>{g.definition}</span>
+                                      {g.type && <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>[{g.type}]</span>}
+                                      {g.notes && <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>({g.notes})</span>}
+                                      {g.source && <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>({g.source})</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
                           </div>
-                          <div style={{ marginLeft: 8 }}>
-                            {Array.isArray(term.glossary) && term.glossary.length > 0 && (
-                              <ul style={{ margin: 0, padding: 0, listStyle: 'disc inside' }}>
-                                {term.glossary.map((g: any, gi: number) => (
-                                  <li key={gi} style={{ marginBottom: 2 }}>
-                                    <span>{g.definition}</span>
-                                    {g.type && <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>[{g.type}]</span>}
-                                    {g.notes && <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>({g.notes})</span>}
-                                    {g.source && <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>({g.source})</span>}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </div>
-                      ));
+                        );
+                      });
                     })()}
                     {/* Render Grammar and Etymology as dropdowns if present */}
                     {Array.isArray(lemmaEntry.definition) && lemmaEntry.definition.length > 0 && lemmaEntry.definition[0].type === 'structured-content' && Array.isArray(lemmaEntry.definition[0].content) && (

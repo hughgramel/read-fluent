@@ -7,6 +7,9 @@ import { UserService } from '@/services/userService';
 import Link from 'next/link';
 import { ReadingSessionService } from '@/services/readingSessionService';
 import ThemeSettings from '@/components/ThemeSettings';
+import { use } from 'react';
+
+type DictionaryConfig = { name: string; collection: string };
 
 // Helper to format the date
 const formatJoinDate = (date: Date | undefined): string => {
@@ -47,6 +50,9 @@ export default function ProfilePage() {
   });
   const [totalWordsRead, setTotalWordsRead] = useState(0);
   const [booksCompleted, setBooksCompleted] = useState(0);
+  const [dictionaries, setDictionaries] = useState<DictionaryConfig[]>([]);
+  const [dictionary, setDictionary] = useState<string>('none');
+  const [dictionaryLoaded, setDictionaryLoaded] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -58,12 +64,23 @@ export default function ProfilePage() {
     }
   };
 
+  // Load available dictionaries
+  useEffect(() => {
+    fetch('/dictionaries.json')
+      .then(res => res.json())
+      .then(setDictionaries)
+      .catch(() => setDictionaries([{ name: 'No dictionary', collection: 'none' }]));
+  }, []);
+
   useEffect(() => {
     if (user) {
       UserService.getUserPreferences(user.uid).then(prefs => {
         if (prefs?.language) setLanguage(prefs.language);
         else setLanguage('en');
+        if (prefs?.dictionary) setDictionary(prefs.dictionary);
+        else setDictionary('none');
         setLanguageLoaded(true);
+        setDictionaryLoaded(true);
       });
       setStats({ booksCompleted: 5, wordsRead: 12345, wordsKnown: 678 });
     }
@@ -87,7 +104,13 @@ export default function ProfilePage() {
   const handleLanguageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const lang = e.target.value;
     setLanguage(lang);
-    if (user) await UserService.updateUserPreferences(user.uid, { language: lang });
+    if (user) await UserService.updateUserPreferences(user.uid, { targetLanguage: lang });
+  };
+
+  const handleDictionaryChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const dict = e.target.value;
+    setDictionary(dict);
+    if (user) await UserService.updateUserPreferences(user.uid, { dictionary: dict });
   };
 
   if (!user) {
@@ -114,19 +137,20 @@ export default function ProfilePage() {
           </div>
           
           <section className="mb-8">
-            <h2 className="text-xl font-bold theme-primary tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>Statistics</h2>
+            <h2 className="text-xl font-bold theme-primary tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>Settings</h2>
+            
             <div className="mb-6 flex items-center gap-4">
-              <label className="font-semibold theme-text">Learning Language:</label>
-              {!languageLoaded ? (
+              <label className="font-semibold theme-text">Dictionary:</label>
+              {!dictionaryLoaded ? (
                 <span className="theme-text-secondary">Loading...</span>
               ) : (
                 <select
                   className="select-themed font-semibold"
-                  value={language || 'en'}
-                  onChange={handleLanguageChange}
-                  style={{ minWidth: 160 }}
+                  value={dictionary}
+                  onChange={handleDictionaryChange}
+                  style={{ minWidth: 220 }}
                 >
-                  {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                  {dictionaries.map(d => <option key={d.collection} value={d.collection}>{d.name}</option>)}
                 </select>
               )}
             </div>
@@ -190,58 +214,6 @@ export default function ProfilePage() {
                   <option value="my">Burmese</option>
                   <option value="km">Khmer</option>
                   <option value="lo">Lao</option>
-                  <option value="si">Sinhala</option>
-                  <option value="am">Amharic</option>
-                  <option value="sw">Swahili</option>
-                  <option value="zu">Zulu</option>
-                  <option value="xh">Xhosa</option>
-                  <option value="st">Sesotho</option>
-                  <option value="tn">Tswana</option>
-                  <option value="ts">Tsonga</option>
-                  <option value="ss">Swati</option>
-                  <option value="ve">Venda</option>
-                  <option value="nr">Ndebele</option>
-                  <option value="rw">Kinyarwanda</option>
-                  <option value="so">Somali</option>
-                  <option value="om">Oromo</option>
-                  <option value="ti">Tigrinya</option>
-                  <option value="aa">Afar</option>
-                  <option value="ff">Fulah</option>
-                  <option value="ha">Hausa</option>
-                  <option value="ig">Igbo</option>
-                  <option value="yo">Yoruba</option>
-                  <option value="sn">Shona</option>
-                  <option value="ny">Nyanja</option>
-                  <option value="mg">Malagasy</option>
-                  <option value="rn">Kirundi</option>
-                  <option value="sg">Sango</option>
-                  <option value="ln">Lingala</option>
-                  <option value="kg">Kongo</option>
-                  <option value="lu">Luba-Katanga</option>
-                  <option value="ba">Bashkir</option>
-                  <option value="tt">Tatar</option>
-                  <option value="cv">Chuvash</option>
-                  <option value="udm">Udmurt</option>
-                  <option value="sah">Sakha</option>
-                  <option value="ce">Chechen</option>
-                  <option value="os">Ossetian</option>
-                  <option value="av">Avaric</option>
-                  <option value="kv">Komi</option>
-                  <option value="cu">Old Church Slavonic</option>
-                  <option value="tk">Turkmen</option>
-                  <option value="ky">Kyrgyz</option>
-                  <option value="kk">Kazakh</option>
-                  <option value="uz">Uzbek</option>
-                  <option value="tg">Tajik</option>
-                  <option value="ps">Pashto</option>
-                  <option value="pa">Punjabi</option>
-                  <option value="sd">Sindhi</option>
-                  <option value="ur">Urdu</option>
-                  <option value="ne">Nepali</option>
-                  <option value="si">Sinhala</option>
-                  <option value="my">Burmese</option>
-                  <option value="km">Khmer</option>
-                  <option value="lo">Lao</option>
                   <option value="th">Thai</option>
                   <option value="vi">Vietnamese</option>
                   <option value="id">Indonesian</option>
@@ -256,27 +228,24 @@ export default function ProfilePage() {
                 </select>
               )}
             </div>
-            {loadingStats ? (
-              <div className="text-center py-8 theme-text-secondary">Loading stats...</div>
-            ) : (
-              <div className="flex gap-6">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">📚</span>
-                  <div>
-                    <div className="theme-text font-bold text-lg">{booksCompleted}</div>
-                    <div className="theme-text-secondary text-sm">Books Completed</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">📖</span>
-                  <div>
-                    <div className="theme-text font-bold text-lg">{totalWordsRead.toLocaleString()}</div>
-                    <div className="theme-text-secondary text-sm">Words Read</div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="mb-6 flex items-center gap-4">
+              <label className="font-semibold theme-text">Target Language:</label>
+              {!languageLoaded ? (
+                <span className="theme-text-secondary">Loading...</span>
+              ) : (
+                <select
+                  className="select-themed font-semibold"
+                  value={language || 'en'}
+                  onChange={handleLanguageChange}
+                  style={{ minWidth: 160 }}
+                >
+                  {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                </select>
+              )}
+            </div>
+           
           </section>
+
 
           {/* Theme Settings Section */}
           <section className="mb-8">

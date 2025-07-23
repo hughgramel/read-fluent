@@ -19,6 +19,7 @@ export interface UserPreferences {
   readerFontSize?: number; // e.g. 18 (pixels)
   language?: string;
   nativeLanguage?: string; // user's native language
+  targetLanguage?: string; // user's target language for learning
   // Add more preferences as needed
   disableWordUnderlines?: boolean; // disables word underlines and popups
   theme?: string;
@@ -48,6 +49,7 @@ export interface UserPreferences {
   enableSwipeNavigation?: boolean; // Enable swipe left/right for prev/next page
   enableDoubleTapNavigation?: boolean; // Enable double-tap left/right for prev/next page
   autoMarkPageComplete?: boolean; // Automatically mark page complete when going to next page
+  dictionary?: string; // The selected dictionary collection name
 }
 
 export interface UserStats {

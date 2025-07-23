@@ -11,7 +11,6 @@ import { ReaderContent } from '@/components/reader/ReaderContent';
 import { ReaderSettings } from '@/components/reader/ReaderSettings';
 import { ReaderPopups } from '@/components/reader/ReaderPopups';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
-import { WordDefinitionPopup } from '@/components/reader/WordDefinitionPopup';
 import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle } from '@/components/reader/ReaderUtils';
 import { ReaderSettings as ReaderSettingsType } from '@/components/reader/ReaderTypes';
 import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle } from 'lucide-react';
@@ -546,7 +545,7 @@ export default function ReaderPage() {
       <ReaderErrorBoundary>
         {/* Layout: sidebar + main content */}
         <div style={{ height: showHeader ? '64px' : isMobile ? '40px' : '0' }} />
-        <div className="flex w-full px-0 py-12" style={{ margin: '0 auto' }}>
+        <div className="flex w-full px-0 py-12" style={{ margin: '0 auto', marginTop: isMobile ? 56 : 0 }}>
           
           {/* Section Sidebar */}
           {showSectionSidebar && (
@@ -632,7 +631,8 @@ export default function ReaderPage() {
                     ...readerSettings,
                     disableClipboardButton: !!readerSettings.disableClipboardButton,
                     nativeLanguage: readerSettings.nativeLanguage,
-                    enableMarkdown: !!readerSettings.enableMarkdown
+                    enableMarkdown: !!readerSettings.enableMarkdown,
+                    dictionary: readerSettings.dictionary || 'none'
                   }}
                   readerFont={effectiveSettings.readerFont}
                   readerFontSize={effectiveSettings.readerFontSize}
@@ -1122,15 +1122,7 @@ export default function ReaderPage() {
         </div>
       )}
       
-      {/* Word Definition Popup */}
-      <WordDefinitionPopup
-        word={wordDefinitionPopup.word}
-        position={wordDefinitionPopup.position}
-        isVisible={wordDefinitionPopup.isVisible}
-        onClose={closeWordDefinitionPopup}
-        onMouseEnter={handleDefinitionPopupMouseEnter}
-        onMouseLeave={handleDefinitionPopupMouseLeave}
-      />
+     
     </div>
   );
 } 

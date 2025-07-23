@@ -262,199 +262,280 @@ export default function HistoryPage() {
                 <div className="text-sm">Start reading a book to track your progress!</div>
               </div>
             ) : (
-              <div className="card-themed-primary overflow-hidden">
-                <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
-                  {/* Table Header */}
-                  <thead>
-                    <tr className="bg-gray-50 border-b theme-border text-base font-semibold theme-text-secondary">
-                      <th className="py-2 px-3 border-r theme-border text-center w-16">#</th>
-                      <th 
-                        className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('book')}
-                        style={{ width: '35%' }}
-                      >
-                        <div className="flex items-center gap-2">
-                          Book Title
-                          {sortColumn === 'book' && (
-                            <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </div>
-                      </th>
-                      <th 
-                        className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('timestamp')}
-                        style={{ width: '15%' }}
-                      >
-                        <div className="flex items-center gap-2">
-                          Date
-                          {sortColumn === 'timestamp' && (
-                            <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </div>
-                      </th>
-                      <th 
-                        className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('wordCount')}
-                        style={{ width: '15%' }}
-                      >
-                        <div className="flex items-center gap-2">
-                          Words
-                          {sortColumn === 'wordCount' && (
-                            <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </div>
-                      </th>
-                      <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Time (min)</th>
-                      <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
-                    </tr>
-                  </thead>
+              <>
+                {/* Mobile Card List */}
+                <div className="sm:hidden flex flex-col gap-4">
+                  {sortedDisplaySessions.map((session, index) => (
+                    <div key={session.id || (session.mergedIds ? session.mergedIds.join('-') : undefined)} className="bg-white rounded-lg shadow border p-4 flex flex-col gap-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="font-bold text-lg truncate">{session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}</div>
+                        <button
+                          onClick={() => handleDeleteSession(session)}
+                          className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded ml-2"
+                          title="Delete session"
+                        >
+                          <FiTrash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-sm text-gray-700">
+                        <div><span className="font-semibold">Date:</span> {formatDate(session.timestamp)}</div>
+                        <div><span className="font-semibold">Words:</span> {session.wordCount.toLocaleString()}</div>
+                        <div><span className="font-semibold">Time:</span> —</div>
+                        <div><span className="font-semibold">#:</span> {index + 1}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop Table */}
+                <div className="hidden sm:block card-themed-primary overflow-x-auto">
+                  <table className="w-full border-collapse min-w-[600px]" style={{ tableLayout: 'fixed' }}>
+                    {/* Table Header */}
+                    <thead>
+                      <tr className="bg-gray-50 border-b theme-border text-base font-semibold theme-text-secondary">
+                        <th className="py-2 px-3 border-r theme-border text-center w-16">#</th>
+                        <th 
+                          className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('book')}
+                          style={{ width: '35%' }}
+                        >
+                          <div className="flex items-center gap-2">
+                            Book Title
+                            {sortColumn === 'book' && (
+                              <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('timestamp')}
+                          style={{ width: '15%' }}
+                        >
+                          <div className="flex items-center gap-2">
+                            Date
+                            {sortColumn === 'timestamp' && (
+                              <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('wordCount')}
+                          style={{ width: '15%' }}
+                        >
+                          <div className="flex items-center gap-2">
+                            Words
+                            {sortColumn === 'wordCount' && (
+                              <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
+                        <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Time (min)</th>
+                        <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
+                      </tr>
+                    </thead>
 
-                  {/* Table Body */}
-                  <tbody className="divide-y divide-gray-200">
-                    {sortedDisplaySessions.map((session, index) => (
-                      <tr
-                        key={session.id || (session.mergedIds ? session.mergedIds.join('-') : undefined)}
-                        className="text-base hover:bg-gray-50 transition-colors select-text"
-                        style={{ userSelect: 'text' }}
-                      >
-                        {/* Row Number */}
-                        <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
-                          {index + 1}
-                        </td>
+                    {/* Table Body */}
+                    <tbody className="divide-y divide-gray-200">
+                      {sortedDisplaySessions.map((session, index) => (
+                        <tr
+                          key={session.id || (session.mergedIds ? session.mergedIds.join('-') : undefined)}
+                          className="text-base hover:bg-gray-50 transition-colors select-text"
+                          style={{ userSelect: 'text' }}
+                        >
+                          {/* Row Number */}
+                          <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">
+                            {index + 1}
+                          </td>
 
-                        {/* Book Title */}
+                          {/* Book Title */}
+                          <td
+                            className="py-2 px-3 border-r border-gray-200 whitespace-nowrap max-w-[80px] overflow-hidden truncate"
+                            title={session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}
+                          >
+                            <span className="font-medium theme-text truncate block">
+                              {/* Prefer session.bookTitle, fallback to bookTitles[session.bookId] */}
+                              {session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}
+                            </span>
+                          </td>
+
+                          {/* Date */}
+                          <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                            <span className="text-gray-700">
+                              {formatDate(session.timestamp)}
+                            </span>
+                          </td>
+
+                          {/* Word Count */}
+                          <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                            <span className="font-medium text-black">
+                              {session.wordCount.toLocaleString()}
+                            </span>
+                          </td>
+
+                          {/* Time (minutes) - empty for now */}
+                          <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                            <span className="text-gray-500">
+                              —
+                            </span>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-2 px-3 text-center whitespace-nowrap">
+                            <button
+                              onClick={() => handleDeleteSession(session)}
+                              className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+                              title="Delete session"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Mobile Card List for Book History */}
+            <div className="sm:hidden flex flex-col gap-4">
+              {books.map((book, index) => {
+                const wordsRead = sessions.filter(s => s.bookId === book.bookId).reduce((sum, s) => sum + s.wordCount, 0);
+                const percent = book.totalWords > 0 ? (wordsRead / book.totalWords) * 100 : 0;
+                const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
+                return (
+                  <div key={book.bookId} className="bg-white rounded-lg shadow border p-4 flex flex-col gap-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-bold text-lg truncate">{book.title}</div>
+                      <button
+                        onClick={() => handleDeleteArchivedBook(book.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded ml-2"
+                        title="Delete archived book"
+                      >
+                        <FiTrash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-sm text-gray-700">
+                      <div><span className="font-semibold">Total Words:</span> {book.totalWords?.toLocaleString() ?? ''}</div>
+                      <div><span className="font-semibold">Words Read:</span> {wordsRead.toLocaleString()}</div>
+                      <div><span className="font-semibold">Percent:</span> {percentStr}</div>
+                      <div><span className="font-semibold">Date Started:</span> {book.dateAdded ? formatDate(new Date(book.dateAdded)) : '—'}</div>
+                      <div><span className="font-semibold">Date Ended:</span> {'dateEnded' in book && book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</div>
+                      <div><span className="font-semibold">#:</span> {index + 1}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {archivedBooks.map((book, idx) => {
+                const percent = book.totalWords > 0 ? (book.wordsRead / book.totalWords) * 100 : 0;
+                const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
+                return (
+                  <div key={book.id} className="bg-white rounded-lg shadow border p-4 flex flex-col gap-2 opacity-70">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-bold text-lg truncate">{book.title}</div>
+                      <button
+                        onClick={() => handleDeleteArchivedBook(book.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded ml-2"
+                        title="Delete archived book"
+                      >
+                        <FiTrash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-sm text-gray-700">
+                      <div><span className="font-semibold">Total Words:</span> {book.totalWords?.toLocaleString() ?? ''}</div>
+                      <div><span className="font-semibold">Words Read:</span> {book.wordsRead.toLocaleString()}</div>
+                      <div><span className="font-semibold">Percent:</span> {percentStr}</div>
+                      <div><span className="font-semibold">Date Started:</span> {book.dateStarted ? formatDate(new Date(book.dateStarted)) : '—'}</div>
+                      <div><span className="font-semibold">Date Ended:</span> {book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</div>
+                      <div><span className="font-semibold">#:</span> {books.length + idx + 1}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Desktop Table for Book History */}
+            <div className="hidden sm:block card-themed-secondary overflow-x-auto">
+              <table className="w-full border-collapse min-w-[600px]" style={{ tableLayout: 'fixed' }}>
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-[#232946]">
+                    <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '35%' }}>Book Title</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Total Words</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Words Read</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Percent Complete</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Started</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Ended</th>
+                    <th className="py-2 px-3 border-r border-gray-200 text-center" style={{ width: '8%' }}></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {/* Normal books */}
+                  {books.map((book, index) => {
+                    const wordsRead = sessions.filter(s => s.bookId === book.bookId).reduce((sum, s) => sum + s.wordCount, 0);
+                    const percent = book.totalWords > 0 ? (wordsRead / book.totalWords) * 100 : 0;
+                    const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
+                    return (
+                      <tr key={book.bookId} className="text-base hover:bg-gray-50 transition-colors select-text text-[#232946]" style={{ userSelect: 'text' }}>
+                        <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">{index + 1}</td>
                         <td
                           className="py-2 px-3 border-r border-gray-200 whitespace-nowrap max-w-[80px] overflow-hidden truncate"
-                          title={session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}
+                          title={book.title}
                         >
-                          <span className="font-medium theme-text truncate block">
-                            {/* Prefer session.bookTitle, fallback to bookTitles[session.bookId] */}
-                            {session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}
-                          </span>
+                          <span className="font-medium text-[#232946] truncate block">{book.title}</span>
                         </td>
-
-                        {/* Date */}
-                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                          <span className="text-gray-700">
-                            {formatDate(session.timestamp)}
-                          </span>
-                        </td>
-
-                        {/* Word Count */}
-                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                          <span className="font-medium text-black">
-                            {session.wordCount.toLocaleString()}
-                          </span>
-                        </td>
-
-                        {/* Time (minutes) - empty for now */}
-                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
-                          <span className="text-gray-500">
-                            —
-                          </span>
-                        </td>
-
-                        {/* Actions */}
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.totalWords?.toLocaleString() ?? ''}</td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{wordsRead.toLocaleString()}</td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{percentStr}</td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateAdded ? formatDate(new Date(book.dateAdded)) : '—'}</td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{'dateEnded' in book && book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</td>
                         <td className="py-2 px-3 text-center whitespace-nowrap">
                           <button
-                            onClick={() => handleDeleteSession(session)}
+                            onClick={() => handleDeleteArchivedBook(book.id)}
                             className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                            title="Delete session"
+                            title="Delete archived book"
                           >
                             <FiTrash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    );
+                  })}
+                  {/* Archived books */}
+                  {archivedBooks.map((book, idx) => {
+                    const percent = book.totalWords > 0 ? (book.wordsRead / book.totalWords) * 100 : 0;
+                    const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
+                    return (
+                      <tr key={book.id} className="text-base hover:bg-gray-50 transition-colors select-text text-[#232946] opacity-70" style={{ userSelect: 'text' }}>
+                        <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">{books.length + idx + 1}</td>
+                        <td
+                          className="py-2 px-3 border-r border-gray-200 whitespace-nowrap max-w-[80px] overflow-hidden truncate"
+                          title={book.title}
+                        >
+                          <span className="font-medium text-[#232946] truncate block">{book.title}</span>
+                        </td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.totalWords?.toLocaleString() ?? ''}</td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.wordsRead.toLocaleString()}</td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{percentStr}</td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateStarted ? formatDate(new Date(book.dateStarted)) : '—'}</td>
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</td>
+                        <td className="py-2 px-3 text-center whitespace-nowrap">
+                          <button
+                            onClick={() => handleDeleteArchivedBook(book.id)}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+                            title="Delete archived book"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </>
-        ) : (
-          <div className="card-themed-secondary overflow-hidden">
-            <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-base font-semibold text-[#232946]">
-                  <th className="py-2 px-3 border-r border-gray-200 text-center w-16">#</th>
-                  <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '35%' }}>Book Title</th>
-                  <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Total Words</th>
-                  <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Words Read</th>
-                  <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Percent Complete</th>
-                  <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Started</th>
-                  <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Date Ended</th>
-                  <th className="py-2 px-3 border-r border-gray-200 text-center" style={{ width: '8%' }}></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {/* Normal books */}
-                {books.map((book, index) => {
-                  // Calculate words read and percent complete
-                  const wordsRead = sessions
-                    .filter(s => s.bookId === book.bookId)
-                    .reduce((sum, s) => sum + s.wordCount, 0);
-                  const percent = book.totalWords > 0 ? (wordsRead / book.totalWords) * 100 : 0;
-                  // 3 sig figs
-                  const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
-                  return (
-                    <tr key={book.bookId} className="text-base hover:bg-gray-50 transition-colors select-text text-[#232946]" style={{ userSelect: 'text' }}>
-                      <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">{index + 1}</td>
-                      <td
-                        className="py-2 px-3 border-r border-gray-200 whitespace-nowrap max-w-[80px] overflow-hidden truncate"
-                        title={book.title}
-                      >
-                        <span className="font-medium text-[#232946] truncate block">{book.title}</span>
-                      </td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.totalWords?.toLocaleString() ?? ''}</td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{wordsRead.toLocaleString()}</td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{percentStr}</td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateAdded ? formatDate(new Date(book.dateAdded)) : '—'}</td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{'dateEnded' in book && book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</td>
-                      <td className="py-2 px-3 text-center whitespace-nowrap">
-                        <button
-                          onClick={() => handleDeleteArchivedBook(book.id)}
-                          className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                          title="Delete archived book"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {/* Archived books */}
-                {archivedBooks.map((book, idx) => {
-                  const percent = book.totalWords > 0 ? (book.wordsRead / book.totalWords) * 100 : 0;
-                  const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
-                  return (
-                    <tr key={book.id} className="text-base hover:bg-gray-50 transition-colors select-text text-[#232946] opacity-70" style={{ userSelect: 'text' }}>
-                      <td className="py-2 px-3 border-r border-gray-200 text-center text-gray-500 font-mono whitespace-nowrap">{books.length + idx + 1}</td>
-                      <td
-                        className="py-2 px-3 border-r border-gray-200 whitespace-nowrap max-w-[80px] overflow-hidden truncate"
-                        title={book.title}
-                      >
-                        <span className="font-medium text-[#232946] truncate block">{book.title}</span>
-                      </td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.totalWords?.toLocaleString() ?? ''}</td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.wordsRead.toLocaleString()}</td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{percentStr}</td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateStarted ? formatDate(new Date(book.dateStarted)) : '—'}</td>
-                      <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap text-[#232946]">{book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</td>
-                      <td className="py-2 px-3 text-center whitespace-nowrap">
-                        <button
-                          onClick={() => handleDeleteArchivedBook(book.id)}
-                          className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
-                          title="Delete archived book"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
         )}
       </div>
     </div>
