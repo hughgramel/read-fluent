@@ -10,5 +10,9 @@
   {
     "name": "French Monolingual Dictionary",
     "collection": "kty-fr-fr"
+  }, 
+  {
+    "name": "English Monolingual Dictionary",
+    "collection": "kty-en-en"
   }
 ] 
