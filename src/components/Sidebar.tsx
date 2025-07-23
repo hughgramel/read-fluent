@@ -6,11 +6,13 @@ import { useState, useEffect } from 'react';
 import { FaBookOpen, FaRegSave, FaUser, FaInfoCircle, FaPalette, FaHome } from 'react-icons/fa';
 import { MdPushPin } from 'react-icons/md';
 import { PiTextAaBold } from 'react-icons/pi';
+import { FaRegClone } from 'react-icons/fa'; // Flashcard icon
 
 // Sidebar Navigation Items
 const navigation = [
   { name: 'Home', href: '/home', icon: <FaHome /> },
   { name: 'Library', href: '/library', icon: <FaBookOpen /> },
+  { name: 'Review', href: '/review', icon: <FaRegClone /> }, // <-- New Review tab
   { name: 'History', href: '/history', icon: <FaRegSave /> },
   { name: 'Saved', href: '/words', icon: <PiTextAaBold /> },
   { name: 'Profile', href: '/profile', icon: <FaUser /> },

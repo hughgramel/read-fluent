@@ -5,11 +5,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserService } from '@/services/userService';
 import { ReadingSessionService, ReadingSession } from '@/services/readingSessionService';
 import { getBooks } from '@/services/epubService';
-import Link from 'next/link';
 import { FiEdit2 } from 'react-icons/fi';
 import { FaCalendarCheck, FaBookOpen, FaCreditCard, FaGraduationCap, FaRegListAlt, FaInfoCircle, FaGithub, FaReddit, FaDiscord, FaFileAlt, FaCopyright, FaSyncAlt } from 'react-icons/fa';
-import LibraryPage from '../library/page';
-import { BookCard, Book } from '../library/page';
+import { Book } from '../library/page';
 
 export default function Home() {
   const { user } = useAuth();

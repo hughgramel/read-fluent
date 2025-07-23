@@ -79,6 +79,7 @@ function renderStructuredContent(node: any, key?: React.Key, readerFont?: string
   // }
   // Special styling for span tags (used for vt/vr etc)
   if (node.tag === 'span') {
+    console.log('[DICT DEBUG] node.content:', node.content);
     return <span key={key} style={{
       display: 'inline-block',
       background: '#23272f',
@@ -96,25 +97,40 @@ function renderStructuredContent(node: any, key?: React.Key, readerFont?: string
   // Handle known tags
   switch (node.tag) {
     case 'div':
+      console.log('[DICT DEBUG] DIV node.data?.content:', node.data?.content);
+      console.log('[DICT DEBUG] DIV node.content:', node.content);
       return <div key={key}>{renderStructuredContent(node.content, undefined, readerFont)}</div>;
     case 'b':
+      console.log('[DICT DEBUG] B node.data?.content:', node.data?.content);
       return <b key={key}>{renderStructuredContent(node.content, undefined, readerFont)}</b>;
     case 'i':
+      console.log('[DICT DEBUG] I node.data?.content:', node.data?.content);
       return <i key={key}>{renderStructuredContent(node.content, undefined, readerFont)}</i>;
     case 'ul':
+      console.log('[DICT DEBUG] UL node.data?.content:', node.data?.content);
+      console.log('[DICT DEBUG] UL node.content:', node.content);
       return <ul key={key}>{renderStructuredContent(node.content, undefined, readerFont)}</ul>;
     case 'ol':
+      console.log('[DICT DEBUG] L node.data?.content:', node.data?.content);
       return <ol key={key}>{renderStructuredContent(node.content, undefined, readerFont)}</ol>;
     case 'li':
+      console.log('[DICT DEBUG] LI node.data?.content:', node.data?.content);
       return <li key={key}>{renderStructuredContent(node.content, undefined, readerFont)}</li>;
     case 'details':
-      return <details key={key}><summary>{node.data?.content || 'Details'}</summary>{renderStructuredContent(node.content, undefined, readerFont)}</details>;
+      console.log('[DICT DEBUG] node.data?.content:', node.data?.content);
+      if (node.data?.content === 'details-entry-examples') {
+        return <details key={key}><summary>Example Sentences</summary>{renderStructuredContent(node.content, undefined, readerFont)}</details>;
+      } else {
+        return <details key={key}><summary>{node.data?.content || 'Details'}</summary>{renderStructuredContent(node.content, undefined, readerFont)}</details>;
+      }
     case 'summary':
+      console.log('[DICT DEBUG] SUMMARY node.data?.content:', node.data?.content);
       return <summary key={key}>{renderStructuredContent(node.content, undefined, readerFont)}</summary>;
     case 'a':
       return <a key={key} href={node.href} target="_blank" rel="noopener noreferrer">{renderStructuredContent(node.content, undefined, readerFont)}</a>;
     default:
       // Fallback: render as div
+      console.log('[DICT DEBUG] DEFAULT node.data?.content:', node.data?.content);
       return <div key={key}>{renderStructuredContent(node.content, undefined, readerFont)}</div>;
   }
 }
