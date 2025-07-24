@@ -16,6 +16,8 @@ interface DeckListProps {
 
 interface DeckWithStats extends Deck {
   dueCount: number;
+  newCount: number;
+  dailyNewCardsDone: number;
 }
 
 export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
@@ -24,6 +26,11 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
+
+  // Remove deck from state when deleted
+  const handleDeckDeleted = (deckId: string) => {
+    setDecks(prev => prev.filter(deck => deck.id !== deckId));
+  };
 
   // Load decks when component mounts or refresh trigger changes
   useEffect(() => {
@@ -42,20 +49,32 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
       // Get all user decks
       const userDecks = await DeckService.getUserDecks(user.uid);
       
-      // Get due card counts for each deck
+      // Get due card counts and new card counts for each deck
       const decksWithStats = await Promise.all(
         userDecks.map(async (deck) => {
           try {
+            // Get due cards (cards ready for review)
             const dueCards = await CardService.getDueCards(user.uid, deck.id);
+            
+            // Get daily progress to see how many new cards have been studied today
+            const dailyProgress = await DeckService.getDailyProgress(user.uid, deck.id);
+            
+            // Get new cards (all remaining new cards)
+            const newCards = await CardService.getNewCards(user.uid, deck.id, 1000); // Large limit to get all
+            
             return {
               ...deck,
-              dueCount: dueCards.length
+              dueCount: dueCards.length,
+              newCount: newCards.length,
+              dailyNewCardsDone: dailyProgress.newCardsStudied
             };
           } catch (error) {
-            console.error(`Failed to get due cards for deck ${deck.id}:`, error);
+            console.error(`Failed to get stats for deck ${deck.id}:`, error);
             return {
               ...deck,
-              dueCount: 0
+              dueCount: 0,
+              newCount: 0,
+              dailyNewCardsDone: 0
             };
           }
         })
@@ -79,7 +98,9 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
     // Add the new deck to the list with 0 due cards
     const deckWithStats: DeckWithStats = {
       ...newDeck,
-      dueCount: 0
+      dueCount: 0,
+      newCount: 0,
+      dailyNewCardsDone: 0
     };
     
     setDecks(prev => [deckWithStats, ...prev]);
@@ -90,7 +111,12 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
     setDecks(prev => 
       prev.map(deck => 
         deck.id === updatedDeck.id 
-          ? { ...updatedDeck, dueCount: deck.dueCount }
+          ? { 
+              ...updatedDeck, 
+              dueCount: deck.dueCount,
+              newCount: deck.newCount,
+              dailyNewCardsDone: deck.dailyNewCardsDone
+            }
           : deck
       )
     );
@@ -234,9 +260,9 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
               <DeckCard
                 key={deck.id}
                 deck={deck}
-                dueCount={deck.dueCount}
                 onReview={onDeckReview}
                 onDeckUpdated={handleDeckUpdated}
+                onDeckDeleted={handleDeckDeleted}
               />
             ))}
           </div>

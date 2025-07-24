@@ -352,7 +352,7 @@ describe('ReviewEngine', () => {
       
       expect(mockCardService.processIncorrectAnswer).toHaveBeenCalledWith(mockUserId, mockCardId);
       expect(session.reviewQueue.length).toBeGreaterThan(1); // Card should be reinserted
-      expect(session.currentCardIndex).toBe(1);
+      expect(session.currentCardIndex).toBe(1); // Position advances after processing incorrect answer
     });
     
     it('should process correct answer for new card', async () => {

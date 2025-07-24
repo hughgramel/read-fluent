@@ -101,13 +101,24 @@ export class ReviewEngine {
         return session.reviewQueue[session.currentCardIndex];
       }
       
-      // Handle new card batches
+      // Handle new card batches - find next available card in current batch
       if (session.newCardBatches.length > 0 && session.currentBatchIndex < session.newCardBatches.length) {
         const currentBatch = session.newCardBatches[session.currentBatchIndex];
         const cardIndexInBatch = session.currentCardIndex - session.reviewQueue.length;
         
+        // Check if there are more cards in the current batch
         if (cardIndexInBatch < currentBatch.length) {
           return currentBatch[cardIndexInBatch];
+        }
+        
+        // Current batch is complete, move to next batch
+        session.currentBatchIndex++;
+        if (session.currentBatchIndex < session.newCardBatches.length) {
+          session.currentCardIndex = session.reviewQueue.length; // Reset to start of new card phase
+          const nextBatch = session.newCardBatches[session.currentBatchIndex];
+          if (nextBatch.length > 0) {
+            return nextBatch[0];
+          }
         }
       }
       
@@ -162,13 +173,24 @@ export class ReviewEngine {
       }
       
       if (correct) {
+        // Check if this is a new card that will graduate
+        const willGraduate = card.isNew && await this.willCardGraduate(session.userId, card);
+        
         await this.processCorrectAnswer(session, card);
+        
+        // For new cards that graduate, the card is removed from batch, so don't advance
+        // For new cards that don't graduate, advance normally
+        // For review cards, always advance
+        if (!card.isNew || !willGraduate) {
+          this.advanceSessionPosition(session);
+        }
       } else {
         await this.processIncorrectAnswer(session, card);
+        
+        // For incorrect answers, we reinsert the card but still need to advance
+        // to the next position so we don't see the same card immediately
+        this.advanceSessionPosition(session);
       }
-      
-      // Advance to next card
-      this.advanceSessionPosition(session);
     } catch (error) {
       throw this.handleError(error, 'Failed to process answer');
     }
@@ -301,6 +323,80 @@ export class ReviewEngine {
     
     return newQueue;
   }
+
+  /**
+   * Shuffles a failed new card back into the current batch at a random position
+   * @param card - Card to insert back into batch
+   * @param batch - Current batch of new cards
+   * @param currentPosition - Current position in batch
+   * @returns Updated batch with card inserted
+   */
+  static shuffleCardIntoBatch(
+    card: Card | SentenceCard,
+    batch: (Card | SentenceCard)[],
+    currentPosition: number
+  ): (Card | SentenceCard)[] {
+    // For new card batches, we want to ensure the failed card appears again
+    // but not immediately next (unless it's the only card left)
+    const maxPositions = Math.min(QUEUE_CONFIG.MAX_RANDOM_INSERTION_POSITIONS, batch.length - currentPosition);
+    const randomOffset = Math.max(1, Math.floor(Math.random() * maxPositions) + 1);
+    const insertPosition = Math.min(currentPosition + randomOffset, batch.length);
+    
+    const newBatch = [...batch];
+    newBatch.splice(insertPosition, 0, card);
+    
+    return newBatch;
+  }
+
+  /**
+   * Removes a graduated card from the current batch
+   * @param session - Current study session
+   * @param cardId - ID of the card to remove
+   */
+  private static removeCardFromCurrentBatch(session: StudySession, cardId: string): void {
+    if (session.newCardBatches.length > 0 && session.currentBatchIndex < session.newCardBatches.length) {
+      const currentBatch = session.newCardBatches[session.currentBatchIndex];
+      const cardIndex = currentBatch.findIndex(card => card.id === cardId);
+      
+      if (cardIndex !== -1) {
+        // Remove the card from the batch
+        session.newCardBatches[session.currentBatchIndex] = currentBatch.filter(card => card.id !== cardId);
+        
+        // If we removed a card before the current position, adjust the position
+        const cardIndexInBatch = session.currentCardIndex - session.reviewQueue.length;
+        if (cardIndex < cardIndexInBatch) {
+          // Don't advance position since we removed a card before current position
+          // This keeps us at the same relative position in the batch
+        }
+      }
+    }
+  }
+
+  /**
+   * Checks if a new card will graduate with the next correct answer
+   * @param userId - User ID
+   * @param card - Card to check
+   * @returns Promise resolving to true if card will graduate
+   */
+  private static async willCardGraduate(userId: string, card: Card | SentenceCard): Promise<boolean> {
+    if (!card.isNew) {
+      return false;
+    }
+    
+    try {
+      const deck = await DeckService.getDeck(userId, card.deckId);
+      if (!deck) {
+        return false;
+      }
+      
+      return (card.correctCount + 1) >= deck.settings.graduationThreshold;
+    } catch (error) {
+      console.warn('Failed to check graduation status:', error);
+      return false;
+    }
+  }
+
+
   
   /**
    * Gets study progress information for the session
@@ -365,65 +461,130 @@ export class ReviewEngine {
   // Private helper methods
   
   /**
-   * Processes a correct answer for a card
+   * Processes a correct answer for a card with enhanced error handling and scheduling
    */
   private static async processCorrectAnswer(session: StudySession, card: Card | SentenceCard): Promise<void> {
-    if (card.isNew) {
-      // Handle new card correct answer
-      await CardService.processCorrectAnswer(session.userId, card.id);
-      
-      // Check if card should graduate
-      const deck = await DeckService.getDeck(session.userId, card.deckId);
-      if (!deck) {
-        throw new CardServiceError(ERROR_MESSAGES.DECK_NOT_FOUND, 'NOT_FOUND');
-      }
-      
-      if (card.correctCount + 1 >= deck.settings.graduationThreshold) {
-        await CardService.graduateNewCard(session.userId, card.id);
-        await this.scheduleGraduatedCard(session.userId, card.id, card.deckId);
+    try {
+      if (card.isNew) {
+        // Handle new card correct answer
+        await CardService.processCorrectAnswer(session.userId, card.id);
         
-        // Update daily stats
-        await DeckService.updateDailyStats(session.userId, card.deckId, {
-          newCardsStudied: (await DeckService.getDailyProgress(session.userId, card.deckId)).newCardsStudied + 1
+        // Check if card should graduate
+        const deck = await DeckService.getDeck(session.userId, card.deckId);
+        if (!deck) {
+          throw new CardServiceError(ERROR_MESSAGES.DECK_NOT_FOUND, 'NOT_FOUND');
+        }
+        
+        // Check graduation threshold after incrementing correct count
+        if (card.correctCount + 1 >= deck.settings.graduationThreshold) {
+          // Graduate the card
+          await CardService.graduateNewCard(session.userId, card.id);
+          
+          // Schedule first review for graduated card
+          await this.scheduleGraduatedCard(session.userId, card.id, card.deckId);
+          
+          // Remove the graduated card from the current batch
+          this.removeCardFromCurrentBatch(session, card.id);
+          
+          // Update daily stats for new card completion
+          const currentStats = await DeckService.getDailyProgress(session.userId, card.deckId);
+          await DeckService.updateDailyStats(session.userId, card.deckId, {
+            newCardsStudied: currentStats.newCardsStudied + 1
+          });
+          
+          // Add a new card to maintain batch size if available
+          await this.addNewCardToBatch(session, card.deckId);
+        }
+      } else {
+        // Handle review card correct answer - progress stage and schedule next review
+        await CardService.processCorrectAnswer(session.userId, card.id);
+        
+        // Calculate new stage (progress toward -1)
+        const newStage = Math.min(card.stage + 1, MAX_STAGE);
+        
+        // Calculate optimal next review date using load balancing
+        const nextReviewDate = await this.calculateNextReviewDate(newStage, card.deckId, session.userId);
+        
+        // Update card with new stage and schedule
+        await CardService.updateCard(session.userId, card.id, {
+          stage: newStage,
+          nextReview: nextReviewDate,
+          relearning: false
         });
         
-        // Add a new card to maintain batch size if available
-        await this.addNewCardToBatch(session, card.deckId);
+        // Update daily stats for review completion
+        const currentStats = await DeckService.getDailyProgress(session.userId, card.deckId);
+        await DeckService.updateDailyStats(session.userId, card.deckId, {
+          reviewsCompleted: currentStats.reviewsCompleted + 1
+        });
       }
-    } else {
-      // Handle review card correct answer
-      await CardService.processCorrectAnswer(session.userId, card.id);
+    } catch (error) {
+      // Enhanced error handling with context
+      const errorMessage = `Failed to process correct answer for card ${card.id}`;
+      console.error(errorMessage, error);
       
-      // Schedule next review
-      const newStage = Math.min(card.stage + 1, MAX_STAGE);
-      const nextReviewDate = await this.calculateNextReviewDate(newStage, card.deckId, session.userId);
+      if (error instanceof CardServiceError) {
+        throw error;
+      }
       
-      await CardService.updateCard(session.userId, card.id, {
-        stage: newStage,
-        nextReview: nextReviewDate,
-        relearning: false
-      });
-      
-      // Update daily stats
-      await DeckService.updateDailyStats(session.userId, card.deckId, {
-        reviewsCompleted: (await DeckService.getDailyProgress(session.userId, card.deckId)).reviewsCompleted + 1
-      });
+      throw new CardServiceError(
+        errorMessage,
+        'FIREBASE_ERROR',
+        { cardId: card.id, userId: session.userId, originalError: error }
+      );
     }
   }
   
   /**
-   * Processes an incorrect answer for a card
+   * Processes an incorrect answer for a card with enhanced relearning logic and queue management
    */
   private static async processIncorrectAnswer(session: StudySession, card: Card | SentenceCard): Promise<void> {
-    if (card.isNew) {
-      // Reset correct count for new cards
-      await CardService.processIncorrectAnswer(session.userId, card.id);
-    } else {
-      // Reset stage and set relearning for review cards
-      await CardService.processIncorrectAnswer(session.userId, card.id);
+    try {
+      if (card.isNew) {
+        // Reset correct count for new cards - they stay in learning phase
+        await CardService.processIncorrectAnswer(session.userId, card.id);
+        
+        // Reinsert the failed new card into the current batch at a random position
+        // This ensures the user will see the card again in the current session
+        if (session.newCardBatches.length > 0 && session.currentBatchIndex < session.newCardBatches.length) {
+          const currentBatch = session.newCardBatches[session.currentBatchIndex];
+          const cardIndexInBatch = session.currentCardIndex - session.reviewQueue.length;
+          
+          // Insert the card back into the current batch at a random position after current position
+          session.newCardBatches[session.currentBatchIndex] = this.shuffleCardIntoBatch(
+            card, 
+            currentBatch, 
+            cardIndexInBatch
+          );
+        }
+      } else {
+        // Handle review card incorrect answer - reset stage and set relearning flag
+        await CardService.processIncorrectAnswer(session.userId, card.id);
+        
+        // Update card to relearning state with minimum stage
+        await CardService.updateCard(session.userId, card.id, {
+          stage: MIN_STAGE,
+          relearning: true
+        });
+        
+        // Insert card back into review queue at random position for immediate re-review
+        // This ensures the user sees the failed card again in the current session
+        session.reviewQueue = this.shuffleCardIntoQueue(card, session.reviewQueue, session.currentCardIndex);
+      }
+    } catch (error) {
+      // Enhanced error handling with context
+      const errorMessage = `Failed to process incorrect answer for card ${card.id}`;
+      console.error(errorMessage, error);
       
-      // Insert card back into queue at random position
-      session.reviewQueue = this.shuffleCardIntoQueue(card, session.reviewQueue, session.currentCardIndex);
+      if (error instanceof CardServiceError) {
+        throw error;
+      }
+      
+      throw new CardServiceError(
+        errorMessage,
+        'FIREBASE_ERROR',
+        { cardId: card.id, userId: session.userId, originalError: error }
+      );
     }
   }
   

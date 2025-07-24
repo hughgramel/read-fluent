@@ -27,9 +27,9 @@ import {
   COLLECTIONS, 
   ERROR_MESSAGES, 
   VALIDATION_LIMITS,
-  DEFAULT_DECK_SETTINGS,
-  DATE_FORMATS
+  DEFAULT_DECK_SETTINGS
 } from '../constants/spaced-repetition';
+import { memoryCache } from '../utils/cacheUtils';
 
 const db = getFirestore();
 
@@ -70,11 +70,16 @@ export class DeckService {
         totalCards: 0
       };
       
+      // Remove undefined fields (especially description)
+      const sanitizedDeckDoc = this.sanitizeForFirestore(deckDoc);
       // Convert Date objects to Firestore Timestamps
-      const firestoreDoc = this.convertDatesToTimestamps(deckDoc);
+      const firestoreDoc = this.convertDatesToTimestamps(sanitizedDeckDoc);
       
       // Save to Firebase
       await setDoc(deckRef, firestoreDoc);
+      
+      // Invalidate user decks cache
+      memoryCache.delete(`userDecks:${deckData.userId}`);
       
       return deckId;
     } catch (error) {
@@ -90,15 +95,24 @@ export class DeckService {
    */
   static async getDeck(userId: string, deckId: string): Promise<Deck | null> {
     try {
-      const deckRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.DECKS, deckId);
-      const deckSnap = await getDoc(deckRef);
+      const cacheKey = `deck:${userId}:${deckId}`;
       
-      if (!deckSnap.exists()) {
-        return null;
-      }
-      
-      const deckData = deckSnap.data();
-      return this.convertTimestampsToDates(deckData) as Deck;
+      // Try to get from cache first
+      return await memoryCache.getOrSet(
+        cacheKey,
+        async () => {
+          const deckRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.DECKS, deckId);
+          const deckSnap = await getDoc(deckRef);
+          
+          if (!deckSnap.exists()) {
+            return null;
+          }
+          
+          const deckData = deckSnap.data();
+          return this.convertTimestampsToDates(deckData) as Deck;
+        },
+        { ttl: 60 * 1000 } // 1 minute cache
+      );
     } catch (error) {
       throw this.handleFirebaseError(error, 'Failed to retrieve deck');
     }
@@ -111,18 +125,26 @@ export class DeckService {
    */
   static async getUserDecks(userId: string): Promise<Deck[]> {
     try {
-      const decksRef = collection(db, COLLECTIONS.USERS, userId, COLLECTIONS.DECKS);
-      const q = query(decksRef, orderBy('createdAt', 'desc'));
+      const cacheKey = `userDecks:${userId}`;
       
-      const querySnapshot = await getDocs(q);
-      const decks: Deck[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const deckData = this.convertTimestampsToDates(doc.data());
-        decks.push(deckData as Deck);
-      });
-      
-      return decks;
+      return await memoryCache.getOrSet(
+        cacheKey,
+        async () => {
+          const decksRef = collection(db, COLLECTIONS.USERS, userId, COLLECTIONS.DECKS);
+          const q = query(decksRef, orderBy('createdAt', 'desc'));
+          
+          const querySnapshot = await getDocs(q);
+          const decks: Deck[] = [];
+          
+          querySnapshot.forEach((doc) => {
+            const deckData = this.convertTimestampsToDates(doc.data());
+            decks.push(deckData as Deck);
+          });
+          
+          return decks;
+        },
+        { ttl: 2 * 60 * 1000 } // 2 minutes cache
+      );
     } catch (error) {
       throw this.handleFirebaseError(error, 'Failed to retrieve user decks');
     }
@@ -289,6 +311,10 @@ export class DeckService {
         
         transaction.update(deckRef, updates);
       });
+      
+      // Invalidate caches
+      memoryCache.delete(`dailyProgress:${userId}:${deckId}`);
+      memoryCache.delete(`deck:${userId}:${deckId}`);
     } catch (error) {
       if (error instanceof CardServiceError) {
         throw error;
@@ -305,24 +331,32 @@ export class DeckService {
    */
   static async getDailyProgress(userId: string, deckId: string): Promise<DailyStats> {
     try {
-      const deck = await this.getDeck(userId, deckId);
+      const cacheKey = `dailyProgress:${userId}:${deckId}`;
       
-      if (!deck) {
-        throw new CardServiceError(ERROR_MESSAGES.DECK_NOT_FOUND, 'NOT_FOUND');
-      }
-      
-      const today = this.getTodayDateString();
-      
-      // Return current stats or reset if it's a new day
-      if (deck.dailyStats.date === today) {
-        return deck.dailyStats;
-      } else {
-        return {
-          date: today,
-          newCardsStudied: 0,
-          reviewsCompleted: 0
-        };
-      }
+      return await memoryCache.getOrSet(
+        cacheKey,
+        async () => {
+          const deck = await this.getDeck(userId, deckId);
+          
+          if (!deck) {
+            throw new CardServiceError(ERROR_MESSAGES.DECK_NOT_FOUND, 'NOT_FOUND');
+          }
+          
+          const today = this.getTodayDateString();
+          
+          // Return current stats or reset if it's a new day
+          if (deck.dailyStats.date === today) {
+            return deck.dailyStats;
+          } else {
+            return {
+              date: today,
+              newCardsStudied: 0,
+              reviewsCompleted: 0
+            };
+          }
+        },
+        { ttl: 30 * 1000 } // 30 seconds cache (shorter since this changes frequently)
+      );
     } catch (error) {
       if (error instanceof CardServiceError) {
         throw error;
@@ -515,6 +549,28 @@ export class DeckService {
     }
     
     return converted;
+  }
+  
+  /**
+   * Recursively removes undefined values from an object (for Firestore)
+   */
+  private static sanitizeForFirestore(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return null;
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeForFirestore(item));
+    }
+    if (typeof obj === 'object' && obj.constructor === Object) {
+      const sanitized: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          sanitized[key] = this.sanitizeForFirestore(value);
+        }
+      }
+      return sanitized;
+    }
+    return obj;
   }
   
   /**

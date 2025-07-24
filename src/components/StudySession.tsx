@@ -23,6 +23,9 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [graduationMessage, setGraduationMessage] = useState<string | null>(null);
+  const [graduationThreshold, setGraduationThreshold] = useState<number>(3);
+  const [currentCardProgress, setCurrentCardProgress] = useState<number>(0);
 
   // Initialize study session
   useEffect(() => {
@@ -34,6 +37,15 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
         
         const nextCard = await session.getNextCard();
         setCurrentCard(nextCard);
+        
+        // Get graduation threshold for the current card and set initial progress
+        if (nextCard && nextCard.isNew) {
+          const deckSettings = await session.getDeckSettings(nextCard.deckId);
+          setGraduationThreshold(deckSettings?.graduationThreshold || 3);
+          // Set progress to current session progress for this card
+          const sessionProgress = session.getCardSessionProgress(nextCard.id);
+          setCurrentCardProgress(sessionProgress);
+        }
         
         const currentProgress = session.getStudyProgress();
         setProgress(currentProgress);
@@ -99,21 +111,73 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
     if (!studySession || !currentCard) return;
 
     try {
-      setIsLoading(true);
+      // Store current card info to check if it was graduated
+      const wasNew = currentCard.isNew;
+      const deckSettings = await studySession.getDeckSettings(currentCard.deckId);
+      const threshold = deckSettings?.graduationThreshold || 3;
       
-      // Process the answer
+      // Process the answer first
       await studySession.processAnswer(currentCard.id, correct);
+      
+      // Get the updated session progress for this card
+      let newProgress = 0;
+      if (wasNew) {
+        newProgress = studySession.getCardSessionProgress(currentCard.id);
+        setCurrentCardProgress(newProgress);
+      }
+      
+      const willGraduate = wasNew && correct && (newProgress >= threshold);
+      
+      // If this card will graduate, show a brief success message
+      if (willGraduate) {
+        setGraduationMessage("Card graduated to review status!");
+        // Show graduation message for a moment
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setGraduationMessage(null);
+      }
       
       // Get next card
       const nextCard = await studySession.getNextCard();
-      setCurrentCard(nextCard);
-      setShowBack(false);
       
       // Update progress
       const currentProgress = studySession.getStudyProgress();
       setProgress(currentProgress);
       
-      if (!nextCard) {
+      if (nextCard) {
+        // If there's a next card, continue the session
+        setCurrentCard(nextCard);
+        setShowBack(false);
+        
+        // Update graduation threshold for new cards and set session progress
+        if (nextCard.isNew) {
+          const deckSettings = await studySession.getDeckSettings(nextCard.deckId);
+          setGraduationThreshold(deckSettings?.graduationThreshold || 3);
+          // Set progress to current session progress for this card
+          const sessionProgress = studySession.getCardSessionProgress(nextCard.id);
+          setCurrentCardProgress(sessionProgress);
+        }
+      } else if (studySession.isActive()) {
+        // If the session is still active but no card is returned,
+        // try getting the next card again (this can happen with incorrect answers)
+        const retryCard = await studySession.getNextCard();
+        if (retryCard) {
+          setCurrentCard(retryCard);
+          setShowBack(false);
+          
+          // Update graduation threshold for new cards and set session progress
+          if (retryCard.isNew) {
+            const deckSettings = await studySession.getDeckSettings(retryCard.deckId);
+            setGraduationThreshold(deckSettings?.graduationThreshold || 3);
+            // Set progress to current session progress for this card
+            const sessionProgress = studySession.getCardSessionProgress(retryCard.id);
+            setCurrentCardProgress(sessionProgress);
+          }
+        } else {
+          // Only end the session if there are truly no more cards
+          const stats = studySession.getSessionStats();
+          onComplete(stats);
+        }
+      } else {
         // Session is complete
         const stats = studySession.getSessionStats();
         onComplete(stats);
@@ -122,7 +186,6 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
       console.error('Failed to process answer:', err);
       setError('Failed to process answer. Please try again.');
     } finally {
-      setIsLoading(false);
     }
   };
 
@@ -133,7 +196,7 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
     }
   };
 
-  // Render loading state
+  // Only show loading spinner when initializing (no currentCard yet)
   if (isLoading && !currentCard) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center page-container">
@@ -200,7 +263,7 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
         <div className="w-full max-w-2xl">
           {/* Card */}
           <div
-            className="card-themed-primary cursor-pointer transition-all duration-300 hover:scale-[1.02] min-h-[300px] flex flex-col justify-center"
+            className="card-themed-primary cursor-pointer transition-all duration-300 hover:scale-[1.02] min-h-[300px] flex flex-col justify-center relative"
             onClick={handleCardClick}
             style={{
               padding: '2rem',
@@ -208,6 +271,21 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
               boxShadow: '0 8px 32px 0 rgba(var(--primary-color-rgb), 0.15)',
             }}
           >
+            {/* Graduation progress indicators for new cards */}
+            {currentCard.isNew && (
+              <div className="absolute top-4 left-0 right-0 flex justify-center gap-2">
+                {Array.from({ length: graduationThreshold }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-4 h-4 rounded-full border-2 transition-colors"
+                    style={{
+                      borderColor: 'var(--primary-color)',
+                      backgroundColor: i < currentCardProgress ? '#22c55e' : 'transparent'
+                    }}
+                  />
+                ))}
+              </div>
+            )}
             {/* Front content */}
             <div className="text-center mb-6">
               <div className="theme-text text-2xl font-medium leading-relaxed">
@@ -286,6 +364,20 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
       {isLoading && currentCard && (
         <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--primary-color)' }}></div>
+        </div>
+      )}
+      
+      {/* Graduation success message */}
+      {graduationMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl transform scale-110 transition-all">
+            <div className="text-center">
+              <div className="text-green-500 text-5xl mb-4">🎓</div>
+              <h3 className="text-xl font-bold mb-2 theme-text">Congratulations!</h3>
+              <p className="theme-text">{graduationMessage}</p>
+              <p className="text-sm theme-text-secondary mt-2">This card will now appear in your review schedule</p>
+            </div>
+          </div>
         </div>
       )}
     </div>

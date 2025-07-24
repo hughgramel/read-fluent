@@ -12,6 +12,7 @@ interface DeckSettingsProps {
   isOpen: boolean;
   onClose: () => void;
   onSettingsUpdated: (deck: Deck) => void;
+  onDeckDeleted?: () => void;
 }
 
 interface FormData {
@@ -31,7 +32,7 @@ interface FormErrors {
   general?: string;
 }
 
-export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated }: DeckSettingsProps) {
+export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated, onDeckDeleted }: DeckSettingsProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -42,12 +43,16 @@ export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated }: DeckS
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dailyProgress, setDailyProgress] = useState<{ newCardsStudied: number; reviewsCompleted: number }>({
+    newCardsStudied: 0,
+    reviewsCompleted: 0
+  });
   const modalRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize form data when deck changes or modal opens
   useEffect(() => {
-    if (isOpen && deck) {
+    if (isOpen && deck && user) {
       setFormData({
         name: deck.name,
         description: deck.description || '',
@@ -56,8 +61,20 @@ export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated }: DeckS
         graduationThreshold: deck.settings.graduationThreshold
       });
       setErrors({});
+      
+      // Load daily progress
+      const loadDailyProgress = async () => {
+        try {
+          const progress = await DeckService.getDailyProgress(user.uid, deck.id);
+          setDailyProgress(progress);
+        } catch (error) {
+          console.error("Failed to load daily progress:", error);
+        }
+      };
+      
+      loadDailyProgress();
     }
-  }, [isOpen, deck]);
+  }, [isOpen, deck, user]);
 
   // Focus name input when modal opens
   useEffect(() => {
@@ -299,6 +316,23 @@ export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated }: DeckS
             </div>
           </div>
 
+          {/* Today's Progress */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium theme-text border-b pb-2" style={{ borderColor: 'var(--border-color)' }}>
+              Today's Progress
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 border rounded-lg" style={{ borderColor: 'var(--border-color)' }}>
+                <div className="text-sm theme-text-secondary">New Cards</div>
+                <div className="text-2xl font-bold theme-text">{dailyProgress.newCardsStudied}/{formData.newCardsPerDay}</div>
+              </div>
+              <div className="p-4 border rounded-lg" style={{ borderColor: 'var(--border-color)' }}>
+                <div className="text-sm theme-text-secondary">Reviews</div>
+                <div className="text-2xl font-bold theme-text">{dailyProgress.reviewsCompleted}</div>
+              </div>
+            </div>
+          </div>
+
           {/* Study Settings */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium theme-text border-b pb-2" style={{ borderColor: 'var(--border-color)' }}>
@@ -420,6 +454,33 @@ export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated }: DeckS
               {isSubmitting ? 'Saving...' : 'Save Settings'}
             </button>
           </div>
+
+          {/* Delete Deck Button */}
+          {user && !isSubmitting && (
+            <div className="pt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (window.confirm('Are you sure you want to delete this deck? This cannot be undone.')) {
+                    try {
+                      setIsSubmitting(true);
+                      await DeckService.deleteDeck(user.uid, deck.id);
+                      setIsSubmitting(false);
+                      onClose();
+                      if (typeof onDeckDeleted === 'function') onDeckDeleted();
+                    } catch (error) {
+                      setIsSubmitting(false);
+                      setErrors({ general: 'Failed to delete deck. Please try again.' });
+                    }
+                  }
+                }}
+                className="px-4 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+                style={{ minWidth: 120 }}
+              >
+                Delete Deck
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

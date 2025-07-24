@@ -286,11 +286,15 @@ export class CardService {
   }
   
   /**
-   * Processes a correct answer for a card
+   * Processes a correct answer for a card with enhanced validation and error handling
    * @param userId - User ID who owns the card
    * @param cardId - Card ID to process
    */
   static async processCorrectAnswer(userId: string, cardId: string): Promise<void> {
+    if (!userId || !cardId) {
+      throw new CardServiceError('User ID and Card ID are required', 'VALIDATION_ERROR');
+    }
+
     try {
       const cardRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.CARDS, cardId);
       
@@ -303,14 +307,22 @@ export class CardService {
         
         const cardData = this.convertTimestampsToDates(cardDoc.data()) as Card;
         
+        // Validate card state
+        if (cardData.stage < MIN_STAGE || cardData.stage > MAX_STAGE) {
+          throw new CardServiceError(ERROR_MESSAGES.INVALID_STAGE, 'VALIDATION_ERROR');
+        }
+        
         // Update card based on whether it's new or review
         if (cardData.isNew) {
           // Increment correct count for new cards
+          const newCorrectCount = cardData.correctCount + 1;
           const updates = {
-            correctCount: cardData.correctCount + 1,
+            correctCount: newCorrectCount,
             totalReviews: cardData.totalReviews + 1,
             lastReviewed: Timestamp.now()
           };
+          
+          console.log(`[CardService] New card ${cardId} correct answer: correctCount ${cardData.correctCount} -> ${newCorrectCount}`);
           transaction.update(cardRef, updates);
         } else {
           // Progress stage for review cards (toward -1)
@@ -321,6 +333,8 @@ export class CardService {
             totalReviews: cardData.totalReviews + 1,
             lastReviewed: Timestamp.now()
           };
+          
+          console.log(`[CardService] Review card ${cardId} correct answer: stage ${cardData.stage} -> ${newStage}`);
           transaction.update(cardRef, updates);
         }
       });
@@ -333,11 +347,15 @@ export class CardService {
   }
   
   /**
-   * Processes an incorrect answer for a card
+   * Processes an incorrect answer for a card with enhanced validation and relearning logic
    * @param userId - User ID who owns the card
    * @param cardId - Card ID to process
    */
   static async processIncorrectAnswer(userId: string, cardId: string): Promise<void> {
+    if (!userId || !cardId) {
+      throw new CardServiceError('User ID and Card ID are required', 'VALIDATION_ERROR');
+    }
+
     try {
       const cardRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.CARDS, cardId);
       
@@ -350,23 +368,32 @@ export class CardService {
         
         const cardData = this.convertTimestampsToDates(cardDoc.data()) as Card;
         
+        // Validate card state
+        if (cardData.stage < MIN_STAGE || cardData.stage > MAX_STAGE) {
+          throw new CardServiceError(ERROR_MESSAGES.INVALID_STAGE, 'VALIDATION_ERROR');
+        }
+        
         // Update card based on whether it's new or review
         if (cardData.isNew) {
-          // Reset correct count for new cards
+          // Reset correct count for new cards - they stay in learning phase
           const updates = {
             correctCount: 0,
             totalReviews: cardData.totalReviews + 1,
             lastReviewed: Timestamp.now()
           };
+          
+          console.log(`[CardService] New card ${cardId} incorrect answer: correctCount reset to 0`);
           transaction.update(cardRef, updates);
         } else {
-          // Reset stage and set relearning for review cards
+          // Reset stage to minimum and set relearning flag for review cards
           const updates = {
             stage: MIN_STAGE,
             relearning: true,
             totalReviews: cardData.totalReviews + 1,
             lastReviewed: Timestamp.now()
           };
+          
+          console.log(`[CardService] Review card ${cardId} incorrect answer: stage reset to ${MIN_STAGE}, relearning = true`);
           transaction.update(cardRef, updates);
         }
       });
@@ -379,11 +406,15 @@ export class CardService {
   }
   
   /**
-   * Graduates a new card to review status
+   * Graduates a new card to review status with enhanced validation and graduation logic
    * @param userId - User ID who owns the card
    * @param cardId - Card ID to graduate
    */
   static async graduateNewCard(userId: string, cardId: string): Promise<void> {
+    if (!userId || !cardId) {
+      throw new CardServiceError('User ID and Card ID are required', 'VALIDATION_ERROR');
+    }
+
     try {
       const cardRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.CARDS, cardId);
       
@@ -396,18 +427,26 @@ export class CardService {
         
         const cardData = this.convertTimestampsToDates(cardDoc.data()) as Card;
         
+        // Validate that this is actually a new card
         if (!cardData.isNew) {
-          throw new CardServiceError('Card is not a new card', 'VALIDATION_ERROR');
+          throw new CardServiceError('Card is not a new card and cannot be graduated', 'VALIDATION_ERROR');
         }
         
-        // Graduate the card
+        // Validate card state before graduation
+        if (cardData.stage < MIN_STAGE || cardData.stage > MAX_STAGE) {
+          throw new CardServiceError(ERROR_MESSAGES.INVALID_STAGE, 'VALIDATION_ERROR');
+        }
+        
+        // Graduate the card to review status
+        const graduationStage = MIN_STAGE + 1; // Start at -6 for first review
         const updates = {
           isNew: false,
-          stage: MIN_STAGE + 1, // Start at -6
+          stage: graduationStage,
           correctCount: 0, // Reset for review tracking
           relearning: false
         };
         
+        console.log(`[CardService] Graduating new card ${cardId}: isNew false, stage -> ${graduationStage}`);
         transaction.update(cardRef, updates);
       });
     } catch (error) {

@@ -60,6 +60,9 @@ export function CardCreatorPopup({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [isLoadingDecks, setIsLoadingDecks] = useState(false);
+  const [activeTab, setActiveTab] = useState<'single' | 'theme'>('single');
+  const [themeBulkText, setThemeBulkText] = useState('');
+  const [themeBulkError, setThemeBulkError] = useState<string | null>(null);
 
   // Refs for focus management
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -246,6 +249,62 @@ export function CardCreatorPopup({
     }
   };
 
+  // Bulk add handler
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setThemeBulkError(null);
+    if (!user) {
+      setThemeBulkError('You must be logged in to create cards');
+      return;
+    }
+    if (!formData.deckId) {
+      setThemeBulkError('Please select a deck');
+      return;
+    }
+    const lines = themeBulkText.split('\n').map(line => line.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      setThemeBulkError('Please enter at least one card.');
+      return;
+    }
+    const cards: { front: string; back: string }[] = [];
+    for (const line of lines) {
+      const [front, back] = line.split(',').map(s => s.trim());
+      if (!front || !back) {
+        setThemeBulkError('Each line must have a front and back, separated by a comma.');
+        return;
+      }
+      cards.push({ front, back });
+    }
+    setIsSubmitting(true);
+    try {
+      for (const card of cards) {
+        const cardData: CreateCardInput = {
+          userId: user.uid,
+          deckId: formData.deckId,
+          front: card.front,
+          back: card.back,
+          type: 'basic',
+          stage: MIN_STAGE + 1,
+          nextReview: new Date(),
+          relearning: false,
+          isNew: true,
+          correctCount: 0
+        };
+        const cardId = await CardService.createCard(cardData);
+        if (onCardCreated) {
+          const createdCard = await CardService.getCard(user.uid, cardId);
+          if (createdCard) onCardCreated(createdCard);
+        }
+      }
+      setThemeBulkText('');
+      handleClose();
+    } catch (error) {
+      setThemeBulkError('Failed to create cards. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleClose = () => {
     if (!isSubmitting) {
       onClose();
@@ -287,7 +346,7 @@ export function CardCreatorPopup({
           backgroundColor: 'var(--background)',
           borderColor: 'var(--border-color)',
           color: 'var(--text-color)',
-          transform: 'translateZ(0)' // Force hardware acceleration for better centering
+          transform: 'translateZ(0)'
         }}
       >
         {/* Header */}
@@ -302,8 +361,102 @@ export function CardCreatorPopup({
             <X size={20} />
           </button>
         </div>
-
-        {/* Form */}
+        {/* Tab Switcher */}
+        <div className="flex gap-2 mb-4">
+          <button
+            className={`flex-1 py-2 rounded-t-lg font-semibold ${activeTab === 'single' ? 'bg-[var(--primary-color)] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'}`}
+            onClick={() => setActiveTab('single')}
+            disabled={isSubmitting}
+          >
+            Single Card
+          </button>
+          <button
+            className={`flex-1 py-2 rounded-t-lg font-semibold ${activeTab === 'theme' ? 'bg-[var(--primary-color)] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'}`}
+            onClick={() => setActiveTab('theme')}
+            disabled={isSubmitting}
+          >
+            On Theme (Bulk)
+          </button>
+        </div>
+        {/* Bulk Add Section */}
+        {activeTab === 'theme' && (
+          <form onSubmit={handleBulkSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="deck" className="block text-sm font-medium theme-text mb-2">
+                Deck
+              </label>
+              <select
+                id="deck"
+                value={formData.deckId}
+                onChange={(e) => handleInputChange('deckId', e.target.value)}
+                disabled={isSubmitting || isLoadingDecks}
+                className="select-themed w-full"
+                style={{
+                  backgroundColor: 'var(--background)',
+                  borderColor: errors.deckId ? '#ef4444' : 'var(--border-color)',
+                  color: 'var(--text-color)'
+                }}
+              >
+                <option value="">
+                  {isLoadingDecks ? 'Loading decks...' : 'Select a deck'}
+                </option>
+                {decks.map((deck) => (
+                  <option key={deck.id} value={deck.id}>
+                    {deck.name}
+                  </option>
+                ))}
+              </select>
+              {errors.deckId && (
+                <p className="text-red-500 text-sm mt-1">{errors.deckId}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium theme-text mb-2">
+                Bulk Cards (front,back per line)
+              </label>
+              <textarea
+                value={themeBulkText}
+                onChange={e => setThemeBulkText(e.target.value)}
+                rows={8}
+                className="input-themed w-full resize-none"
+                placeholder="Front 1,Back 1\nFront 2,Back 2\n..."
+                style={{
+                  backgroundColor: 'var(--background)',
+                  borderColor: themeBulkError ? '#ef4444' : 'var(--border-color)',
+                  color: 'var(--text-color)'
+                }}
+                disabled={isSubmitting}
+              />
+              {themeBulkError && (
+                <p className="text-red-500 text-sm mt-1">{themeBulkError}</p>
+              )}
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{
+                  borderColor: 'var(--border-color)',
+                  color: 'var(--secondary-text-color)',
+                  backgroundColor: 'var(--background)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || isLoadingDecks}
+                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Creating...' : 'Create Cards'}
+              </button>
+            </div>
+          </form>
+        )}
+        {/* Single Card Form */}
+        {activeTab === 'single' && (
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Card Type Selection */}
           <div>
@@ -475,6 +628,7 @@ export function CardCreatorPopup({
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

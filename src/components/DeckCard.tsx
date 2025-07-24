@@ -6,13 +6,17 @@ import { Deck } from '@/types/spaced-repetition';
 import { DeckSettings } from './DeckSettings';
 
 interface DeckCardProps {
-  deck: Deck;
-  dueCount: number;
+  deck: Deck & { 
+    dueCount?: number;
+    newCount?: number;
+    dailyNewCardsDone?: number;
+  };
   onReview: (deckId: string) => void;
   onDeckUpdated: (deck: Deck) => void;
+  onDeckDeleted?: (deckId: string) => void;
 }
 
-export function DeckCard({ deck, dueCount, onReview, onDeckUpdated }: DeckCardProps) {
+export function DeckCard({ deck, onReview, onDeckUpdated, onDeckDeleted }: DeckCardProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleReviewClick = () => {
@@ -31,6 +35,12 @@ export function DeckCard({ deck, dueCount, onReview, onDeckUpdated }: DeckCardPr
   const handleSettingsUpdated = (updatedDeck: Deck) => {
     onDeckUpdated(updatedDeck);
     setIsSettingsOpen(false);
+  };
+
+  // Called when deck is deleted from DeckSettings
+  const handleDeckDeleted = () => {
+    setIsSettingsOpen(false);
+    if (onDeckDeleted) onDeckDeleted(deck.id);
   };
 
   return (
@@ -64,9 +74,15 @@ export function DeckCard({ deck, dueCount, onReview, onDeckUpdated }: DeckCardPr
             {deck.name}
           </div>
           <div className="theme-text-secondary text-base">
-            {dueCount > 0 ? `${dueCount} cards to review` : 'No cards due'}
-            {deck.totalCards > 0 && (
-              <span className="ml-2">• {deck.totalCards} total cards</span>
+            {deck.dueCount && deck.dueCount > 0 ? `${deck.dueCount} cards to review` : 'No cards due'}
+            <span className="ml-2">• {deck.totalCards} total cards</span>
+          </div>
+          {/* Enhanced card counts display */}
+          <div className="flex flex-col gap-1 text-sm mt-1">
+            {deck.newCount !== undefined && (
+              <div className="text-emerald-600 font-medium">
+                {deck.newCount} new cards remaining
+              </div>
             )}
           </div>
           {deck.description && (
@@ -111,6 +127,7 @@ export function DeckCard({ deck, dueCount, onReview, onDeckUpdated }: DeckCardPr
         isOpen={isSettingsOpen}
         onClose={handleSettingsClose}
         onSettingsUpdated={handleSettingsUpdated}
+        onDeckDeleted={handleDeckDeleted}
       />
     </>
   );

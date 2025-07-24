@@ -7,6 +7,7 @@ import { StudySession } from '@/components/StudySession';
 import { SessionComplete } from '@/components/SessionComplete';
 import { DeckList } from '@/components/DeckList';
 import { GlobalSettings } from '@/components/GlobalSettings';
+import { CardBrowser } from '@/components/CardBrowser';
 import { SessionStats, GlobalReviewSettings } from '@/types/spaced-repetition';
 import { CardService } from '@/services/cardService';
 import { DeckService } from '@/services/deckService';
@@ -16,6 +17,7 @@ export default function ReviewPage() {
   const [isCardCreatorOpen, setIsCardCreatorOpen] = useState(false);
   const [isStudySessionActive, setIsStudySessionActive] = useState(false);
   const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = useState(false);
+  const [isCardBrowserOpen, setIsCardBrowserOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
   const [deckRefreshTrigger, setDeckRefreshTrigger] = useState(0);
   const [totalDueCount, setTotalDueCount] = useState(0);
@@ -115,19 +117,34 @@ export default function ReviewPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
           <h1 className="text-2xl sm:text-3xl font-bold theme-text">Review</h1>
           
-          {/* Settings Button */}
-          <button
-            onClick={() => setIsGlobalSettingsOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg theme-text-secondary hover:theme-text transition-colors self-start sm:self-auto"
-            style={{ 
-              background: 'rgba(var(--primary-color-rgb), 0.1)',
-              border: '1px solid var(--border-color)'
-            }}
-            title="Global Settings"
-          >
-            <FaCog size={16} />
-            <span className="hidden sm:inline">Settings</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsCardBrowserOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg theme-text-secondary hover:theme-text transition-colors"
+              style={{ 
+                background: 'rgba(var(--primary-color-rgb), 0.1)',
+                border: '1px solid var(--border-color)'
+              }}
+              title="Browse Cards"
+            >
+              <span className="text-sm">📚</span>
+              <span className="hidden sm:inline">Browse</span>
+            </button>
+            
+            <button
+              onClick={() => setIsGlobalSettingsOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg theme-text-secondary hover:theme-text transition-colors"
+              style={{ 
+                background: 'rgba(var(--primary-color-rgb), 0.1)',
+                border: '1px solid var(--border-color)'
+              }}
+              title="Global Settings"
+            >
+              <FaCog size={16} />
+              <span className="hidden sm:inline">Settings</span>
+            </button>
+          </div>
         </div>
 
         {/* Study All Button */}
@@ -225,6 +242,12 @@ export default function ReviewPage() {
           onSettingsUpdated={handleGlobalSettingsUpdated}
         />
       )}
+
+      {/* Card Browser */}
+      <CardBrowser
+        isOpen={isCardBrowserOpen}
+        onClose={() => setIsCardBrowserOpen(false)}
+      />
     </div>
   );
 } 
