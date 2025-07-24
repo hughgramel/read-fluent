@@ -210,22 +210,7 @@ export function DeckList({ onDeckReview, refreshTrigger, minimalistMobile = fals
     <>
       <div className="w-full flex flex-col gap-6">
         {/* Header with Create Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-xl sm:text-2xl font-bold theme-text">Your Decks</h2>
-          <button
-            onClick={handleCreateDeckClick}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform btn-primary w-full sm:w-auto"
-            style={{
-              background: 'var(--secondary-color, #67b9e7)',
-              color: 'var(--button-text-color, white)',
-              border: 'none',
-              outline: 'none',
-            }}
-          >
-            <Plus size={20} />
-            <span>Create Deck</span>
-          </button>
-        </div>
+  
 
         {/* Decks List */}
         {decks.length === 0 ? (

@@ -153,6 +153,10 @@ export default function ReviewPage() {
     if (typeof window !== 'undefined') window.location.reload();
   };
 
+  const handleCreateDeckClick = () => {
+    setIsCardCreatorOpen(true);
+  };
+
   return (
     <div 
       className="page-container w-full min-h-screen"
@@ -250,7 +254,22 @@ export default function ReviewPage() {
         </div>
 
         {/* Decks List */}
-        <div className="w-full flex justify-center">
+        <div className="w-full flex flex-col items-center">
+          <div className="flex flex-row items-center justify-center gap-4 mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold theme-text mb-0">Your Decks</h2>
+            <button
+              onClick={handleCreateDeckClick}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform btn-primary"
+              style={{
+                background: 'var(--secondary-color, #67b9e7)',
+                color: 'var(--button-text-color, white)',
+                border: 'none',
+                outline: 'none',
+              }}
+            >
+              + Create Deck
+            </button>
+          </div>
           <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
             <DeckList 
               onDeckReview={handleDeckReview}
