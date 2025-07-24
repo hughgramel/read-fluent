@@ -132,47 +132,28 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
         setTimeout(() => setGraduationMessage(null), 1000);
       }
       // Use preloaded buffer for instant transition
-      let nextCard: Card | SentenceCard | null = null;
       setPreloadQueue(q => {
-        nextCard = q[0] || null;
-        return q.slice(1);
-      });
-      setProgress(studySession.getStudyProgress());
-      if (nextCard && isCard(nextCard)) {
-        setCurrentCard(nextCard);
-        setShowBack(false);
-        fetchDeckStats(nextCard.deckId);
-        if (nextCard.isNew) {
-          const deckSettings = await studySession.getDeckSettings(nextCard.deckId);
-          setGraduationThreshold(deckSettings?.graduationThreshold || 3);
-          const sessionProgress = studySession.getCardSessionProgress(nextCard.id);
-          setCurrentCardProgress(sessionProgress);
-        }
-        if (studySession && preloadQueue.length < 3) {
-          preloadNextCards(studySession, 3 - preloadQueue.length);
-        }
-      } else if (studySession.isActive()) {
-        const retryCard = await studySession.getNextCard();
-        if (retryCard) {
-          setCurrentCard(retryCard);
+        const nextCard = q[0];
+        const rest = q.slice(1);
+        setProgress(studySession.getStudyProgress());
+        if (nextCard && isCard(nextCard)) {
+          setCurrentCard(nextCard);
           setShowBack(false);
-          if (retryCard.isNew) {
-            const deckSettings = await studySession.getDeckSettings(retryCard.deckId);
-            setGraduationThreshold(deckSettings?.graduationThreshold || 3);
-            const sessionProgress = studySession.getCardSessionProgress(retryCard.id);
-            setCurrentCardProgress(sessionProgress);
+          fetchDeckStats(nextCard.deckId);
+          if (nextCard.isNew) {
+            (async () => {
+              const deckSettings = await studySession.getDeckSettings(nextCard.deckId);
+              setGraduationThreshold(deckSettings?.graduationThreshold || 3);
+              const sessionProgress = studySession.getCardSessionProgress(nextCard.id);
+              setCurrentCardProgress(sessionProgress);
+            })();
           }
-          if (studySession && preloadQueue.length < 3) {
-            preloadNextCards(studySession, 3 - preloadQueue.length);
+          if (studySession && rest.length < 3) {
+            preloadNextCards(studySession, 3 - rest.length);
           }
-        } else {
-          const stats = studySession.getSessionStats();
-          onComplete(stats);
         }
-      } else {
-        const stats = studySession.getSessionStats();
-        onComplete(stats);
-      }
+        return rest;
+      });
       await CardService.uploadUpdatedCards(userId);
     } catch (err) {
       console.error('Failed to process answer:', err);
