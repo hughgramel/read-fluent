@@ -117,7 +117,7 @@ export default function Home() {
 
   return (
     <div className="page-container">
-      <div className="pr-8 pb-10 transition-all duration-300" style={{ marginLeft: 80, paddingTop: 24, maxWidth: 1200 }}>
+      <div className="pr-4 pl-4 pb-10 transition-all duration-300 mx-auto w-full" style={{ paddingTop: 24, maxWidth: 1200 }}>
         <div className="flex flex-col gap-2 mb-10">
           <h1 className="text-3xl font-extrabold theme-text tracking-tight" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>Home</h1>
           <div style={{ height: 4, width: 48, background: 'var(--primary-color)', borderRadius: 2 }} />

@@ -1343,7 +1343,7 @@ export default function library() {
     if (!comprehensionModalBook) return null;
     const report = comprehensionReports[comprehensionModalBook.id];
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
         <div className="card-themed p-8 max-w-lg w-full relative" style={{ fontFamily: 'var(--font-family)' }}>
           <button
             onClick={() => setComprehensionModalBook(null)}
@@ -1503,15 +1503,8 @@ export default function library() {
 
   // Library view
   return (
-    <div data-theme={theme} style={{ minHeight: '100vh' }}>
+    <div data-theme={theme} style={{ minHeight: '100vh', overflowX: 'hidden' }}>
       {/* Theme selector for demo */}
-      <div style={{ position: 'fixed', top: 8, right: 8, zIndex: 100 }}>
-        <select value={theme} onChange={e => setTheme(e.target.value)} style={{ padding: 4, borderRadius: 6 }}>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-          <option value="eink">Eink</option>
-        </select>
-      </div>
       <div
         className="pr-8 pb-10 transition-all duration-300 sm:pb-10 pb-4"
         style={{
@@ -1701,9 +1694,9 @@ export default function library() {
           <div className="flex-1 border-t theme-border" />
         </div>
         {isMobile ? (
-          <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-            {books.length > 0 ? books.map((book) => (
-              <div key={book.id} className="snap-center flex-shrink-0 w-[90vw] max-w-xs">
+          <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-2 px-2" style={{ WebkitOverflowScrolling: 'touch', maxWidth: '100vw', width: '100vw' }}>
+            {books.length > 0 ? books.map((book, idx) => (
+              <div key={book.id} className="snap-center flex-shrink-0" style={{ width: '60vw', maxWidth: 200, minWidth: 140, marginRight: idx === books.length - 1 ? 0 : 12, marginLeft: idx === 0 ? 0 : 0 }}>
                 <BookCard book={book} archived={archived} openBook={openBook} bookWordsRead={bookWordsRead} comprehensionReports={comprehensionReports} setComprehensionModalBook={setComprehensionModalBook} fetchComprehensionReport={fetchComprehensionReport} setDataModalBook={setDataModalBook} toggleCompleted={toggleCompleted} archiveBookHandler={archiveBookHandler} deleteBookHandler={deleteBookHandler} deleteArchivedBookHandler={deleteArchivedBookHandler} />
               </div>
             )) : (

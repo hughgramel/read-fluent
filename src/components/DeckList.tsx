@@ -4,31 +4,29 @@ import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { DeckService } from '@/services/deckService';
 import { CardService } from '@/services/cardService';
-import { Deck, CardServiceError } from '@/types/spaced-repetition';
+import { Deck } from '@/types/spaced-repetition';
 import { DeckCard } from './DeckCard';
 import { DeckCreator } from './DeckCreator';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface DeckListProps {
+export interface DeckListProps {
   onDeckReview: (deckId: string) => void;
-  refreshTrigger?: number; // Optional prop to trigger refresh from parent
+  refreshTrigger?: number;
+  minimalistMobile?: boolean;
 }
 
-interface DeckWithStats extends Deck {
-  dueCount: number;
-  newCount: number;
-  dailyNewCardsDone: number;
-  totalCards: number;
-  settings: Deck['settings'];
-}
-
-export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
+export function DeckList({ onDeckReview, refreshTrigger, minimalistMobile = false }: DeckListProps) {
   const { user } = useAuth();
-  const [decks, setDecks] = useState<DeckWithStats[]>([]);
+  const [decks, setDecks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [refreshTriggerState, setRefreshTrigger] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 640);
+  }, []);
 
   // Remove deck from state when deleted
   const handleDeckDeleted = (deckId: string) => {
@@ -83,11 +81,7 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
       setDecks(decksWithStats);
     } catch (error) {
       console.error('Failed to load decks:', error);
-      if (error instanceof CardServiceError) {
-        setError(error.message);
-      } else {
-        setError('Failed to load decks. Please try again.');
-      }
+      setError('Failed to load decks. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +89,7 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
 
   const handleDeckCreated = (newDeck: Deck) => {
     // Add the new deck to the list with 0 due cards
-    const deckWithStats: DeckWithStats = {
+    const deckWithStats: any = {
       ...newDeck,
       dueCount: 0,
       newCount: 0,
@@ -259,14 +253,16 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {decks.map((deck) => (
-              <DeckCard
-                key={deck.id}
-                deck={deck}
-                onReview={onDeckReview}
-                onDeckUpdated={handleDeckUpdated}
-                onDeckDeleted={handleDeckDeleted}
+          <div className={minimalistMobile && isMobile ? "flex flex-col gap-3" : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"}>
+            {decks.map(deck => (
+              <DeckCard 
+                key={deck.id} 
+                deck={deck} 
+                onReview={() => onDeckReview(deck.id)}
+                reviewsLeft={deck.dueCount ?? 0}
+                newCardsLeftToday={Math.max(0, Math.min(deck.newCount, deck.settings.newCardsPerDay - (deck.dailyNewCardsDone || 0)))}
+                totalCards={deck.totalCards || (deck.cards ? deck.cards.length : 0)}
+                minimalistMobile={minimalistMobile && isMobile}
               />
             ))}
           </div>

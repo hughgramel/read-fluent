@@ -164,7 +164,12 @@ export default function ReviewPage() {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
           <h1 className="text-2xl sm:text-3xl font-bold theme-text">Review</h1>
-          <button onClick={handleAddTestCards} className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Add 5 Test Cards (Due Today)</button>
+          <button 
+            onClick={handleAddTestCards} 
+            className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 hidden sm:inline-block"
+          >
+            Add 5 Test Cards (Due Today)
+          </button>
           
           {/* Action Buttons */}
           <div className="flex gap-2">
@@ -254,6 +259,7 @@ export default function ReviewPage() {
         <DeckList 
           onDeckReview={handleDeckReview}
           refreshTrigger={deckRefreshTrigger}
+          minimalistMobile={true}
         />
       </div>
 

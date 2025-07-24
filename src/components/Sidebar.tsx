@@ -20,10 +20,6 @@ const navigation = [
   // Add other authenticated links here if needed
 ];
 
-const bottomButtons = [
-  { name: 'Theme', icon: <FaPalette />, onClickKey: 'theme' },
-];
-
 const GRAY = 'rgb(98,108,145)';
 const SIDEBAR_COLLAPSED_WIDTH = 80;
 const SIDEBAR_EXPANDED_WIDTH = 240;
@@ -231,93 +227,6 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
-      {/* Bottom buttons */}
-      <div style={{ width: '100%', marginBottom: 16 }}>
-        <ul className="flex flex-col items-center w-full" style={{ gap: 4 }}>
-          {bottomButtons.map((btn, idx) => (
-            <li key={btn.name} style={{ width: '100%' }}>
-              <button
-                onClick={() => handleBottomButtonClick(btn.onClickKey)}
-                className="group flex items-center transition-all duration-200 hover:bg-gray-50"
-                style={{
-                  borderRadius: 14,
-                  margin: '0 auto',
-                  width: '90%',
-                  minWidth: 0,
-                  height: ICON_BOX,
-                  marginBottom: 0,
-                  marginTop: 0,
-                  background: 'none',
-                  color: GRAY,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                  transition: 'background 0.2s, color 0.2s, width 0.2s',
-                  padding: 0,
-                  border: 'none',
-                  outline: 'none',
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: 'pointer',
-                }}
-              >
-                <div
-                  style={{
-                    width: SIDEBAR_COLLAPSED_WIDTH,
-                    minWidth: SIDEBAR_COLLAPSED_WIDTH,
-                    maxWidth: SIDEBAR_COLLAPSED_WIDTH,
-                    height: ICON_BOX,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: ICON_SIZE,
-                      height: ICON_SIZE,
-                      fontSize: ICON_SIZE,
-                      color: GRAY,
-                      transition: 'color 0.2s',
-                    }}
-                  >
-                    {btn.icon}
-                  </span>
-                </div>
-                {/* Label column: only visible when expanded */}
-                {!collapsed && (
-                  <div
-                    style={{
-                      width: SIDEBAR_EXPANDED_WIDTH - SIDEBAR_COLLAPSED_WIDTH - 16,
-                      minWidth: SIDEBAR_EXPANDED_WIDTH - SIDEBAR_COLLAPSED_WIDTH - 16,
-                      maxWidth: SIDEBAR_EXPANDED_WIDTH - SIDEBAR_COLLAPSED_WIDTH - 16,
-                      overflow: 'hidden',
-                      opacity: 1,
-                      whiteSpace: 'nowrap',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 16,
-                        color: GRAY,
-                        marginLeft: 10,
-                      }}
-                    >
-                      {btn.name}
-                    </span>
-                  </div>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
       {/* Theme Popup */}
       {showTheme && (
         <div

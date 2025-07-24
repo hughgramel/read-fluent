@@ -7,6 +7,7 @@ import Image from 'next/image';
 // useEffect is no longer needed if we remove the effect
 // import { useEffect } from 'react'; 
 import Sidebar from '@/components/Sidebar';
+import MobileNav from '../../components/MobileNav';
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -18,18 +19,6 @@ export default function AuthenticatedLayout({
 }) {
   const pathname = usePathname();
   const showSidebar = !(pathname?.startsWith('/reader') ?? false);
-
-  // Bottom navigation rail for mobile (not on reader)
-  const MobileNav = () => (
-    <nav className="fixed bottom-0 left-0 w-full bg-[var(--sidebar-background)] border-t theme-border flex justify-around items-center py-1 z-40 sm:hidden" style={{ height: '56px' }}>
-      <Link href="/home" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/home' ? 'text-[var(--primary-color)] ' : 'text-[var(--secondary-text-color)]'}`}>🏠<span className="text-xs mt-0.5">Home</span></Link>
-      <Link href="/library" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/library' ? 'text-[var(--primary-color)] ' : 'text-[var(--secondary-text-color)]'}`}>📚<span className="text-xs mt-0.5">Library</span></Link>
-      <Link href="/history" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/history' ? 'text-[var(--primary-color)] ' : 'text-[var(--secondary-text-color)]'}`}>💾<span className="text-xs mt-0.5">History</span></Link>
-      <Link href="/words" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/words' ? 'text-[var(--primary-color)] ' : 'text-[var(--secondary-text-color)]'}`}>🔤<span className="text-xs mt-0.5">Words</span></Link>
-      <Link href="/profile" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/profile' ? 'text-[var(--primary-color)] ' : 'text-[var(--secondary-text-color)]'}`}>👤<span className="text-xs mt-0.5">Profile</span></Link>
-      <Link href="/about" className={`flex flex-col items-center justify-center flex-1 py-1 ${pathname === '/about' ? 'text-[var(--primary-color)] ' : 'text-[var(--secondary-text-color)]'}`}>ℹ️<span className="text-xs mt-0.5">About</span></Link>
-    </nav>
-  );
 
   return (
     <ProtectedRoute>
@@ -45,7 +34,7 @@ export default function AuthenticatedLayout({
         </main>
       </div>
       {/* Mobile bottom nav rail, not on reader */}
-      {pathname && !pathname.startsWith('/reader') && <MobileNav />}
+      {pathname && !pathname.startsWith('/reader') && <MobileNav pathname={pathname} />}
     </ProtectedRoute>
   );
 } 

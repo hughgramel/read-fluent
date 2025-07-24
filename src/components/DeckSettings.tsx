@@ -8,11 +8,12 @@ import { VALIDATION_LIMITS, DEFAULT_DECK_SETTINGS } from '@/constants/spaced-rep
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DeckSettingsProps {
-  deck: Deck;
+  deck: any;
   isOpen: boolean;
   onClose: () => void;
-  onSettingsUpdated: (deck: Deck) => void;
+  onSettingsUpdated: (deck: any) => void;
   onDeckDeleted?: () => void;
+  showEmojiField?: boolean;
 }
 
 interface FormData {
@@ -32,7 +33,7 @@ interface FormErrors {
   general?: string;
 }
 
-export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated, onDeckDeleted }: DeckSettingsProps) {
+export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated, onDeckDeleted, showEmojiField }: DeckSettingsProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -49,6 +50,7 @@ export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated, onDeckD
   });
   const modalRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [emoji, setEmoji] = useState((deck as any).emoji || '📚');
 
   // Initialize form data when deck changes or modal opens
   useEffect(() => {
@@ -75,6 +77,10 @@ export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated, onDeckD
       loadDailyProgress();
     }
   }, [isOpen, deck, user]);
+
+  useEffect(() => {
+    setEmoji((deck as any).emoji || '📚');
+  }, [(deck as any).emoji]);
 
   // Focus name input when modal opens
   useEffect(() => {
@@ -245,17 +251,34 @@ export function DeckSettings({ deck, isOpen, onClose, onSettingsUpdated, onDeckD
           transform: 'translateZ(0)'
         }}
       >
+        {/* Close (X) button in top right */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 theme-text-secondary hover:theme-primary text-2xl font-bold transition-colors"
+          style={{ background: 'none', border: 'none', lineHeight: 1 }}
+          aria-label="Close"
+        >
+          ×
+        </button>
+        {showEmojiField && (
+          <div className="mb-4 flex flex-col mt-2">
+            <label className="font-semibold mb-1">Deck Emoji</label>
+            <input
+              type="text"
+              maxLength={2}
+              value={emoji}
+              onChange={e => {
+                setEmoji(e.target.value);
+                onSettingsUpdated({ ...(deck as any), emoji: e.target.value });
+              }}
+              className="input-themed text-lg p-2 rounded-md w-16 text-center"
+              style={{ fontSize: 28 }}
+            />
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold theme-text">Deck Settings</h2>
-          <button
-            onClick={handleClose}
-            disabled={isSubmitting}
-            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            style={{ color: 'var(--secondary-text-color)' }}
-          >
-            <X size={20} />
-          </button>
         </div>
 
         {/* Form */}

@@ -175,4 +175,28 @@ export class UserService {
       lastUpdatedAt: serverTimestamp(),
     });
   }
+
+  // --- Prompt Methods --- //
+  static async getUserPrompts(uid: string): Promise<any> {
+    const userDoc = doc(db, this.COLLECTION, uid);
+    const snap = await getDoc(userDoc);
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return data.preferences?.prompts || null;
+  }
+
+  static async updateUserPrompts(uid: string, prompts: Partial<any>): Promise<void> {
+    const userDoc = doc(db, this.COLLECTION, uid);
+    // Fetch current prompts
+    const snap = await getDoc(userDoc);
+    let currentPrompts = {};
+    if (snap.exists() && snap.data().preferences?.prompts) {
+      currentPrompts = snap.data().preferences.prompts;
+    }
+    const mergedPrompts = { ...currentPrompts, ...prompts };
+    await updateDoc(userDoc, {
+      'preferences.prompts': mergedPrompts,
+      lastUpdatedAt: serverTimestamp(),
+    });
+  }
 } 
