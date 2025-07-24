@@ -266,22 +266,22 @@ export default function HistoryPage() {
                 {/* Mobile Card List */}
                 <div className="sm:hidden flex flex-col gap-4">
                   {sortedDisplaySessions.map((session, index) => (
-                    <div key={session.id || (session.mergedIds ? session.mergedIds.join('-') : undefined)} className="bg-white rounded-lg shadow border p-4 flex flex-col gap-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="font-bold text-lg truncate">{session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}</div>
+                    <div key={session.id || (session.mergedIds ? session.mergedIds.join('-') : undefined)}
+                      className="rounded-xl border border-[var(--primary-color)] bg-[var(--card-background)] p-4 flex flex-col gap-2 mb-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-bold text-base theme-text truncate">{session.bookTitle || bookTitles[session.bookId ?? ''] || 'Unknown Book'}</div>
                         <button
                           onClick={() => handleDeleteSession(session)}
-                          className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded ml-2"
+                          className="text-[var(--primary-color)] hover:text-red-500 transition-colors p-1 rounded ml-2"
                           title="Delete session"
                         >
                           <FiTrash2 className="w-5 h-5" />
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-3 text-sm text-gray-700">
-                        <div><span className="font-semibold">Date:</span> {formatDate(session.timestamp)}</div>
-                        <div><span className="font-semibold">Words:</span> {session.wordCount.toLocaleString()}</div>
-                        <div><span className="font-semibold">Time:</span> —</div>
-                        <div><span className="font-semibold">#:</span> {index + 1}</div>
+                      <div className="flex flex-wrap gap-4 text-sm theme-text-secondary">
+                        <div><span className="font-semibold theme-text">Date:</span> {formatDate(session.timestamp)}</div>
+                        <div><span className="font-semibold theme-text">Words:</span> {session.wordCount.toLocaleString()}</div>
+                        <div><span className="font-semibold theme-text">#:</span> {index + 1}</div>
                       </div>
                     </div>
                   ))}
@@ -406,24 +406,25 @@ export default function HistoryPage() {
                 const percent = book.totalWords > 0 ? (wordsRead / book.totalWords) * 100 : 0;
                 const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
                 return (
-                  <div key={book.bookId} className="bg-white rounded-lg shadow border p-4 flex flex-col gap-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="font-bold text-lg truncate">{book.title}</div>
+                  <div key={book.bookId}
+                    className="rounded-xl border border-[var(--primary-color)] bg-[var(--card-background)] p-4 flex flex-col gap-2 mb-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-bold text-base theme-text truncate">{book.title}</div>
                       <button
                         onClick={() => handleDeleteArchivedBook(book.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded ml-2"
+                        className="text-[var(--primary-color)] hover:text-red-500 transition-colors p-1 rounded ml-2"
                         title="Delete archived book"
                       >
                         <FiTrash2 className="w-5 h-5" />
                       </button>
                     </div>
-                    <div className="flex flex-wrap gap-3 text-sm text-gray-700">
-                      <div><span className="font-semibold">Total Words:</span> {book.totalWords?.toLocaleString() ?? ''}</div>
-                      <div><span className="font-semibold">Words Read:</span> {wordsRead.toLocaleString()}</div>
-                      <div><span className="font-semibold">Percent:</span> {percentStr}</div>
-                      <div><span className="font-semibold">Date Started:</span> {book.dateAdded ? formatDate(new Date(book.dateAdded)) : '—'}</div>
-                      <div><span className="font-semibold">Date Ended:</span> {'dateEnded' in book && book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</div>
-                      <div><span className="font-semibold">#:</span> {index + 1}</div>
+                    <div className="flex flex-wrap gap-4 text-sm theme-text-secondary">
+                      <div><span className="font-semibold theme-text">Total Words:</span> {book.totalWords?.toLocaleString() ?? ''}</div>
+                      <div><span className="font-semibold theme-text">Words Read:</span> {wordsRead.toLocaleString()}</div>
+                      <div><span className="font-semibold theme-text">Percent:</span> {percentStr}</div>
+                      <div><span className="font-semibold theme-text">Date Started:</span> {book.dateAdded ? formatDate(new Date(book.dateAdded)) : '—'}</div>
+                      <div><span className="font-semibold theme-text">Date Ended:</span> {'dateEnded' in book && book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</div>
+                      <div><span className="font-semibold theme-text">#:</span> {index + 1}</div>
                     </div>
                   </div>
                 );
@@ -432,24 +433,25 @@ export default function HistoryPage() {
                 const percent = book.totalWords > 0 ? (book.wordsRead / book.totalWords) * 100 : 0;
                 const percentStr = percent === 0 ? '0%' : percent < 0.1 ? percent.toPrecision(1) + '%' : percent < 1 ? percent.toPrecision(2) + '%' : percent.toPrecision(3) + '%';
                 return (
-                  <div key={book.id} className="bg-white rounded-lg shadow border p-4 flex flex-col gap-2 opacity-70">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="font-bold text-lg truncate">{book.title}</div>
+                  <div key={book.id}
+                    className="rounded-xl border border-[var(--primary-color)] bg-[var(--card-background)] p-4 flex flex-col gap-2 mb-2 opacity-70">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-bold text-base theme-text truncate">{book.title}</div>
                       <button
                         onClick={() => handleDeleteArchivedBook(book.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded ml-2"
+                        className="text-[var(--primary-color)] hover:text-red-500 transition-colors p-1 rounded ml-2"
                         title="Delete archived book"
                       >
                         <FiTrash2 className="w-5 h-5" />
                       </button>
                     </div>
-                    <div className="flex flex-wrap gap-3 text-sm text-gray-700">
-                      <div><span className="font-semibold">Total Words:</span> {book.totalWords?.toLocaleString() ?? ''}</div>
-                      <div><span className="font-semibold">Words Read:</span> {book.wordsRead.toLocaleString()}</div>
-                      <div><span className="font-semibold">Percent:</span> {percentStr}</div>
-                      <div><span className="font-semibold">Date Started:</span> {book.dateStarted ? formatDate(new Date(book.dateStarted)) : '—'}</div>
-                      <div><span className="font-semibold">Date Ended:</span> {book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</div>
-                      <div><span className="font-semibold">#:</span> {books.length + idx + 1}</div>
+                    <div className="flex flex-wrap gap-4 text-sm theme-text-secondary">
+                      <div><span className="font-semibold theme-text">Total Words:</span> {book.totalWords?.toLocaleString() ?? ''}</div>
+                      <div><span className="font-semibold theme-text">Words Read:</span> {book.wordsRead.toLocaleString()}</div>
+                      <div><span className="font-semibold theme-text">Percent:</span> {percentStr}</div>
+                      <div><span className="font-semibold theme-text">Date Started:</span> {book.dateStarted ? formatDate(new Date(book.dateStarted)) : '—'}</div>
+                      <div><span className="font-semibold theme-text">Date Ended:</span> {book.dateEnded ? formatDate(new Date(book.dateEnded)) : '—'}</div>
+                      <div><span className="font-semibold theme-text">#:</span> {books.length + idx + 1}</div>
                     </div>
                   </div>
                 );

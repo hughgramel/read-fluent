@@ -160,9 +160,9 @@ export default function ReviewPage() {
         fontFamily: 'var(--font-family)'
       }}
     >
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 lg:ml-20 lg:pl-6">
+      <div className="w-full flex flex-col items-center">
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4 w-full max-w-3xl mx-auto">
           <h1 className="text-2xl sm:text-3xl font-bold theme-text">Review</h1>
           <button 
             onClick={handleAddTestCards} 
@@ -170,8 +170,6 @@ export default function ReviewPage() {
           >
             Add 5 Test Cards (Due Today)
           </button>
-          
-          {/* Action Buttons */}
           <div className="flex gap-2">
             <button
               onClick={() => setIsCardBrowserOpen(true)}
@@ -185,7 +183,6 @@ export default function ReviewPage() {
               <span className="text-sm">📚</span>
               <span className="hidden sm:inline">Browse</span>
             </button>
-            
             <button
               onClick={() => setIsGlobalSettingsOpen(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg theme-text-secondary hover:theme-text transition-colors"
@@ -202,15 +199,14 @@ export default function ReviewPage() {
         </div>
 
         {/* Study All Button */}
-        <div className="mb-8 sm:mb-12">
+        <div className="mb-8 sm:mb-12 w-full flex justify-center">
           <div 
-            className="card-themed-primary rounded-2xl shadow-lg p-6 sm:p-8 text-center"
-            style={{ minHeight: 180 }}
+            className="card-themed-primary rounded-2xl shadow-lg p-6 sm:p-8 text-center w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl"
+            style={{ minHeight: 260 }}
           >
             <h2 className="text-xl sm:text-2xl font-semibold theme-text mb-4">
               Ready to Study?
             </h2>
-            
             <div className="mb-6">
               {isLoadingDueCount ? (
                 <div className="flex items-center justify-center">
@@ -229,7 +225,6 @@ export default function ReviewPage() {
                 </p>
               )}
             </div>
-
             <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
               <button
                 onClick={handleStartStudySession}
@@ -238,7 +233,6 @@ export default function ReviewPage() {
               >
                 {totalDueCount > 0 ? 'Study All' : 'No Cards Due'}
               </button>
-              
               <button
                 onClick={() => setIsCardCreatorOpen(true)}
                 className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-base sm:text-lg font-semibold rounded-xl hover:scale-105 transition-transform w-full sm:w-auto"
@@ -256,11 +250,15 @@ export default function ReviewPage() {
         </div>
 
         {/* Decks List */}
-        <DeckList 
-          onDeckReview={handleDeckReview}
-          refreshTrigger={deckRefreshTrigger}
-          minimalistMobile={true}
-        />
+        <div className="w-full flex justify-center">
+          <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
+            <DeckList 
+              onDeckReview={handleDeckReview}
+              refreshTrigger={deckRefreshTrigger}
+              minimalistMobile={true}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Card Creator Popup */}

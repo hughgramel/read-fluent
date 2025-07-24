@@ -66,11 +66,14 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
         setStudySession(session);
         const nextCard = await session.getNextCard();
         setCurrentCard(nextCard);
-        if (nextCard && nextCard.isNew) {
-          const deckSettings = await session.getDeckSettings(nextCard.deckId);
-          setGraduationThreshold(deckSettings?.graduationThreshold || 3);
-          const sessionProgress = session.getCardSessionProgress(nextCard.id);
-          setCurrentCardProgress(sessionProgress);
+        if (nextCard) {
+          fetchDeckStats(nextCard.deckId);
+          if (nextCard.isNew) {
+            const deckSettings = await session.getDeckSettings(nextCard.deckId);
+            setGraduationThreshold(deckSettings?.graduationThreshold || 3);
+            const sessionProgress = session.getCardSessionProgress(nextCard.id);
+            setCurrentCardProgress(sessionProgress);
+          }
         }
         const currentProgress = session.getStudyProgress();
         setProgress(currentProgress);

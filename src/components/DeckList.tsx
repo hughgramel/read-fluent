@@ -253,17 +253,18 @@ export function DeckList({ onDeckReview, refreshTrigger, minimalistMobile = fals
             </div>
           </div>
         ) : (
-          <div className={minimalistMobile && isMobile ? "flex flex-col gap-3" : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"}>
+          <div className="flex flex-col items-center gap-6 w-full">
             {decks.map(deck => (
-              <DeckCard 
-                key={deck.id} 
-                deck={deck} 
-                onReview={() => onDeckReview(deck.id)}
-                reviewsLeft={deck.dueCount ?? 0}
-                newCardsLeftToday={Math.max(0, Math.min(deck.newCount, deck.settings.newCardsPerDay - (deck.dailyNewCardsDone || 0)))}
-                totalCards={deck.totalCards || (deck.cards ? deck.cards.length : 0)}
-                minimalistMobile={minimalistMobile && isMobile}
-              />
+              <div className="w-full max-w-2xl" key={deck.id}>
+                <DeckCard 
+                  deck={deck} 
+                  onReview={() => onDeckReview(deck.id)}
+                  reviewsLeft={deck.dueCount ?? 0}
+                  newCardsLeftToday={Math.max(0, Math.min(deck.newCount, deck.settings.newCardsPerDay - (deck.dailyNewCardsDone || 0)))}
+                  totalCards={deck.totalCards || (deck.cards ? deck.cards.length : 0)}
+                  minimalistMobile={minimalistMobile && isMobile}
+                />
+              </div>
             ))}
           </div>
         )}
