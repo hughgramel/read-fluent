@@ -18,6 +18,8 @@ interface DeckWithStats extends Deck {
   dueCount: number;
   newCount: number;
   dailyNewCardsDone: number;
+  totalCards: number;
+  settings: Deck['settings'];
 }
 
 export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
@@ -26,6 +28,7 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
+  const [refreshTriggerState, setRefreshTrigger] = useState(0);
 
   // Remove deck from state when deleted
   const handleDeckDeleted = (deckId: string) => {
@@ -37,36 +40,32 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
     if (user) {
       loadDecks();
     }
-  }, [user, refreshTrigger]);
+  }, [user, refreshTriggerState]);
 
   const loadDecks = async () => {
     if (!user) return;
-
     setIsLoading(true);
     setError(null);
-
     try {
+      // Load all cards for user into cache first
+      await CardService.loadAllCardsForUser(user.uid);
       // Get all user decks
       const userDecks = await DeckService.getUserDecks(user.uid);
-      
-      // Get due card counts and new card counts for each deck
+      // Get due card counts and new card counts for each deck from cache
       const decksWithStats = await Promise.all(
         userDecks.map(async (deck) => {
           try {
-            // Get due cards (cards ready for review)
-            const dueCards = await CardService.getDueCards(user.uid, deck.id);
-            
-            // Get daily progress to see how many new cards have been studied today
+            const dueCards = CardService.getDueCardsFromCache(user.uid, deck.id);
             const dailyProgress = await DeckService.getDailyProgress(user.uid, deck.id);
-            
-            // Get new cards (all remaining new cards)
-            const newCards = await CardService.getNewCards(user.uid, deck.id, 1000); // Large limit to get all
-            
+            const newCards = CardService.getNewCardsFromCache(user.uid, deck.id, 1000);
+            const allCards = CardService.getCardsByDeckFromCache(user.uid, deck.id);
             return {
               ...deck,
               dueCount: dueCards.length,
               newCount: newCards.length,
-              dailyNewCardsDone: dailyProgress.newCardsStudied
+              dailyNewCardsDone: dailyProgress.newCardsStudied,
+              totalCards: allCards.length,
+              settings: deck.settings
             };
           } catch (error) {
             console.error(`Failed to get stats for deck ${deck.id}:`, error);
@@ -74,16 +73,16 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
               ...deck,
               dueCount: 0,
               newCount: 0,
-              dailyNewCardsDone: 0
+              dailyNewCardsDone: 0,
+              totalCards: 0,
+              settings: deck.settings
             };
           }
         })
       );
-
       setDecks(decksWithStats);
     } catch (error) {
       console.error('Failed to load decks:', error);
-      
       if (error instanceof CardServiceError) {
         setError(error.message);
       } else {
@@ -100,11 +99,14 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
       ...newDeck,
       dueCount: 0,
       newCount: 0,
-      dailyNewCardsDone: 0
+      dailyNewCardsDone: 0,
+      totalCards: 0,
+      settings: newDeck.settings
     };
     
     setDecks(prev => [deckWithStats, ...prev]);
     setIsCreatorOpen(false);
+    setRefreshTrigger(prev => prev + 1); // Trigger refresh after deck creation
   };
 
   const handleDeckUpdated = (updatedDeck: Deck) => {
@@ -115,7 +117,9 @@ export function DeckList({ onDeckReview, refreshTrigger }: DeckListProps) {
               ...updatedDeck, 
               dueCount: deck.dueCount,
               newCount: deck.newCount,
-              dailyNewCardsDone: deck.dailyNewCardsDone
+              dailyNewCardsDone: deck.dailyNewCardsDone,
+              totalCards: deck.totalCards,
+              settings: deck.settings
             }
           : deck
       )

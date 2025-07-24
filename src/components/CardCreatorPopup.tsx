@@ -60,9 +60,10 @@ export function CardCreatorPopup({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [isLoadingDecks, setIsLoadingDecks] = useState(false);
-  const [activeTab, setActiveTab] = useState<'single' | 'theme'>('single');
-  const [themeBulkText, setThemeBulkText] = useState('');
-  const [themeBulkError, setThemeBulkError] = useState<string | null>(null);
+  // Add state for tab selection and CSV input
+  const [tab, setTab] = useState<'single' | 'csv'>('single');
+  const [csvInput, setCsvInput] = useState('');
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   // Refs for focus management
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -249,59 +250,50 @@ export function CardCreatorPopup({
     }
   };
 
-  // Bulk add handler
-  const handleBulkSubmit = async (e: React.FormEvent) => {
+  // Add CSV card creation handler
+  const handleCsvSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setThemeBulkError(null);
+    setCsvError(null);
     if (!user) {
-      setThemeBulkError('You must be logged in to create cards');
+      setCsvError('You must be logged in to create cards');
       return;
     }
     if (!formData.deckId) {
-      setThemeBulkError('Please select a deck');
+      setCsvError('Please select a deck');
       return;
     }
-    const lines = themeBulkText.split('\n').map(line => line.trim()).filter(Boolean);
+    const lines = csvInput.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length === 0) {
-      setThemeBulkError('Please enter at least one card.');
+      setCsvError('Please enter at least one card.');
       return;
     }
-    const cards: { front: string; back: string }[] = [];
+    const cards: CreateCardInput[] = [];
     for (const line of lines) {
       const [front, back] = line.split(',').map(s => s.trim());
       if (!front || !back) {
-        setThemeBulkError('Each line must have a front and back, separated by a comma.');
+        setCsvError('Each line must be "front,back". Problem: ' + line);
         return;
       }
-      cards.push({ front, back });
+      cards.push({
+        userId: user.uid,
+        deckId: formData.deckId,
+        front,
+        back,
+        type: 'basic',
+        stage: MIN_STAGE + 1,
+        nextReview: new Date(),
+        relearning: false,
+        isNew: true,
+        correctCount: 0
+      });
     }
-    setIsSubmitting(true);
     try {
-      for (const card of cards) {
-        const cardData: CreateCardInput = {
-          userId: user.uid,
-          deckId: formData.deckId,
-          front: card.front,
-          back: card.back,
-          type: 'basic',
-          stage: MIN_STAGE + 1,
-          nextReview: new Date(),
-          relearning: false,
-          isNew: true,
-          correctCount: 0
-        };
-        const cardId = await CardService.createCard(cardData);
-        if (onCardCreated) {
-          const createdCard = await CardService.getCard(user.uid, cardId);
-          if (createdCard) onCardCreated(createdCard);
-        }
+      for (const cardData of cards) {
+        await CardService.createCard(cardData);
       }
-      setThemeBulkText('');
       handleClose();
     } catch (error) {
-      setThemeBulkError('Failed to create cards. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      setCsvError('Failed to create cards.');
     }
   };
 
@@ -346,7 +338,7 @@ export function CardCreatorPopup({
           backgroundColor: 'var(--background)',
           borderColor: 'var(--border-color)',
           color: 'var(--text-color)',
-          transform: 'translateZ(0)'
+          transform: 'translateZ(0)' // Force hardware acceleration for better centering
         }}
       >
         {/* Header */}
@@ -361,26 +353,118 @@ export function CardCreatorPopup({
             <X size={20} />
           </button>
         </div>
+
         {/* Tab Switcher */}
         <div className="flex gap-2 mb-4">
           <button
-            className={`flex-1 py-2 rounded-t-lg font-semibold ${activeTab === 'single' ? 'bg-[var(--primary-color)] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'}`}
-            onClick={() => setActiveTab('single')}
+            className={`flex-1 py-2 rounded-t-lg font-semibold ${tab === 'single' ? 'bg-white border-b-2 border-primary' : 'bg-gray-100'}`}
+            style={{ borderColor: 'var(--primary-color)' }}
+            onClick={() => setTab('single')}
             disabled={isSubmitting}
           >
             Single Card
           </button>
           <button
-            className={`flex-1 py-2 rounded-t-lg font-semibold ${activeTab === 'theme' ? 'bg-[var(--primary-color)] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'}`}
-            onClick={() => setActiveTab('theme')}
+            className={`flex-1 py-2 rounded-t-lg font-semibold ${tab === 'csv' ? 'bg-white border-b-2 border-primary' : 'bg-gray-100'}`}
+            style={{ borderColor: 'var(--primary-color)' }}
+            onClick={() => setTab('csv')}
             disabled={isSubmitting}
           >
-            On Theme (Bulk)
+            Add by CSV
           </button>
         </div>
-        {/* Bulk Add Section */}
-        {activeTab === 'theme' && (
-          <form onSubmit={handleBulkSubmit} className="space-y-4">
+
+        {/* CSV Bulk Add Section */}
+        {tab === 'csv' && (
+          <form onSubmit={handleCsvSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium theme-text mb-2">Deck</label>
+              <select
+                id="deck"
+                value={formData.deckId}
+                onChange={(e) => handleInputChange('deckId', e.target.value)}
+                disabled={isSubmitting || isLoadingDecks}
+                className="select-themed w-full"
+                style={{ backgroundColor: 'var(--background)', borderColor: errors.deckId ? '#ef4444' : 'var(--border-color)', color: 'var(--text-color)' }}
+              >
+                <option value="">{isLoadingDecks ? 'Loading decks...' : 'Select a deck'}</option>
+                {decks.map((deck) => (
+                  <option key={deck.id} value={deck.id}>{deck.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium theme-text mb-2">Cards (front,back per line)</label>
+              <textarea
+                value={csvInput}
+                onChange={e => setCsvInput(e.target.value)}
+                rows={8}
+                className="input-themed w-full resize-none"
+                placeholder="manzana,apple"
+                style={{ backgroundColor: 'var(--background)', borderColor: csvError ? '#ef4444' : 'var(--border-color)', color: 'var(--text-color)' }}
+                disabled={isSubmitting}
+              />
+              {csvError && <p className="text-red-500 text-sm mt-1">{csvError}</p>}
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ borderColor: 'var(--border-color)', color: 'var(--secondary-text-color)', backgroundColor: 'var(--background)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || isLoadingDecks}
+                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Creating...' : 'Create Cards'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Only show the single card form if tab is 'single' */}
+        {tab === 'single' && (
+          // Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Card Type Selection */}
+            <div>
+              <label className="block text-sm font-medium theme-text mb-2">
+                Card Type
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="cardType"
+                    value="basic"
+                    checked={formData.type === 'basic'}
+                    onChange={() => handleTypeChange('basic')}
+                    disabled={isSubmitting}
+                    className="mr-2"
+                  />
+                  <span className="theme-text">Basic Card</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="cardType"
+                    value="sentence"
+                    checked={formData.type === 'sentence'}
+                    onChange={() => handleTypeChange('sentence')}
+                    disabled={isSubmitting}
+                    className="mr-2"
+                  />
+                  <span className="theme-text">Sentence Card</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Deck Selection */}
             <div>
               <label htmlFor="deck" className="block text-sm font-medium theme-text mb-2">
                 Deck
@@ -410,207 +494,96 @@ export function CardCreatorPopup({
                 <p className="text-red-500 text-sm mt-1">{errors.deckId}</p>
               )}
             </div>
+
+            {/* Front Content */}
             <div>
-              <label className="block text-sm font-medium theme-text mb-2">
-                Bulk Cards (front,back per line)
+              <label htmlFor="front" className="block text-sm font-medium theme-text mb-2">
+                Front
               </label>
-              <textarea
-                value={themeBulkText}
-                onChange={e => setThemeBulkText(e.target.value)}
-                rows={8}
-                className="input-themed w-full resize-none"
-                placeholder="Front 1,Back 1\nFront 2,Back 2\n..."
+              <input
+                ref={frontInputRef}
+                id="front"
+                type="text"
+                value={formData.front}
+                onChange={(e) => handleInputChange('front', e.target.value)}
+                disabled={isSubmitting}
+                placeholder="Enter the front of the card..."
+                className="input-themed w-full"
                 style={{
                   backgroundColor: 'var(--background)',
-                  borderColor: themeBulkError ? '#ef4444' : 'var(--border-color)',
+                  borderColor: errors.front ? '#ef4444' : 'var(--border-color)',
                   color: 'var(--text-color)'
                 }}
-                disabled={isSubmitting}
               />
-              {themeBulkError && (
-                <p className="text-red-500 text-sm mt-1">{themeBulkError}</p>
+              {errors.front && (
+                <p className="text-red-500 text-sm mt-1">{errors.front}</p>
               )}
             </div>
+
+            {/* Translation (only for sentence cards) */}
+            {formData.type === 'sentence' && (
+              <div>
+                <label htmlFor="translation" className="block text-sm font-medium theme-text mb-2">
+                  Translation
+                </label>
+                <input
+                  id="translation"
+                  type="text"
+                  value={formData.translation}
+                  onChange={(e) => handleInputChange('translation', e.target.value)}
+                  disabled={isSubmitting}
+                  placeholder="Enter the translation..."
+                  className="input-themed w-full"
+                  style={{
+                    backgroundColor: 'var(--background)',
+                    borderColor: errors.translation ? '#ef4444' : 'var(--border-color)',
+                    color: 'var(--text-color)'
+                  }}
+                />
+                {errors.translation && (
+                  <p className="text-red-500 text-sm mt-1">{errors.translation}</p>
+                )}
+              </div>
+            )}
+
+            {/* Back Content */}
+            <div>
+              <label htmlFor="back" className="block text-sm font-medium theme-text mb-2">
+                Back
+              </label>
+              <textarea
+                id="back"
+                value={formData.back}
+                onChange={(e) => handleInputChange('back', e.target.value)}
+                disabled={isSubmitting}
+                placeholder="Enter the back of the card..."
+                rows={3}
+                className="input-themed w-full resize-none"
+                style={{
+                  backgroundColor: 'var(--background)',
+                  borderColor: errors.back ? '#ef4444' : 'var(--border-color)',
+                  color: 'var(--text-color)'
+                }}
+              />
+              {errors.back && (
+                <p className="text-red-500 text-sm mt-1">{errors.back}</p>
+              )}
+            </div>
+
+            {/* General Error */}
+            {errors.general && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-red-600 text-sm">{errors.general}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
             <div className="flex gap-3 pt-4">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                style={{
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--secondary-text-color)',
-                  backgroundColor: 'var(--background)'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || isLoadingDecks}
-                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? 'Creating...' : 'Create Cards'}
-              </button>
-            </div>
-          </form>
-        )}
-        {/* Single Card Form */}
-        {activeTab === 'single' && (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Card Type Selection */}
-          <div>
-            <label className="block text-sm font-medium theme-text mb-2">
-              Card Type
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="cardType"
-                  value="basic"
-                  checked={formData.type === 'basic'}
-                  onChange={() => handleTypeChange('basic')}
-                  disabled={isSubmitting}
-                  className="mr-2"
-                />
-                <span className="theme-text">Basic Card</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="cardType"
-                  value="sentence"
-                  checked={formData.type === 'sentence'}
-                  onChange={() => handleTypeChange('sentence')}
-                  disabled={isSubmitting}
-                  className="mr-2"
-                />
-                <span className="theme-text">Sentence Card</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Deck Selection */}
-          <div>
-            <label htmlFor="deck" className="block text-sm font-medium theme-text mb-2">
-              Deck
-            </label>
-            <select
-              id="deck"
-              value={formData.deckId}
-              onChange={(e) => handleInputChange('deckId', e.target.value)}
-              disabled={isSubmitting || isLoadingDecks}
-              className="select-themed w-full"
-              style={{
-                backgroundColor: 'var(--background)',
-                borderColor: errors.deckId ? '#ef4444' : 'var(--border-color)',
-                color: 'var(--text-color)'
-              }}
-            >
-              <option value="">
-                {isLoadingDecks ? 'Loading decks...' : 'Select a deck'}
-              </option>
-              {decks.map((deck) => (
-                <option key={deck.id} value={deck.id}>
-                  {deck.name}
-                </option>
-              ))}
-            </select>
-            {errors.deckId && (
-              <p className="text-red-500 text-sm mt-1">{errors.deckId}</p>
-            )}
-          </div>
-
-          {/* Front Content */}
-          <div>
-            <label htmlFor="front" className="block text-sm font-medium theme-text mb-2">
-              Front
-            </label>
-            <input
-              ref={frontInputRef}
-              id="front"
-              type="text"
-              value={formData.front}
-              onChange={(e) => handleInputChange('front', e.target.value)}
-              disabled={isSubmitting}
-              placeholder="Enter the front of the card..."
-              className="input-themed w-full"
-              style={{
-                backgroundColor: 'var(--background)',
-                borderColor: errors.front ? '#ef4444' : 'var(--border-color)',
-                color: 'var(--text-color)'
-              }}
-            />
-            {errors.front && (
-              <p className="text-red-500 text-sm mt-1">{errors.front}</p>
-            )}
-          </div>
-
-          {/* Translation (only for sentence cards) */}
-          {formData.type === 'sentence' && (
-            <div>
-              <label htmlFor="translation" className="block text-sm font-medium theme-text mb-2">
-                Translation
-              </label>
-              <input
-                id="translation"
-                type="text"
-                value={formData.translation}
-                onChange={(e) => handleInputChange('translation', e.target.value)}
-                disabled={isSubmitting}
-                placeholder="Enter the translation..."
-                className="input-themed w-full"
-                style={{
-                  backgroundColor: 'var(--background)',
-                  borderColor: errors.translation ? '#ef4444' : 'var(--border-color)',
-                  color: 'var(--text-color)'
-                }}
-              />
-              {errors.translation && (
-                <p className="text-red-500 text-sm mt-1">{errors.translation}</p>
-              )}
-            </div>
-          )}
-
-          {/* Back Content */}
-          <div>
-            <label htmlFor="back" className="block text-sm font-medium theme-text mb-2">
-              Back
-            </label>
-            <textarea
-              id="back"
-              value={formData.back}
-              onChange={(e) => handleInputChange('back', e.target.value)}
-              disabled={isSubmitting}
-              placeholder="Enter the back of the card..."
-              rows={3}
-              className="input-themed w-full resize-none"
-              style={{
-                backgroundColor: 'var(--background)',
-                borderColor: errors.back ? '#ef4444' : 'var(--border-color)',
-                color: 'var(--text-color)'
-              }}
-            />
-            {errors.back && (
-              <p className="text-red-500 text-sm mt-1">{errors.back}</p>
-            )}
-          </div>
-
-          {/* General Error */}
-          {errors.general && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-600 text-sm">{errors.general}</p>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               style={{
                 borderColor: 'var(--border-color)',
                 color: 'var(--secondary-text-color)',
@@ -628,7 +601,7 @@ export function CardCreatorPopup({
             </button>
           </div>
         </form>
-        )}
+      )}
       </div>
     </div>
   );

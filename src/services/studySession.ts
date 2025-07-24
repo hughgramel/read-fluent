@@ -56,64 +56,58 @@ export class StudySession {
    * @returns Promise resolving to a StudySession instance
    */
   static async create(userId: string): Promise<StudySession> {
-    try {
-      // Get user's global settings
-      const globalSettings = await StudySession.getGlobalSettings(userId);
-      
-      // Get all user decks
-      const decks = await DeckService.getUserDecks(userId);
-      
-      // Build review queue and new card batches
-      const reviewQueue = await StudySession.buildReviewQueue(userId, decks);
-      // Instead of newCardBatches, build a single batch and queue for all decks
-      let allNewCards: (Card | SentenceCard)[] = [];
-      for (const deck of decks) {
-        const dailyProgress = await DeckService.getDailyProgress(userId, deck.id);
-        const remainingNewCards = Math.max(0, deck.settings.newCardsPerDay - dailyProgress.newCardsStudied);
-        if (remainingNewCards > 0) {
-          const newCards = await CardService.getNewCards(userId, deck.id, remainingNewCards);
-          allNewCards.push(...newCards);
-        }
+    // Require that CardService.loadAllCardsForUser(userId) has already been called
+    // Get user's global settings
+    const globalSettings = await StudySession.getGlobalSettings(userId);
+    // Get all user decks
+    const decks = await DeckService.getUserDecks(userId);
+    // Build review queue and new card batches from cache
+    let reviewQueue: (Card | SentenceCard)[] = [];
+    let allNewCards: (Card | SentenceCard)[] = [];
+    for (const deck of decks) {
+      const dueCards = CardService.getDueCardsFromCache(userId, deck.id);
+      reviewQueue.push(...dueCards);
+      const dailyProgress = await DeckService.getDailyProgress(userId, deck.id);
+      const remainingNewCards = Math.max(0, deck.settings.newCardsPerDay - dailyProgress.newCardsStudied);
+      if (remainingNewCards > 0) {
+        const newCards = CardService.getNewCardsFromCache(userId, deck.id, remainingNewCards);
+        allNewCards.push(...newCards);
       }
-      // Shuffle all new cards
-      allNewCards = StudySession.shuffleArray(allNewCards);
-      // Get batch size (use max from all decks, or default 5)
-      const batchSize = decks.reduce((max, d) => Math.max(max, d.settings.cardsPerBatch), 5);
-      const batch = allNewCards.slice(0, batchSize);
-      const queue = allNewCards.slice(batchSize);
-      // Attach to sessionData
-      const sessionData: IStudySession = {
-        id: StudySession.generateSessionId(),
-        userId,
-        startTime: new Date(),
-        reviewQueue: globalSettings.studyOrder === 'reviews-first' ? reviewQueue : [],
-        newCardBatches: globalSettings.studyOrder === 'new-first' ? [batch] : [], // Keep this for compatibility, but newCardBatches is now a single batch
-        currentBatchIndex: 0,
-        currentCardIndex: 0,
-        isActive: true,
-        sessionType: StudySession.determineSessionType(reviewQueue, [batch]) // Pass the single batch
-      };
-      (sessionData as any).newCardBatch = batch;
-      (sessionData as any).newCardQueue = queue;
-      (sessionData as any).lastBatchIndex = null;
-      // Initialize cardSessionProgress from correctCount for each card
-      const cardSessionProgress = new Map<string, number>();
-      for (const card of allNewCards) {
-        cardSessionProgress.set(card.id, card.correctCount || 0);
-      }
-      (sessionData as any).cardSessionProgress = cardSessionProgress;
-      
-      // Store pending queues for mixed study order
-      if (globalSettings.studyOrder === 'reviews-first' && queue.length > 0) {
-        (sessionData as any).pendingNewCardQueue = queue;
-      } else if (globalSettings.studyOrder === 'new-first' && reviewQueue.length > 0) {
-        (sessionData as any).pendingReviewQueue = reviewQueue;
-      }
-      
-      return new StudySession(sessionData, globalSettings);
-    } catch (error) {
-      throw StudySession.handleError(error, 'Failed to create study session');
     }
+    // Shuffle all new cards
+    allNewCards = StudySession.shuffleArray(allNewCards);
+    // Get batch size (use max from all decks, or default 5)
+    const batchSize = decks.reduce((max, d) => Math.max(max, d.settings.cardsPerBatch), 5);
+    const batch = allNewCards.slice(0, batchSize);
+    const queue = allNewCards.slice(batchSize);
+    // Attach to sessionData
+    const sessionData: IStudySession = {
+      id: StudySession.generateSessionId(),
+      userId,
+      startTime: new Date(),
+      reviewQueue: globalSettings.studyOrder === 'reviews-first' ? reviewQueue : [],
+      newCardBatches: globalSettings.studyOrder === 'new-first' ? [batch] : [],
+      currentBatchIndex: 0,
+      currentCardIndex: 0,
+      isActive: true,
+      sessionType: StudySession.determineSessionType(reviewQueue, [batch])
+    };
+    (sessionData as any).newCardBatch = batch;
+    (sessionData as any).newCardQueue = queue;
+    (sessionData as any).lastBatchIndex = null;
+    // Initialize cardSessionProgress from correctCount for each card
+    const cardSessionProgress = new Map<string, number>();
+    for (const card of allNewCards) {
+      cardSessionProgress.set(card.id, card.correctCount || 0);
+    }
+    (sessionData as any).cardSessionProgress = cardSessionProgress;
+    // Store pending queues for mixed study order
+    if (globalSettings.studyOrder === 'reviews-first' && queue.length > 0) {
+      (sessionData as any).pendingNewCardQueue = queue;
+    } else if (globalSettings.studyOrder === 'new-first' && reviewQueue.length > 0) {
+      (sessionData as any).pendingReviewQueue = reviewQueue;
+    }
+    return new StudySession(sessionData, globalSettings);
   }
   
   /**
@@ -121,77 +115,70 @@ export class StudySession {
    * @returns Promise resolving to the next card or null if session is complete
    */
   async getNextCard(): Promise<Card | SentenceCard | null> {
-    try {
-      if (!this.session.isActive) {
-        return null;
-      }
-
-      // Check if any new cards still need to reach graduation threshold
-      const allNewCardsGraduated = await this._allNewCardsGraduatedAsync();
-      if (allNewCardsGraduated) {
+    console.log('[StudySession] Getting next card');
+    if (!this.session.isActive) {
+      return null;
+    }
+    // Handle review cards first: if there are reviews left, do not end session
+    if (this.session.reviewQueue.length > 0 && this.session.currentCardIndex < this.session.reviewQueue.length) {
+      const cardFromQueue = this.session.reviewQueue[this.session.currentCardIndex];
+      // Use cache for card data
+      const freshCard = CardService.cardCache[this.session.userId]?.[cardFromQueue.id];
+      return freshCard || cardFromQueue;
+    }
+    // Only check for new card graduation if reviews are done
+    console.log('[StudySession] Checking for new card graduation');
+    const allNewCardsGraduated = await this._allNewCardsGraduatedAsync();
+    const reviewsRemaining = this.session.reviewQueue.length - this.session.currentCardIndex;
+    if (allNewCardsGraduated && reviewsRemaining <= 0) {
+      console.log('[StudySession] All new cards graduated and no reviews left, completing session');
+      this.completeSession();
+      return null;
+    }
+    // Handle new card batches
+    if (this.newCardBatch.length > 0) {
+      if (this.newCardBatch.length === 0) {
+        console.log('[StudySession] New card batch is empty, completing session');
         this.completeSession();
         return null;
       }
-
-      // Handle review cards first (if reviews-first order or currently in review phase)
-      if (this.session.reviewQueue.length > 0 && this.session.currentCardIndex < this.session.reviewQueue.length) {
-        const cardFromQueue = this.session.reviewQueue[this.session.currentCardIndex];
-        // Fetch fresh card data to get updated correctCount
-        const freshCard = await CardService.getCard(this.session.userId, cardFromQueue.id);
-        return freshCard || cardFromQueue;
+      let idx = Math.floor(Math.random() * this.newCardBatch.length);
+      if (this.lastBatchIndex !== null && this.newCardBatch.length > 1) {
+        while (idx === this.lastBatchIndex) {
+          idx = Math.floor(Math.random() * this.newCardBatch.length);
+        }
       }
-
-      // Handle new card batches
+      this.lastBatchIndex = idx;
+      const card = this.newCardBatch[idx];
+      console.log('[StudySession] Showing new card:', card);
+      return card;
+    }
+    // Check for pending queues
+    const pendingReviewQueue = (this.session as any).pendingReviewQueue;
+    const pendingNewCardQueue = (this.session as any).pendingNewCardQueue;
+    if (pendingReviewQueue && pendingReviewQueue.length > 0) {
+      this.session.reviewQueue = pendingReviewQueue;
+      this.session.currentCardIndex = 0;
+      delete (this.session as any).pendingReviewQueue;
+      return this.session.reviewQueue[0];
+    }
+    if (pendingNewCardQueue && pendingNewCardQueue.length > 0) {
+      this.newCardBatch = pendingNewCardQueue;
+      this.lastBatchIndex = null;
+      this.session.currentCardIndex = this.session.reviewQueue.length;
+      delete (this.session as any).pendingNewCardQueue;
       if (this.newCardBatch.length > 0) {
-        // If batch is empty, session is complete
-        if (this.newCardBatch.length === 0) {
-          this.completeSession();
-          return null;
-        }
-        // Pick a random index, not the same as lastBatchIndex if possible
-        let idx = Math.floor(Math.random() * this.newCardBatch.length);
-        if (this.lastBatchIndex !== null && this.newCardBatch.length > 1) {
-          while (idx === this.lastBatchIndex) {
-            idx = Math.floor(Math.random() * this.newCardBatch.length);
-          }
-        }
-        this.lastBatchIndex = idx;
-        const card = this.newCardBatch[idx];
-        // Debug: print card data
-        console.log('[StudySession] Showing new card:', card);
-        return card;
+        return this.newCardBatch[0];
       }
+    }
+    // Only end session if both reviews and new cards are done
+    if (allNewCardsGraduated && reviewsRemaining <= 0) {
 
-      // Check for pending queues (mixed study order)
-      const pendingReviewQueue = (this.session as any).pendingReviewQueue;
-      const pendingNewCardQueue = (this.session as any).pendingNewCardQueue;
-
-      // Switch to pending review queue if new cards are done
-      if (pendingReviewQueue && pendingReviewQueue.length > 0) {
-        this.session.reviewQueue = pendingReviewQueue;
-        this.session.currentCardIndex = 0;
-        delete (this.session as any).pendingReviewQueue;
-        return this.session.reviewQueue[0];
-      }
-
-      // Switch to pending new card queue if reviews are done
-      if (pendingNewCardQueue && pendingNewCardQueue.length > 0) {
-        this.newCardBatch = pendingNewCardQueue;
-        this.lastBatchIndex = null;
-        this.session.currentCardIndex = this.session.reviewQueue.length;
-        delete (this.session as any).pendingNewCardQueue;
-
-        if (this.newCardBatch.length > 0) {
-          return this.newCardBatch[0];
-        }
-      }
-
-      // Session is complete
+      console.log('[StudySession] All new cards graduated and no reviews left, completing session');
       this.completeSession();
       return null;
-    } catch (error) {
-      throw StudySession.handleError(error, 'Failed to get next card');
     }
+    return null;
   }
   
   /**
@@ -200,36 +187,27 @@ export class StudySession {
    * @param correct - Whether the answer was correct
    */
   async processAnswer(cardId: string, correct: boolean): Promise<void> {
-    try {
-      const card = await CardService.getCard(this.session.userId, cardId);
-      if (!card) {
-        throw new CardServiceError(ERROR_MESSAGES.CARD_NOT_FOUND, 'NOT_FOUND');
+    // Use cache for card data
+    const card = CardService.cardCache[this.session.userId]?.[cardId];
+    if (!card) {
+      throw new CardServiceError(ERROR_MESSAGES.CARD_NOT_FOUND, 'NOT_FOUND');
+    }
+    if (correct) {
+      this.stats.correctAnswers++;
+      if (card.isNew) {
+        await this.processCorrectNewCard(card);
+      } else {
+        await this.processCorrectReviewCard(card);
       }
-      
-      // Update statistics
-      if (correct) {
-        this.stats.correctAnswers++;
-        if (card.isNew) {
-          await this.processCorrectNewCard(card);
-        } else {
-          await this.processCorrectReviewCard(card);
-        }
-        // Always advance for correct answers
+      this.advanceSessionPosition();
+    } else {
+      this.stats.incorrectAnswers++;
+      if (card.isNew) {
+        await this.processIncorrectNewCard(card);
         this.advanceSessionPosition();
       } else {
-        this.stats.incorrectAnswers++;
-        if (card.isNew) {
-          await this.processIncorrectNewCard(card);
-          // For incorrect new cards, we advance position since the card is shuffled to a later position
-          this.advanceSessionPosition();
-        } else {
-          await this.processIncorrectReviewCard(card);
-          // For incorrect review cards, don't advance since the card is added back to the queue
-          // The next getNextCard() call will return the next card in the queue
-        }
+        await this.processIncorrectReviewCard(card);
       }
-    } catch (error) {
-      throw StudySession.handleError(error, 'Failed to process answer');
     }
   }
   
@@ -337,6 +315,7 @@ export class StudySession {
    * Completes the session
    */
   completeSession(): void {
+    console.log('[StudySession] Completing session');
     this.session.isActive = false;
     this.session.endTime = new Date();
     this.stats.timeSpent = this.session.endTime.getTime() - this.session.startTime.getTime();
@@ -348,57 +327,39 @@ export class StudySession {
    * Processes a correct answer for a new card
    */
   private async processCorrectNewCard(card: Card | SentenceCard): Promise<void> {
-    // Track session progress for this card (initialize if first time seeing it)
     const currentSessionProgress = this.cardSessionProgress.get(card.id) || 0;
     const newSessionProgress = currentSessionProgress + 1;
     this.cardSessionProgress.set(card.id, newSessionProgress);
-    
     console.log(`[StudySession] New card ${card.id} correct answer: session progress ${currentSessionProgress} -> ${newSessionProgress}`);
-    
-    // Always persist progress
-    await CardService.processCorrectAnswer(this.session.userId, card.id);
-    
+    // Always persist progress in cache
+    CardService.updateCardInCache(this.session.userId, card.id, { correctCount: newSessionProgress, totalReviews: (card.totalReviews || 0) + 1, lastReviewed: new Date() });
     // Get deck settings to check graduation threshold
     const deck = await DeckService.getDeck(this.session.userId, card.deckId);
     if (!deck) {
       throw new CardServiceError(ERROR_MESSAGES.DECK_NOT_FOUND, 'NOT_FOUND');
     }
-    
-    // Only graduate if the card has been answered correctly enough times in THIS session
     if (newSessionProgress >= deck.settings.graduationThreshold) {
-      // Now process the correct answer in the database and graduate
-      await CardService.graduateNewCard(this.session.userId, card.id);
+      // Graduate in cache
+      CardService.updateCardInCache(this.session.userId, card.id, { isNew: false, stage: -6, correctCount: 0, relearning: false });
+      // Schedule next review in cache
       const nextReviewDate = await ReviewEngine.calculateNextReviewDate(-6, card.deckId, this.session.userId);
+      CardService.updateCardInCache(this.session.userId, card.id, { nextReview: nextReviewDate });
       console.log(`[StudySession] Card ${card.id} graduated! Next review:`, nextReviewDate);
-      await this.scheduleGraduatedCard(card.id, card.deckId);
-      
       // Update statistics
       this.stats.newCardsLearned++;
-      
       // Update daily stats
       const dailyProgress = await DeckService.getDailyProgress(this.session.userId, card.deckId);
-      await DeckService.updateDailyStats(this.session.userId, card.deckId, {
-        newCardsStudied: dailyProgress.newCardsStudied + 1
-      });
-      
+      await DeckService.updateDailyStats(this.session.userId, card.deckId, { newCardsStudied: dailyProgress.newCardsStudied + 1 });
       // Remove from batch
       const idx = this.newCardBatch.findIndex(c => c.id === card.id);
       if (idx !== -1) {
         this.newCardBatch.splice(idx, 1);
-        // Replace with card from queue if available
         if (this.newCardQueue.length > 0) {
           this.newCardBatch.splice(idx, 0, this.newCardQueue.shift()!);
         }
       }
-      
-      // Remove from session progress tracking
       this.cardSessionProgress.delete(card.id);
-      
-      // Add a new card to maintain batch size if available
       await this.addNewCardToBatch(card.deckId);
-    } else {
-      // Card hasn't graduated yet, just update the database but don't graduate
-      // The progress is already persisted in the previous step
     }
   }
   
@@ -406,40 +367,22 @@ export class StudySession {
    * Processes a correct answer for a review card
    */
   private async processCorrectReviewCard(card: Card | SentenceCard): Promise<void> {
-    await CardService.processCorrectAnswer(this.session.userId, card.id);
-    
-    // Schedule next review
-    const newStage = Math.min(card.stage + 1, -1); // MAX_STAGE is -1
+    // Update in cache
+    const newStage = Math.min((card.stage || -6) + 1, -1);
     const nextReviewDate = await ReviewEngine.calculateNextReviewDate(newStage, card.deckId, this.session.userId);
-    
-    await CardService.updateCard(this.session.userId, card.id, {
-      stage: newStage,
-      nextReview: nextReviewDate,
-      relearning: false
-    });
-    
-    // Update statistics
+    CardService.updateCardInCache(this.session.userId, card.id, { stage: newStage, relearning: false, totalReviews: (card.totalReviews || 0) + 1, lastReviewed: new Date(), nextReview: nextReviewDate });
     this.stats.reviewsCompleted++;
-    
-    // Update daily stats
     const dailyProgress = await DeckService.getDailyProgress(this.session.userId, card.deckId);
-    await DeckService.updateDailyStats(this.session.userId, card.deckId, {
-      reviewsCompleted: dailyProgress.reviewsCompleted + 1
-    });
+    await DeckService.updateDailyStats(this.session.userId, card.deckId, { reviewsCompleted: dailyProgress.reviewsCompleted + 1 });
   }
   
   /**
    * Processes an incorrect answer for a new card
    */
   private async processIncorrectNewCard(card: Card | SentenceCard): Promise<void> {
-    await CardService.processIncorrectAnswer(this.session.userId, card.id);
-    
-    // Reset session progress for this card
+    CardService.updateCardInCache(this.session.userId, card.id, { correctCount: 0, totalReviews: (card.totalReviews || 0) + 1, lastReviewed: new Date() });
     this.cardSessionProgress.set(card.id, 0);
-    
     console.log(`[StudySession] New card ${card.id} incorrect answer: session progress reset to 0`);
-    
-    // Shuffle the batch so the next card is random
     this.newCardBatch = StudySession.shuffleArray(this.newCardBatch);
   }
   
@@ -447,16 +390,9 @@ export class StudySession {
    * Processes an incorrect answer for a review card
    */
   private async processIncorrectReviewCard(card: Card | SentenceCard): Promise<void> {
-    await CardService.processIncorrectAnswer(this.session.userId, card.id);
-    
-    // Insert card back into queue at random position
-    this.session.reviewQueue = ReviewEngine.shuffleCardIntoQueue(
-      card, 
-      this.session.reviewQueue, 
-      this.session.currentCardIndex
-    );
-    
-    // Advance to the next card
+    // Reset review card to first stage, relearning, but not new
+    CardService.updateCardInCache(this.session.userId, card.id, { stage: -6, relearning: true, isNew: false, totalReviews: (card.totalReviews || 0) + 1, lastReviewed: new Date() });
+    this.session.reviewQueue = ReviewEngine.shuffleCardIntoQueue(card, this.session.reviewQueue, this.session.currentCardIndex);
     this.advanceSessionPosition();
   }
   
@@ -494,18 +430,25 @@ export class StudySession {
    */
   private advanceSessionPosition(): void {
     this.session.currentCardIndex++;
-    
-    // Check if we need to move to the next batch
-    if (this.newCardBatch.length === 0) { // If batch is empty, session is complete
-      this.completeSession();
+    console.log('[StudySession] Advancing session position to next card');
+    // If we are still in the review queue, do not end session
+    if (this.session.currentCardIndex < this.session.reviewQueue.length) {
       return;
     }
-
+    // If reviews are done, check new card batch
+    if (this.newCardBatch.length === 0) {
+      // Only end session if all new cards are graduated and no reviews left
+      const reviewsRemaining = this.session.reviewQueue.length - this.session.currentCardIndex;
+      if (reviewsRemaining <= 0) {
+        console.log('[StudySession] New card batch is empty and no reviews left, completing session');
+        this.completeSession();
+      }
+      return;
+    }
+    // Check if we need to move to the next batch (legacy batch logic)
     const cardIndexInBatch = this.session.currentCardIndex - this.session.reviewQueue.length;
-    
     if (cardIndexInBatch >= this.newCardBatch.length) {
       this.session.currentBatchIndex++;
-      // Reset card index for new batch
       if (this.session.currentBatchIndex < this.session.newCardBatches.length) {
         this.session.currentCardIndex = this.session.reviewQueue.length;
       }

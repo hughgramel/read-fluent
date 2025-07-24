@@ -46,7 +46,7 @@ export function DeckCard({ deck, onReview, onDeckUpdated, onDeckDeleted }: DeckC
   return (
     <>
       <div
-        className="flex items-center gap-6 rounded-2xl shadow-lg p-6 hover:scale-[1.025] transition-transform cursor-pointer card-themed-accent"
+        className="flex items-center gap-6 rounded-2xl shadow-lg p-6 hover:scale-[1.01] transition-transform cursor-pointer card-themed-accent"
         style={{
           background: 'var(--card-background, #fff)',
           boxShadow: '0 4px 16px 0 rgba(31, 38, 135, 0.08)',
@@ -79,9 +79,9 @@ export function DeckCard({ deck, onReview, onDeckUpdated, onDeckDeleted }: DeckC
           </div>
           {/* Enhanced card counts display */}
           <div className="flex flex-col gap-1 text-sm mt-1">
-            {deck.newCount !== undefined && (
+            {deck.newCount !== undefined && deck.settings && deck.dailyNewCardsDone !== undefined && (
               <div className="text-emerald-600 font-medium">
-                {deck.newCount} new cards remaining
+                {Math.max(0, Math.min(deck.newCount, deck.settings.newCardsPerDay - deck.dailyNewCardsDone))} new cards left today
               </div>
             )}
           </div>
@@ -95,7 +95,7 @@ export function DeckCard({ deck, onReview, onDeckUpdated, onDeckDeleted }: DeckC
         <div className="flex items-center gap-3">
           <button
             onClick={handleSettingsClick}
-            className="p-2 rounded-full hover:scale-105 transition-transform"
+            className="p-2 rounded-full hover:scale-100 transition-transform"
             style={{
               background: 'var(--secondary-color, #67b9e7)',
               color: 'var(--button-text-color, white)',
@@ -108,7 +108,7 @@ export function DeckCard({ deck, onReview, onDeckUpdated, onDeckDeleted }: DeckC
           </button>
           
           <button
-            className="rounded-full px-6 py-2 font-semibold text-base shadow-md hover:scale-105 transition-transform btn-primary"
+            className="rounded-full px-6 py-2 font-semibold text-base shadow-md hover:scale-100 transition-transform btn-primary"
             style={{
               background: 'var(--primary-color)',
               color: 'var(--button-text-color, white)',

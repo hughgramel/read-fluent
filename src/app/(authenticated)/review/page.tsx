@@ -12,6 +12,7 @@ import { SessionStats, GlobalReviewSettings } from '@/types/spaced-repetition';
 import { CardService } from '@/services/cardService';
 import { DeckService } from '@/services/deckService';
 import { useAuth } from '@/hooks/useAuth';
+import { MIN_STAGE } from '@/constants/spaced-repetition';
 
 export default function ReviewPage() {
   const [isCardCreatorOpen, setIsCardCreatorOpen] = useState(false);
@@ -30,6 +31,16 @@ export default function ReviewPage() {
       loadTotalDueCount();
     }
   }, [user, deckRefreshTrigger]);
+
+  // Add effect to reload card cache and refresh decks when sessionStats changes (session completes)
+  useEffect(() => {
+    if (sessionStats && user) {
+      (async () => {
+        await CardService.loadAllCardsForUser(user.uid);
+        setDeckRefreshTrigger(prev => prev + 1);
+      })();
+    }
+  }, [sessionStats, user]);
 
   const loadTotalDueCount = async () => {
     if (!user) return;
@@ -82,7 +93,11 @@ export default function ReviewPage() {
     setIsStudySessionActive(false);
   };
 
-  const handleSessionStatsClose = () => {
+  const handleSessionStatsClose = async () => {
+    if (user) {
+      await CardService.loadAllCardsForUser(user.uid);
+      setDeckRefreshTrigger(prev => prev + 1);
+    }
     setSessionStats(null);
   };
 
@@ -105,6 +120,39 @@ export default function ReviewPage() {
     setDeckRefreshTrigger(prev => prev + 1);
   };
 
+  // Add test card button handler
+  const handleAddTestCards = async () => {
+    if (!user) return;
+    const decks = await DeckService.getUserDecks(user.uid);
+    if (decks.length === 0) return;
+    const deck = decks[0];
+    const now = new Date();
+    // Create 5 review cards due today
+    const testCards = [
+      { front: 'test1', back: 'back1' },
+      { front: 'test2', back: 'back2' },
+      { front: 'test3', back: 'back3' },
+      { front: 'test4', back: 'back4' },
+      { front: 'test5', back: 'back5' },
+    ];
+    for (const card of testCards) {
+      await CardService.createCard({
+        ...card,
+        userId: user.uid,
+        deckId: deck.id,
+        isNew: false,
+        stage: -6,
+        nextReview: now,
+        relearning: false,
+        correctCount: 0,
+        type: 'basic',
+      });
+    }
+    // Reload card cache and refresh UI
+    await CardService.loadAllCardsForUser(user.uid);
+    if (typeof window !== 'undefined') window.location.reload();
+  };
+
   return (
     <div 
       className="page-container w-full min-h-screen"
@@ -116,6 +164,7 @@ export default function ReviewPage() {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
           <h1 className="text-2xl sm:text-3xl font-bold theme-text">Review</h1>
+          <button onClick={handleAddTestCards} className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Add 5 Test Cards (Due Today)</button>
           
           {/* Action Buttons */}
           <div className="flex gap-2">

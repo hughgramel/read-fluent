@@ -43,7 +43,9 @@ const db = getFirestore();
  * for the spaced repetition card system with Firebase integration
  */
 export class CardService {
-  
+  static cardCache: { [userId: string]: { [cardId: string]: Card | SentenceCard } } = {};
+  static updatedCards: { [userId: string]: Set<string> } = {};
+
   /**
    * Creates a new card in Firebase
    * @param cardData - Card data without id and timestamps
@@ -455,6 +457,71 @@ export class CardService {
       }
       throw this.handleFirebaseError(error, 'Failed to graduate new card');
     }
+  }
+  
+  /**
+   * Loads all cards for a user into the cache
+   */
+  static async loadAllCardsForUser(userId: string): Promise<void> {
+    const cardsRef = collection(db, COLLECTIONS.USERS, userId, COLLECTIONS.CARDS);
+    const querySnapshot = await getDocs(cardsRef);
+    const cache: { [cardId: string]: Card | SentenceCard } = {};
+    querySnapshot.forEach((doc) => {
+      const cardData = this.convertTimestampsToDates(doc.data());
+      cache[doc.id] = cardData as Card | SentenceCard;
+    });
+    this.cardCache[userId] = cache;
+    this.updatedCards[userId] = new Set();
+  }
+
+  /**
+   * Gets all cards for a deck from the cache
+   */
+  static getCardsByDeckFromCache(userId: string, deckId: string): (Card | SentenceCard)[] {
+    const cache = this.cardCache[userId] || {};
+    return Object.values(cache).filter(card => card.deckId === deckId);
+  }
+
+  /**
+   * Gets due cards for a deck from the cache
+   */
+  static getDueCardsFromCache(userId: string, deckId: string): (Card | SentenceCard)[] {
+    const cache = this.cardCache[userId] || {};
+    const now = new Date();
+    return Object.values(cache).filter(card => card.deckId === deckId && !card.isNew && (card.nextReview && card.nextReview <= now || card.relearning));
+  }
+
+  /**
+   * Gets new cards for a deck from the cache
+   */
+  static getNewCardsFromCache(userId: string, deckId: string, cardLimit: number): (Card | SentenceCard)[] {
+    const cache = this.cardCache[userId] || {};
+    return Object.values(cache).filter(card => card.deckId === deckId && card.isNew).slice(0, cardLimit);
+  }
+
+  /**
+   * Updates a card in the cache and marks it for upload
+   */
+  static updateCardInCache(userId: string, cardId: string, updates: Partial<Card | SentenceCard>): void {
+    if (!this.cardCache[userId] || !this.cardCache[userId][cardId]) return;
+    this.cardCache[userId][cardId] = { ...this.cardCache[userId][cardId], ...updates };
+    this.updatedCards[userId].add(cardId);
+  }
+
+  /**
+   * Batch upload updated cards to Firestore
+   */
+  static async uploadUpdatedCards(userId: string): Promise<void> {
+    if (!this.updatedCards[userId] || this.updatedCards[userId].size === 0) return;
+    const batch = writeBatch(db);
+    for (const cardId of this.updatedCards[userId]) {
+      const card = this.cardCache[userId][cardId];
+      const cardRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.CARDS, cardId);
+      const firestoreDoc = this.convertDatesToTimestamps(card);
+      batch.set(cardRef, firestoreDoc, { merge: true });
+    }
+    await batch.commit();
+    this.updatedCards[userId].clear();
   }
   
   // Private helper methods
