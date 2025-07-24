@@ -356,6 +356,23 @@ export default function Sidebar() {
           </div>
         </div>
       )}
+      {/* At the end of the Sidebar component's return, add a mobile bottom nav bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex sm:hidden bg-white border-t border-gray-200" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)', height: 64 }}>
+        {navigation.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="flex-1 flex flex-col items-center justify-center py-2"
+              style={{ color: isActive ? 'var(--primary-color)' : GRAY }}
+            >
+              <span style={{ fontSize: 24 }}>{item.icon}</span>
+              <span className="text-xs mt-1" style={{ fontWeight: isActive ? 700 : 400 }}>{item.name}</span>
+            </Link>
+          );
+        })}
+      </div>
     </aside>
   );
 } 

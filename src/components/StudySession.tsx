@@ -13,6 +13,11 @@ interface StudySessionProps {
   onExit: () => void;
 }
 
+// Type guard for Card/SentenceCard
+function isCard(card: any): card is Card | SentenceCard {
+  return card && typeof card === 'object' && 'deckId' in card && 'front' in card && 'back' in card;
+}
+
 export function StudySession({ userId, onComplete, onExit }: StudySessionProps) {
   const [studySession, setStudySession] = useState<StudySessionService | null>(null);
   const [currentCard, setCurrentCard] = useState<Card | SentenceCard | null>(null);
@@ -29,6 +34,10 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
   const [graduationThreshold, setGraduationThreshold] = useState<number>(3);
   const [currentCardProgress, setCurrentCardProgress] = useState<number>(0);
   const [deckStats, setDeckStats] = useState<{ newCount: number; dailyNewCardsDone: number; newCardsPerDay: number; dueCount: number } | null>(null);
+  const [isProcessingAnswer, setIsProcessingAnswer] = useState(false);
+  const [preloadedCard, setPreloadedCard] = useState<Card | SentenceCard | null>(null);
+  const [preloadQueue, setPreloadQueue] = useState<(Card | SentenceCard)[]>([]);
+  const [lastAnsweredAt, setLastAnsweredAt] = useState<number>(0);
 
   // Fetch deck stats at session start and after each answer
   const fetchDeckStats = async (deckId: string) => {
@@ -80,9 +89,33 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
     initializeSession();
   }, [userId, onComplete]);
 
+  // Preload a buffer of the next 3 cards
+  const preloadNextCards = useCallback(async (session: StudySessionService, count: number) => {
+    if (!session) return;
+    const newCards: (Card | SentenceCard)[] = [];
+    for (let i = 0; i < count; i++) {
+      const next = await session.getNextCard();
+      if (next) newCards.push(next);
+      else break;
+    }
+    setPreloadQueue(q => [...q, ...newCards]);
+  }, []);
+
+  // After setting currentCard, keep the buffer full
+  useEffect(() => {
+    if (studySession && currentCard) {
+      if (preloadQueue.length < 3) {
+        preloadNextCards(studySession, 3 - preloadQueue.length);
+      }
+    }
+  }, [studySession, currentCard, preloadQueue.length, preloadNextCards]);
+
   // Handle answer processing
   const handleAnswer = useCallback(async (correct: boolean) => {
-    if (!studySession || !currentCard) return;
+    // Debounce: prevent double submissions within 50ms
+    if (!studySession || !currentCard || isProcessingAnswer || Date.now() - lastAnsweredAt < 50) return;
+    setIsProcessingAnswer(true);
+    setLastAnsweredAt(Date.now());
     try {
       const wasNew = currentCard.isNew;
       const deckSettings = await studySession.getDeckSettings(currentCard.deckId);
@@ -96,24 +129,27 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
       const willGraduate = wasNew && correct && (newProgress >= threshold);
       if (willGraduate) {
         setGraduationMessage("Card graduated to review status!");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setGraduationMessage(null);
+        setTimeout(() => setGraduationMessage(null), 1000);
       }
-      const nextCard = await studySession.getNextCard();
+      // Use preloaded buffer for instant transition
+      let nextCard: Card | SentenceCard | null = null;
+      setPreloadQueue(q => {
+        nextCard = q[0] || null;
+        return q.slice(1);
+      });
       setProgress(studySession.getStudyProgress());
-      await CardService.uploadUpdatedCards(userId);
-      if (nextCard) {
+      if (nextCard && isCard(nextCard)) {
         setCurrentCard(nextCard);
         setShowBack(false);
-        await fetchDeckStats(nextCard.deckId);
-        if (studySession && nextCard.id !== currentCard.id) {
-          studySession.getNextCard().then(() => {});
-        }
+        fetchDeckStats(nextCard.deckId);
         if (nextCard.isNew) {
           const deckSettings = await studySession.getDeckSettings(nextCard.deckId);
           setGraduationThreshold(deckSettings?.graduationThreshold || 3);
           const sessionProgress = studySession.getCardSessionProgress(nextCard.id);
           setCurrentCardProgress(sessionProgress);
+        }
+        if (studySession && preloadQueue.length < 3) {
+          preloadNextCards(studySession, 3 - preloadQueue.length);
         }
       } else if (studySession.isActive()) {
         const retryCard = await studySession.getNextCard();
@@ -126,21 +162,25 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
             const sessionProgress = studySession.getCardSessionProgress(retryCard.id);
             setCurrentCardProgress(sessionProgress);
           }
+          if (studySession && preloadQueue.length < 3) {
+            preloadNextCards(studySession, 3 - preloadQueue.length);
+          }
         } else {
           const stats = studySession.getSessionStats();
-          await CardService.uploadUpdatedCards(userId);
           onComplete(stats);
         }
       } else {
         const stats = studySession.getSessionStats();
-        await CardService.uploadUpdatedCards(userId);
         onComplete(stats);
       }
+      await CardService.uploadUpdatedCards(userId);
     } catch (err) {
       console.error('Failed to process answer:', err);
       setError('Failed to process answer. Please try again.');
+    } finally {
+      setIsProcessingAnswer(false);
     }
-  }, [studySession, currentCard, fetchDeckStats, onComplete, userId]);
+  }, [studySession, currentCard, fetchDeckStats, onComplete, userId, isProcessingAnswer, preloadQueue.length, preloadNextCards, lastAnsweredAt]);
 
   // Handle keyboard shortcuts
   const handleKeyPress = useCallback((event: KeyboardEvent) => {

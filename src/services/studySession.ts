@@ -31,6 +31,7 @@ export class StudySession {
   private newCardBatch: (Card | SentenceCard)[] = [];
   private newCardQueue: (Card | SentenceCard)[] = [];
   private lastBatchIndex: number | null = null;
+  private deckSettingsMap: { [deckId: string]: Deck['settings'] } = {};
   
   constructor(session: IStudySession, globalSettings: GlobalReviewSettings) {
     this.session = session;
@@ -61,6 +62,11 @@ export class StudySession {
     const globalSettings = await StudySession.getGlobalSettings(userId);
     // Get all user decks
     const decks = await DeckService.getUserDecks(userId);
+    // Preload all deck settings into a map
+    const deckSettingsMap: { [deckId: string]: Deck['settings'] } = {};
+    for (const deck of decks) {
+      deckSettingsMap[deck.id] = deck.settings;
+    }
     // Build review queue and new card batches from cache
     let reviewQueue: (Card | SentenceCard)[] = [];
     let allNewCards: (Card | SentenceCard)[] = [];
@@ -107,7 +113,10 @@ export class StudySession {
     } else if (globalSettings.studyOrder === 'new-first' && reviewQueue.length > 0) {
       (sessionData as any).pendingReviewQueue = reviewQueue;
     }
-    return new StudySession(sessionData, globalSettings);
+    const sessionInstance = new StudySession(sessionData, globalSettings);
+    sessionInstance.deckSettingsMap = deckSettingsMap;
+    sessionInstance.newCardQueue = queue;
+    return sessionInstance;
   }
   
   /**
@@ -411,17 +420,10 @@ export class StudySession {
    * Adds a new card to the current batch to maintain batch size
    */
   private async addNewCardToBatch(deckId: string): Promise<void> {
-    const deck = await DeckService.getDeck(this.session.userId, deckId);
-    if (!deck) return;
-    const batchSize = deck.settings.cardsPerBatch || 5;
-    const dailyProgress = await DeckService.getDailyProgress(this.session.userId, deckId);
-    const remainingNewCards = Math.max(0, deck.settings.newCardsPerDay - dailyProgress.newCardsStudied);
-    
-    if (remainingNewCards > 0) {
-      const newCards = await CardService.getNewCards(this.session.userId, deckId, 1);
-      if (newCards.length > 0 && this.newCardBatch.length < batchSize) { // Ensure batch doesn't grow too large
-        this.newCardBatch.push(newCards[0]);
-      }
+    // Only use the preloaded newCardQueue, never make network calls
+    const batchSize = this.deckSettingsMap[deckId]?.cardsPerBatch || 5;
+    if (this.newCardQueue.length > 0 && this.newCardBatch.length < batchSize) {
+      this.newCardBatch.push(this.newCardQueue.shift()!);
     }
   }
   
@@ -533,16 +535,14 @@ export class StudySession {
    */
   private async _allNewCardsGraduatedAsync(): Promise<boolean> {
     let hasAnyCard = false;
-    for (const batch of this.newCardBatch) { // Changed to newCardBatch
+    for (const card of this.newCardBatch) {
       hasAnyCard = true;
-      const deck = await DeckService.getDeck(this.session.userId, batch.deckId); // Changed to batch.deckId
-      const threshold = deck?.settings?.graduationThreshold || 3;
-      const progress = this.cardSessionProgress.get(batch.id) || 0; // Changed to batch.id
+      const threshold = this.deckSettingsMap[card.deckId]?.graduationThreshold || 3;
+      const progress = this.cardSessionProgress.get(card.id) || 0;
       if (progress < threshold) {
         return false;
       }
     }
-    // If there are no cards at all, we should not consider all graduated (prevents false session end)
     if (!hasAnyCard) return false;
     return true;
   }

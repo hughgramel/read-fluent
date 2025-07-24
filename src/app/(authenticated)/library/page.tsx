@@ -64,6 +64,7 @@ export default function library() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { user } = useAuth();
+  const [theme, setTheme] = useState('light'); // Add theme state
   const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [currentSection, setCurrentSection] = useState(0);
@@ -1502,7 +1503,15 @@ export default function library() {
 
   // Library view
   return (
-    <div className="page-container min-h-screen w-full">
+    <div data-theme={theme} style={{ minHeight: '100vh' }}>
+      {/* Theme selector for demo */}
+      <div style={{ position: 'fixed', top: 8, right: 8, zIndex: 100 }}>
+        <select value={theme} onChange={e => setTheme(e.target.value)} style={{ padding: 4, borderRadius: 6 }}>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="eink">Eink</option>
+        </select>
+      </div>
       <div
         className="pr-8 pb-10 transition-all duration-300 sm:pb-10 pb-4"
         style={{
