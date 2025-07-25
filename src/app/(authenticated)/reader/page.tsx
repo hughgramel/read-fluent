@@ -72,6 +72,7 @@ export default function ReaderPage() {
   const speechPlayerRef = useRef<SpeechPlayerRef>(null);
   const [pendingSettings, setPendingSettings] = useState<ReaderSettingsType | null>(null);
   const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'settings' | 'shortcuts'>('settings');
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
 
@@ -810,12 +811,38 @@ export default function ReaderPage() {
             >
               ×
             </button>
-            <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Reader Settings</h2>
             
-            {/* Default Tab Selection */}
+            {/* Tabs */}
+            <div className="flex mb-6">
+              <button
+                onClick={() => setSettingsTab('settings')}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                  settingsTab === 'settings'
+                    ? 'border-[var(--primary-color)] text-[var(--primary-color)]'
+                    : 'border-transparent theme-text-secondary hover:theme-text'
+                }`}
+              >
+                Settings
+              </button>
+              <button
+                onClick={() => setSettingsTab('shortcuts')}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                  settingsTab === 'shortcuts'
+                    ? 'border-[var(--primary-color)] text-[var(--primary-color)]'
+                    : 'border-transparent theme-text-secondary hover:theme-text'
+                }`}
+              >
+                Keyboard Shortcuts
+              </button>
+            </div>
+            
+            {/* Settings Tab Content */}
+            {settingsTab === 'settings' && (
+              <>
+                {/* Default Tab Selection */}
             <div className="mb-6">
               <label className="block font-bold mb-2 theme-text">Default Tab</label>
-              <p className="text-sm text-gray-600 mb-3">Which tab would you like to have open by default in the dictionary?</p>
+              <p className="text-sm theme-text-secondary mb-3">Which tab would you like to have open by default in the dictionary?</p>
               
               {/* Tab Icons Row */}
               <div className="flex gap-2 mb-3">
@@ -823,8 +850,8 @@ export default function ReaderPage() {
                   onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'definition' })}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
                     (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'definition'
-                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
-                      : 'border-gray-300 bg-white hover:border-gray-400'
+                      ? 'border-[var(--primary-color)] bg-[var(--primary-color)] text-white'
+                      : 'theme-border theme-bg hover:border-[var(--primary-color)]'
                   }`}
                 >
                   <BookOpen size={20} />
@@ -835,8 +862,8 @@ export default function ReaderPage() {
                   onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'word-explain' })}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
                     (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'word-explain'
-                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
-                      : 'border-gray-300 bg-white hover:border-gray-400'
+                      ? 'border-[var(--primary-color)] bg-[var(--primary-color)] text-white'
+                      : 'theme-border theme-bg hover:border-[var(--primary-color)]'
                   }`}
                 >
                   <Bot size={20} />
@@ -847,8 +874,8 @@ export default function ReaderPage() {
                   onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'explain' })}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
                     (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'explain'
-                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
-                      : 'border-gray-300 bg-white hover:border-gray-400'
+                      ? 'border-[var(--primary-color)] bg-[var(--primary-color)] text-white'
+                      : 'theme-border theme-bg hover:border-[var(--primary-color)]'
                   }`}
                 >
                   <ListOrdered size={20} />
@@ -859,8 +886,8 @@ export default function ReaderPage() {
                   onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'translate' })}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
                     (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'translate'
-                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
-                      : 'border-gray-300 bg-white hover:border-gray-400'
+                      ? 'border-[var(--primary-color)] bg-[var(--primary-color)] text-white'
+                      : 'theme-border theme-bg hover:border-[var(--primary-color)]'
                   }`}
                 >
                   <Languages size={20} />
@@ -871,8 +898,8 @@ export default function ReaderPage() {
                   onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'sentence' })}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
                     (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'sentence'
-                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
-                      : 'border-gray-300 bg-white hover:border-gray-400'
+                      ? 'border-[var(--primary-color)] bg-[var(--primary-color)] text-white'
+                      : 'theme-border theme-bg hover:border-[var(--primary-color)]'
                   }`}
                 >
                   <Eye size={20} />
@@ -884,7 +911,7 @@ export default function ReaderPage() {
               <select
                 value={pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab || 'word-explain'}
                 onChange={e => handlePendingSettingChange({ wordPopupDefaultTab: e.target.value as any })}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               >
                 <option value="definition">Definition</option>
                 <option value="word-explain">AI Word Explanation</option>
@@ -903,7 +930,8 @@ export default function ReaderPage() {
                 step={1}
                 value={pendingSettings?.readerFontSize || readerSettings.readerFontSize}
                 onChange={e => { handlePendingSettingChange({ readerFontSize: Number(e.target.value) }); }}
-                className="w-full accent-[#2563eb]"
+                className="w-full"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
             </div>
             <div className="mb-6">
@@ -915,9 +943,10 @@ export default function ReaderPage() {
                 step={10}
                 value={pendingSettings?.readerWidth || readerSettings.readerWidth}
                 onChange={e => { handlePendingSettingChange({ readerWidth: Number(e.target.value) }); }}
-                className="w-full accent-[#2563eb]"
+                className="w-full"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
-              <div className="flex justify-between text-sm text-gray-600 mt-1">
+              <div className="flex justify-between text-sm theme-text-secondary mt-1">
                 <span>Narrow (~55 char)</span>
                 <span>Medium (~75 char)</span>
                 <span>Wide (~95 char)</span>
@@ -931,7 +960,7 @@ export default function ReaderPage() {
               <select
                 value={pendingSettings?.readerFont || readerSettings.readerFont}
                 onChange={e => { handlePendingSettingChange({ readerFont: e.target.value }); }}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               >
                 <option value="serif">Serif (default)</option>
                 <option value="sans-serif">Sans-serif</option>
@@ -961,7 +990,7 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ readerContainerStyle: e.target.value as any });
                 }}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               >
                 <option value="contained">Contained (default)</option>
                 <option value="border">Border Only</option>
@@ -982,7 +1011,7 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ sentencesPerPage: Number(e.target.value) });
                 }}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               />
             </div>
             <div className="mb-6">
@@ -996,7 +1025,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ ttsSpeed: Number(e.target.value) });
                 }}
-                className="w-full accent-[#2563eb]"
+                className="w-full"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
             </div>
 
@@ -1008,7 +1038,7 @@ export default function ReaderPage() {
                   onChange={e => {
                     handlePendingSettingChange({ ttsVoice: e.target.value || undefined });
                   }}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                  className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
                 >
                   <option value="">No speaker selected</option>
                   {(() => {
@@ -1022,11 +1052,11 @@ export default function ReaderPage() {
                     ));
                   })()}
                 </select>
-                <button type="button" onClick={fetchVoices} disabled={isFetchingVoices} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-xs font-bold">
+                <button type="button" onClick={fetchVoices} disabled={isFetchingVoices} className="px-2 py-1 theme-bg-secondary rounded hover:bg-[var(--secondary-color-hover)] text-xs font-bold theme-text">
                   {isFetchingVoices ? 'Updating...' : 'Update List'}
                 </button>
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs theme-text-secondary mt-1">
                 Target language: {pendingSettings?.targetLanguage || readerSettings.targetLanguage}
               </div>
             </div>
@@ -1038,7 +1068,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ disableWordHighlighting: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="disable-word-highlighting" className="font-bold theme-text select-none cursor-pointer">Disable word highlighting</label>
             </div>
@@ -1050,7 +1081,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ disableSentenceHighlighting: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="disable-sentence-highlighting" className="font-bold theme-text select-none cursor-pointer">Disable sentence highlighting</label>
             </div>
@@ -1062,7 +1094,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ invisibleText: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="invisible-text" className="font-bold theme-text select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
             </div>
@@ -1074,7 +1107,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ showCurrentWordWhenInvisible: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
                 disabled={!(pendingSettings?.invisibleText ?? readerSettings.invisibleText)}
               />
               <label htmlFor="show-current-word-when-invisible" className="font-bold theme-text select-none cursor-pointer">Show currently-being-read word when invisible</label>
@@ -1089,7 +1123,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ highlightSentenceOnHover: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="highlight-sentence-on-hover" className="font-bold theme-text select-none cursor-pointer">Highlight sentences on hover</label>
             </div>
@@ -1104,9 +1139,10 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ lineSpacing: Number(e.target.value) });
                 }}
-                className="w-full accent-[#2563eb]"
+                className="w-full"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
-              <div className="flex justify-between text-sm text-gray-600 mt-1">
+              <div className="flex justify-between text-sm theme-text-secondary mt-1">
                 <span>1.0</span>
                 <span>1.5</span>
                 <span>2.5</span>
@@ -1120,7 +1156,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ disableWordSpans: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="disable-word-spans" className="font-bold theme-text select-none cursor-pointer">Disable word-level spans (only wrap sentences)</label>
             </div>
@@ -1132,7 +1169,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ disableSentenceSpans: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="disable-sentence-spans" className="font-bold theme-text select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
             </div>
@@ -1144,7 +1182,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ showAudioBarOnStart: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="show-audio-bar-on-start" className="font-bold theme-text select-none cursor-pointer">Show audio bar on start</label>
             </div>
@@ -1156,7 +1195,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ enableHighlightWords: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="enable-highlight-words" className="font-bold theme-text select-none cursor-pointer">Enable highlight words</label>
             </div>
@@ -1168,7 +1208,8 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ disableWordDefinitionPopup: e.target.checked });
                 }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="disable-word-definition-popup" className="font-bold theme-text select-none cursor-pointer">Disable word-definition popup (on click/shift)</label>
             </div>
@@ -1178,7 +1219,8 @@ export default function ReaderPage() {
                 type="checkbox"
                 checked={pendingSettings?.enableSwipeNavigation ?? readerSettings.enableSwipeNavigation ?? true}
                 onChange={e => handlePendingSettingChange({ enableSwipeNavigation: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="enable-swipe-navigation" className="font-bold theme-text select-none cursor-pointer">Enable swipe left/right for page navigation</label>
             </div>
@@ -1188,7 +1230,8 @@ export default function ReaderPage() {
                 type="checkbox"
                 checked={pendingSettings?.enableDoubleTapNavigation ?? readerSettings.enableDoubleTapNavigation ?? true}
                 onChange={e => handlePendingSettingChange({ enableDoubleTapNavigation: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="enable-double-tap-navigation" className="font-bold theme-text select-none cursor-pointer">Enable double-tap left/right for page navigation</label>
             </div>
@@ -1198,7 +1241,8 @@ export default function ReaderPage() {
                 type="checkbox"
                 checked={pendingSettings?.autoMarkPageComplete ?? readerSettings.autoMarkPageComplete ?? false}
                 onChange={e => handlePendingSettingChange({ autoMarkPageComplete: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="auto-mark-page-complete" className="font-bold theme-text select-none cursor-pointer">Automatically mark page complete when going to next page</label>
             </div>
@@ -1208,7 +1252,8 @@ export default function ReaderPage() {
                 type="checkbox"
                 checked={pendingSettings?.disableClipboardButton ?? readerSettings.disableClipboardButton ?? false}
                 onChange={e => handlePendingSettingChange({ disableClipboardButton: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="disable-clipboard-button" className="font-bold theme-text select-none cursor-pointer">Hide clipboard button in reader</label>
             </div>
@@ -1218,13 +1263,14 @@ export default function ReaderPage() {
                 type="checkbox"
                 checked={pendingSettings?.enableMarkdown ?? readerSettings.enableMarkdown ?? false}
                 onChange={e => handlePendingSettingChange({ enableMarkdown: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="enable-markdown" className="font-bold theme-text select-none cursor-pointer">Render page content as markdown</label>
             </div>
 
-            {/* Save/Cancel Buttons */}
-            {hasUnsavedSettings && (
+            {/* Save/Cancel Buttons - Only show on settings tab */}
+            {settingsTab === 'settings' && hasUnsavedSettings && (
               <div style={{
                 position: 'fixed',
                 left: 0,
@@ -1288,6 +1334,113 @@ export default function ReaderPage() {
                 Reset to Defaults
               </button>
             </div>
+              </>
+            )}
+            
+            {/* Shortcuts Tab Content */}
+            {settingsTab === 'shortcuts' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold theme-text mb-4">Reader Navigation</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Previous page</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">←</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Next page</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">→</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Mark/Unmark page complete</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Enter</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Toggle invisible text</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">I</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Toggle section sidebar</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">S</kbd>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-bold theme-text mb-4">Speech Player</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Play/Pause</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">P</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Play/Pause (alternative)</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">W</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Previous sentence</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">A</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Next sentence</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">D</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Repeat current sentence</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">R</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Hold W for invisible text</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Hold W</kbd>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-bold theme-text mb-4">Word Interaction</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Show word definition</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Click</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Show word definition (alternative)</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Shift + Click</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Mark word as known</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">1</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Mark word as tracking</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">2</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Mark word as ignored</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">3</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Mark word as unknown</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">4</kbd>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-bold theme-text mb-4">Sentence Selection</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Toggle sentence select mode</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Click purple button</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Select sentence</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Click sentence</kbd>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

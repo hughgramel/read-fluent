@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata, archiveBook, getArchivedBooks, deleteArchivedBook, ArchivedBookMetadata } from '@/services/epubService';
+import { ContentGenerationService, GenerateContentParams } from '@/services/contentGenerationService';
 import { useAuth } from '@/hooks/useAuth';
 import { UserService } from '@/services/userService';
 import { FiTrash2, FiBarChart2, FiCheckCircle, FiPlus, FiArchive } from 'react-icons/fi';
@@ -104,6 +105,19 @@ export default function library() {
   const [analyzeError, setAnalyzeError] = useState('');
   // Add state for userWords
   const [userWords, setUserWords] = useState<{ [word: string]: 'known' | 'tracking' | 'ignored' | 'unknown' }>({});
+  // Add state for modal tabs
+  const [modalTab, setModalTab] = useState<'add-text' | 'generate'>('add-text');
+  
+  // Add state for generate options
+  const [generateLanguage, setGenerateLanguage] = useState('es');
+  const [generateGenre, setGenerateGenre] = useState('story');
+  const [generateTopic, setGenerateTopic] = useState('');
+  const [generateDifficulty, setGenerateDifficulty] = useState('beginner');
+  const [generateDelfLevel, setGenerateDelfLevel] = useState('a1');
+  const [generateLength, setGenerateLength] = useState(1000);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generateSuccess, setGenerateSuccess] = useState<string | null>(null);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -1204,6 +1218,74 @@ export default function library() {
     setArchivedBooks(prev => prev.filter(b => b.id !== archivedId));
   };
 
+  // Generate content handler
+  const onGenerate = async () => {
+    if (!user?.uid) {
+      setGenerateError('You must be logged in to generate content.');
+      return;
+    }
+
+    if (!generateTopic.trim()) {
+      setGenerateError('Please enter a topic for your content.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerateError(null);
+
+    try {
+      const params: GenerateContentParams = {
+        language: generateLanguage,
+        genre: generateGenre,
+        topic: generateTopic.trim(),
+        difficulty: generateDifficulty,
+        delfLevel: generateDelfLevel,
+        length: generateLength
+      };
+
+      // Generate content using AI
+      const generatedContent = await ContentGenerationService.generateContent(params);
+      
+      // Save the generated book to the database
+      const bookId = await ContentGenerationService.saveGeneratedBook(user.uid, generatedContent, params);
+      
+      // Refresh the books list
+      const updatedBooks = await getBooks(user.uid);
+      setBooks(updatedBooks.map(meta => ({
+        id: meta.bookId,
+        title: meta.title,
+        author: meta.author,
+        description: '',
+        sections: [],
+        totalWords: meta.totalWords,
+        fileName: meta.fileName,
+        dateAdded: meta.dateAdded,
+        storagePath: meta.storagePath,
+        downloadURL: meta.downloadURL,
+        completed: meta.completed || false,
+        css: '',
+        wordsRead: meta.wordsRead || 0,
+      })));
+
+      // Close the modal and show success message
+      setShowTextModal(false);
+      setModalTab('add-text');
+      setGenerateTopic('');
+      setGenerateSuccess(`"${generatedContent.title}" has been generated and added to your library!`);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setGenerateSuccess(null), 5000);
+      
+      console.log('Content generated successfully:', bookId);
+      
+    } catch (error) {
+      console.error('Generation error:', error);
+      setGenerateError(error instanceof Error ? error.message : 'Failed to generate content. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Analyze comprehension for a book
   const analyzeComprehension = async (book: Book) => {
     setAnalyzing(true);
@@ -1495,12 +1577,29 @@ export default function library() {
           <div className="flex items-center gap-3">
             {/* Add Text Button */}
             <button
-              className="flex items-center justify-center rounded-full btn-primary w-11 h-11 shadow-sm transition-colors border-none focus:outline-none focus:ring-2 sm:w-11 sm:h-11 w-9 h-9 text-base sm:text-xl"
-              style={{ fontSize: 24, marginRight: 0 }}
+              className="flex items-center gap-2 btn-primary px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
               title="Add Text Book"
-              onClick={() => setShowTextModal(true)}
+              onClick={() => {
+                setModalTab('add-text');
+                setShowTextModal(true);
+              }}
             >
-              <FiPlus />
+              <FiPlus className="w-5 h-5" />
+              <span>Add</span>
+            </button>
+            {/* Generate Content Button */}
+            <button
+              className="flex items-center gap-2 btn-primary px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
+              title="Generate Content"
+              onClick={() => {
+                setModalTab('generate');
+                setShowTextModal(true);
+              }}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Generate</span>
             </button>
             {/* Upload EPUB Button */}
           <button
@@ -1525,6 +1624,11 @@ export default function library() {
         {error && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {error}
+          </div>
+        )}
+        {generateSuccess && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+            {generateSuccess}
           </div>
         )}
         {/* Book sections and modals remain below, but Daily Goals section is removed */}
@@ -1552,96 +1656,265 @@ export default function library() {
               >
                 ×
               </button>
-              <h2 className="text-xl sm:text-2xl font-extrabold mb-3 sm:mb-4 theme-text tracking-tight text-center">Add Text Book</h2>
-              <div className="theme-text-secondary text-base space-y-3 px-2">
-                <div className="flex flex-col mb-2">
-                  <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Title</label>
-                  <input
-                    type="text"
-                    value={textTitle}
-                    onChange={e => setTextTitle(e.target.value)}
-                    className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg"
-                  />
-                </div>
-                <div className="flex flex-col mb-2">
-                  <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Author</label>
-                  <input
-                    type="text"
-                    value={textAuthor}
-                    onChange={e => setTextAuthor(e.target.value)}
-                    className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg"
-                  />
-                </div>
-                <div className="flex flex-col mb-2">
-                  <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Text Content</label>
-                  <textarea
-                    value={textContent}
-                    onChange={e => setTextContent(e.target.value)}
-                    rows={5}
-                    className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg sm:min-h-[220px] min-h-[100px] max-h-[140px]"
-                    style={{ resize: 'vertical' }}
-                  />
-                </div>
-                <div className="flex flex-col mb-2">
-                  <label className="font-semibold mb-1">Or upload .txt file</label>
-                  <label htmlFor="text-upload-input" className="btn-primary inline-block w-fit px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base sm:text-base text-sm mb-2">
-                    Choose .txt File
+              
+              {/* Tabs */}
+              <div className="flex mb-6">
+                <button
+                  onClick={() => setModalTab('add-text')}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    modalTab === 'add-text'
+                      ? 'border-[var(--primary-color)] text-[var(--primary-color)]'
+                      : 'border-transparent theme-text-secondary hover:theme-text'
+                  }`}
+                >
+                  Add Text
+                </button>
+                <button
+                  onClick={() => setModalTab('generate')}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    modalTab === 'generate'
+                      ? 'border-[var(--primary-color)] text-[var(--primary-color)]'
+                      : 'border-transparent theme-text-secondary hover:theme-text'
+                  }`}
+                >
+                  Generate
+                </button>
+              </div>
+              
+              {/* Tab Content */}
+              {modalTab === 'add-text' && (
+                <div className="theme-text-secondary text-base space-y-3 px-2">
+                  <div className="flex flex-col mb-2">
+                    <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Title</label>
                     <input
-                      id="text-upload-input"
-                      type="file"
-                      accept=".txt"
-                      onChange={handleTextFileSelect}
-                      className="hidden"
+                      type="text"
+                      value={textTitle}
+                      onChange={e => setTextTitle(e.target.value)}
+                      className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg"
                     />
-                  </label>
-                  {textFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{textFile.name}</span></div>}
-                </div>
-                <div className="flex flex-col mb-2">
-                  <label className="font-semibold mb-1">Or upload .md file</label>
-                  <div className="flex flex-row gap-2">
-                    <label htmlFor="md-upload-input" className="btn-primary inline-block w-fit px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base sm:text-base text-sm mb-2">
-                      Choose .md File
+                  </div>
+                  <div className="flex flex-col mb-2">
+                    <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Author</label>
+                    <input
+                      type="text"
+                      value={textAuthor}
+                      onChange={e => setTextAuthor(e.target.value)}
+                      className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg"
+                    />
+                  </div>
+                  <div className="flex flex-col mb-2">
+                    <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Text Content</label>
+                    <textarea
+                      value={textContent}
+                      onChange={e => setTextContent(e.target.value)}
+                      rows={5}
+                      className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg sm:min-h-[220px] min-h-[100px] max-h-[140px]"
+                      style={{ resize: 'vertical' }}
+                    />
+                  </div>
+                  <div className="flex flex-col mb-2">
+                    <label className="font-semibold mb-1">Or upload .txt file</label>
+                    <label htmlFor="text-upload-input" className="btn-primary inline-block w-fit px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base sm:text-base text-sm mb-2">
+                      Choose .txt File
                       <input
-                        id="md-upload-input"
+                        id="text-upload-input"
                         type="file"
-                        accept=".md"
-                        onChange={handleMdFileSelect}
+                        accept=".txt"
+                        onChange={handleTextFileSelect}
                         className="hidden"
                       />
                     </label>
-                    <button
-                      className="btn-primary px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors text-base sm:text-base text-sm mb-2"
-                      disabled={batchMdLoading}
-                      onClick={() => document.getElementById('batch-md-upload-input')?.click()}
-                      type="button"
+                    {textFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{textFile.name}</span></div>}
+                  </div>
+                  <div className="flex flex-col mb-2">
+                    <label className="font-semibold mb-1">Or upload .md file</label>
+                    <div className="flex flex-row gap-2">
+                      <label htmlFor="md-upload-input" className="btn-primary inline-block w-fit px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base sm:text-base text-sm mb-2">
+                        Choose .md File
+                        <input
+                          id="md-upload-input"
+                          type="file"
+                          accept=".md"
+                          onChange={handleMdFileSelect}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        className="btn-primary px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors text-base sm:text-base text-sm mb-2"
+                        disabled={batchMdLoading}
+                        onClick={() => document.getElementById('batch-md-upload-input')?.click()}
+                        type="button"
+                      >
+                        {batchMdLoading ? 'Uploading...' : 'Batch Upload (max 5)'}
+                      </button>
+                      <input
+                        id="batch-md-upload-input"
+                        type="file"
+                        accept=".md"
+                        multiple
+                        onChange={handleBatchMdFileSelect}
+                        className="hidden"
+                        disabled={batchMdLoading}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500 mt-1">You can select up to 5 .md files at once.</span>
+                    {batchMdError && <div className="text-red-600 text-xs mt-1">{batchMdError}</div>}
+                    {mdFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{mdFile.name}</span></div>}
+                    {mdError && <div className="text-red-600 text-sm mb-2">{mdError}</div>}
+                    {mdLoading && <div className="text-blue-600 text-sm mb-2">Processing .md file...</div>}
+                  </div>
+                  {textError && <div className="text-red-600 text-sm mb-2">{textError}</div>}
+                  <button
+                    onClick={handleCreateTextBook}
+                    className="btn-primary w-full mt-4 py-2 sm:py-3 px-3 sm:px-4 rounded-md sm:rounded-lg font-bold text-base sm:text-base text-sm shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
+                    disabled={textLoading}
+                  >
+                    {textLoading ? 'Adding...' : 'Add Book'}
+                  </button>
+                </div>
+              )}
+              
+              {modalTab === 'generate' && (
+                <div className="theme-text-secondary text-base space-y-4 px-2">
+                  <div className="flex flex-col mb-4">
+                    <label className="font-semibold mb-2 text-base">Language</label>
+                    <select
+                      value={generateLanguage}
+                      onChange={e => setGenerateLanguage(e.target.value)}
+                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      style={{ borderColor: 'var(--border-color)' }}
                     >
-                      {batchMdLoading ? 'Uploading...' : 'Batch Upload (max 5)'}
-                    </button>
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                      <option value="it">Italian</option>
+                      <option value="pt">Portuguese</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col mb-4">
+                    <label className="font-semibold mb-2 text-base">Genre</label>
+                    <select
+                      value={generateGenre}
+                      onChange={e => setGenerateGenre(e.target.value)}
+                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      style={{ borderColor: 'var(--border-color)' }}
+                    >
+                      <option value="story">Story</option>
+                      <option value="news">News Report</option>
+                      <option value="article">Article</option>
+                      <option value="essay">Essay</option>
+                      <option value="speech">Speech</option>
+                      <option value="dialogue">Dialogue</option>
+                      <option value="biography">Biography</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col mb-4">
+                    <label className="font-semibold mb-2 text-base">Topic</label>
                     <input
-                      id="batch-md-upload-input"
-                      type="file"
-                      accept=".md"
-                      multiple
-                      onChange={handleBatchMdFileSelect}
-                      className="hidden"
-                      disabled={batchMdLoading}
+                      type="text"
+                      value={generateTopic}
+                      onChange={e => setGenerateTopic(e.target.value)}
+                      placeholder="Enter a topic for your content (e.g., 'A day at the beach', 'Climate change', 'Traveling to Paris')"
+                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      style={{ borderColor: 'var(--border-color)' }}
                     />
                   </div>
-                  <span className="text-xs text-gray-500 mt-1">You can select up to 5 .md files at once.</span>
-                  {batchMdError && <div className="text-red-600 text-xs mt-1">{batchMdError}</div>}
-                  {mdFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{mdFile.name}</span></div>}
-                  {mdError && <div className="text-red-600 text-sm mb-2">{mdError}</div>}
-                  {mdLoading && <div className="text-blue-600 text-sm mb-2">Processing .md file...</div>}
+
+                  <div className="flex flex-col mb-4">
+                    <label className="font-semibold mb-2 text-base">Difficulty Level</label>
+                    <select
+                      value={generateDifficulty}
+                      onChange={e => {
+                        const difficulty = e.target.value;
+                        setGenerateDifficulty(difficulty);
+                        // Auto-set DELF level based on difficulty
+                        if (difficulty === 'beginner') {
+                          setGenerateDelfLevel('a1');
+                        } else if (difficulty === 'intermediate') {
+                          setGenerateDelfLevel('b1');
+                        } else if (difficulty === 'advanced') {
+                          setGenerateDelfLevel('c1');
+                        }
+                      }}
+                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      style={{ borderColor: 'var(--border-color)' }}
+                    >
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col mb-4">
+                    <label className="font-semibold mb-2 text-base">DELF Level (Optional)</label>
+                    <select
+                      value={generateDelfLevel}
+                      onChange={e => setGenerateDelfLevel(e.target.value)}
+                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      style={{ borderColor: 'var(--border-color)' }}
+                    >
+                      {generateDifficulty === 'beginner' && (
+                        <>
+                          <option value="a1">A1 (Beginner)</option>
+                          <option value="a2">A2 (Elementary)</option>
+                        </>
+                      )}
+                      {generateDifficulty === 'intermediate' && (
+                        <>
+                          <option value="b1">B1 (Intermediate)</option>
+                          <option value="b2">B2 (Upper Intermediate)</option>
+                        </>
+                      )}
+                      {generateDifficulty === 'advanced' && (
+                        <>
+                          <option value="c1">C1 (Advanced)</option>
+                          <option value="c2">C2 (Mastery)</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col mb-6">
+                    <label className="font-semibold mb-2 text-base">Length ({generateLength} words)</label>
+                    <input
+                      type="range"
+                      min={500}
+                      max={3000}
+                      step={100}
+                      value={generateLength}
+                      onChange={e => setGenerateLength(Number(e.target.value))}
+                      className="w-full"
+                      style={{ accentColor: 'var(--primary-color)' }}
+                    />
+                    <div className="flex justify-between text-sm theme-text-secondary mt-1">
+                      <span>500 words</span>
+                      <span>1500 words</span>
+                      <span>3000 words</span>
+                    </div>
+                  </div>
+
+                  {generateError && (
+                    <div className="text-red-500 text-sm mt-2 p-2 bg-red-50 rounded border border-red-200">
+                      {generateError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={onGenerate}
+                    disabled={isGenerating}
+                    className={`w-full mt-4 py-3 px-4 rounded-lg font-bold text-base shadow-sm transition-colors border-none focus:outline-none focus:ring-2 ${
+                      isGenerating 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'btn-primary'
+                    }`}
+                  >
+                    {isGenerating ? 'Generating Content...' : 'Generate Content'}
+                  </button>
                 </div>
-                {textError && <div className="text-red-600 text-sm mb-2">{textError}</div>}
-                <button
-                  onClick={handleCreateTextBook}
-                  className="btn-primary w-full mt-4 py-2 sm:py-3 px-3 sm:px-4 rounded-md sm:rounded-lg font-bold text-base sm:text-base text-sm shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
-                  disabled={textLoading}
-                >
-                  {textLoading ? 'Adding...' : 'Add Book'}
-                </button>
-              </div>
+              )}
             </div>
           </div>
         )}
