@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MultiLanguageTransformer } from '@/language/multi-language-transformer';
 import { useRef } from 'react';
 import { UserService } from '@/services/userService';
+import { fillPromptVariables } from '@/utils/promptUtils';
 
 
 export type DatabaseTermEntry = {
@@ -266,10 +267,10 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const [lastTranslatePrompt, setLastTranslatePrompt] = useState<string | null>(null);
   const [userPrompts, setUserPrompts] = useState<any | null>(null);
   const defaultPrompts = {
-    wordExplainSystem: `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language [INTERFACE_LANG].\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`,
-    wordExplainUser: `[SENTENCE]. Explain usage of word(s): [WORD] (lang: [TARGET_LANG])`,
-    sentenceBreakdown: `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [TARGET_LANG]. ONLY output text IN [INTERFACE_LANG].`,
-    sentenceTranslation: `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [INTERFACE_LANG].`
+    wordExplainSystem: `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language [NATIVE_LANG].\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`,
+    wordExplainUser: `[SENTENCE]. Explain usage of word(s): [WORD] (lang: [NATIVE_LANG])`,
+    sentenceBreakdown: `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [NATIVE_LANG]. ONLY output text IN [NATIVE_LANG].`,
+    sentenceTranslation: `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [NATIVE_LANG].`
   };
   const { user } = useAuth ? useAuth() : { user: null };
   useEffect(() => {
@@ -494,10 +495,10 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   }
 
   // Prompts
-  const wordExplainSystemPrompt = userPrompts?.wordExplainSystem || defaultPrompts.wordExplainSystem;
-  const wordExplainUserPrompt = userPrompts?.wordExplainUser || defaultPrompts.wordExplainUser;
-  const sentenceBreakdownPrompt = userPrompts?.sentenceBreakdown || defaultPrompts.sentenceBreakdown;
-  const sentenceTranslationPrompt = userPrompts?.sentenceTranslation || defaultPrompts.sentenceTranslation;
+  const wordExplainSystemPrompt = (userPrompts?.wordExplainSystem || defaultPrompts.wordExplainSystem).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
+  const wordExplainUserPrompt = (userPrompts?.wordExplainUser || defaultPrompts.wordExplainUser).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
+  const sentenceBreakdownPrompt = (userPrompts?.sentenceBreakdown || defaultPrompts.sentenceBreakdown).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
+  const sentenceTranslationPrompt = (userPrompts?.sentenceTranslation || defaultPrompts.sentenceTranslation).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
 
   // Handle Word Explanation tab
   useEffect(() => {
@@ -505,8 +506,18 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       setWordExplainResult(null);
       setWordExplainError(null);
       setWordExplainLoading(true);
-      const systemPrompt = wordExplainSystemPrompt.replace('[INTERFACE_LANG]', interfaceLang);
-      const userPrompt = wordExplainUserPrompt.replace('[SENTENCE]', sentence).replace('[WORD]', word).replace('[TARGET_LANG]', targetLang);
+      const systemPrompt = fillPromptVariables(wordExplainSystemPrompt, {
+        interfaceLang,
+        targetLang,
+        word,
+        sentence,
+      });
+      const userPrompt = fillPromptVariables(wordExplainUserPrompt, {
+        interfaceLang,
+        targetLang,
+        word,
+        sentence,
+      });
       const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
       setLastWordExplainPrompt(combinedPrompt);
       callGemini(combinedPrompt)
@@ -522,7 +533,12 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       setExplainResult(null);
       setExplainError(null);
       setExplainLoading(true);
-      const prompt = sentenceBreakdownPrompt.replace('[WORD]', word).replace('[SENTENCE]', sentence).replace('[INTERFACE_LANG]', interfaceLang).replace('[TARGET_LANG]', targetLang);
+      const prompt = fillPromptVariables(sentenceBreakdownPrompt, {
+        interfaceLang,
+        targetLang,
+        word,
+        sentence,
+      });
       setLastExplainPrompt(prompt);
       callGemini(prompt)
         .then(setExplainResult)
@@ -537,11 +553,12 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       setTranslateResult(null);
       setTranslateError(null);
       setTranslateLoading(true);
-      const prompt = sentenceTranslationPrompt
-        .replace('[WORD]', word)
-        .replace('[SENTENCE]', sentence)
-        .replace('[TARGET_LANG]', targetLang)
-        .replace('[INTERFACE_LANG]', interfaceLang);
+      const prompt = fillPromptVariables(sentenceTranslationPrompt, {
+        interfaceLang,
+        targetLang,
+        word,
+        sentence,
+      });
       setLastTranslatePrompt(prompt);
       callGemini(prompt)
         .then(setTranslateResult)

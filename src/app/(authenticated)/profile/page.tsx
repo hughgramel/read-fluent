@@ -10,28 +10,15 @@ import ThemeSettings from '@/components/ThemeSettings';
 import { use } from 'react';
 import { useRef } from 'react';
 import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { fillPromptVariables } from '@/utils/promptUtils';
 
-type DictionaryConfig = { name: string; collection: string };
+type DictionaryConfig = { name: string; collection: string; language: string; glossLanguage: string };
 
 // Helper to format the date
 const formatJoinDate = (date: Date | undefined): string => {
   if (!date) return 'Unknown';
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 };
-
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'zh', name: 'Mandarin Chinese' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ur', name: 'Urdu' },
-  { code: 'ja', name: 'Japanese' },
-];
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -61,12 +48,30 @@ export default function ProfilePage() {
   const defaultPrompts = {
     wordExplainSystem: `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language [INTERFACE_LANG].\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`,
     wordExplainUser: `[SENTENCE]. Explain usage of word(s): [WORD] (lang: [TARGET_LANG])`,
-    sentenceBreakdown: `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [TARGET_LANG]. ONLY output text IN [INTERFACE_LANG].`,
+    sentenceBreakdown: `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language [INTERFACE_LANG].\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\n[LANGUAGE_EXCEPTION]`,
     sentenceTranslation: `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [INTERFACE_LANG].`
   };
   const [settingsDraft, setSettingsDraft] = useState<any>(null);
   const [settingsChanged, setSettingsChanged] = useState(false);
   const [promptsDropdownOpen, setPromptsDropdownOpen] = useState(false);
+  const [lastSavedSettings, setLastSavedSettings] = useState<any>(null);
+
+  // Add state for languagesData
+  const [languagesData, setLanguagesData] = useState<{ code: string; name: string }[]>([]);
+
+  // Add a state to track if prompts have changed
+  const [promptsChanged, setPromptsChanged] = useState(false);
+
+  // Helper to get language name from code
+  const getLanguageName = (code: string) => {
+    const lang = languagesData.find((l: any) => l.code === code);
+    return lang ? lang.name : code;
+  };
+
+  // Helper to get dictionary for language pair
+  const getDictionaryForPair = (language: string, glossLanguage: string, dictionaries: DictionaryConfig[]) => {
+    return dictionaries.find(d => d.language === language && d.glossLanguage === glossLanguage);
+  };
 
   const handleLogout = async () => {
     try {
@@ -78,12 +83,20 @@ export default function ProfilePage() {
     }
   };
 
-  // Load available dictionaries
+  // Fetch languages.json on mount
+  useEffect(() => {
+    fetch('/languages.json')
+      .then(res => res.json())
+      .then(setLanguagesData)
+      .catch(() => setLanguagesData([]));
+  }, []);
+
+  // Update fallback for dictionaries fetch
   useEffect(() => {
     fetch('/dictionaries.json')
       .then(res => res.json())
       .then(setDictionaries)
-      .catch(() => setDictionaries([{ name: 'No dictionary', collection: 'none' }]));
+      .catch(() => setDictionaries([{ name: 'No dictionary', collection: 'none', language: 'none', glossLanguage: 'none' }]));
   }, []);
 
   useEffect(() => {
@@ -123,14 +136,18 @@ export default function ProfilePage() {
         UserService.getUserPreferences(user.uid)
       ]).then(([promptsFromDb, prefs]) => {
         const mergedPrompts = { ...defaultPrompts, ...promptsFromDb };
-        setPrompts(mergedPrompts);
-        setSettingsDraft({
-          language: prefs?.language || 'en',
+        const saved = {
+          language: prefs?.language || prefs?.targetLanguage || 'en',
+          nativeLanguage: prefs?.nativeLanguage || localStorage.getItem('reader-native-language') || 'en',
           dictionary: prefs?.dictionary || 'none',
           prompts: mergedPrompts,
-        });
+        };
+        setPrompts(mergedPrompts);
+        setSettingsDraft({ ...saved });
+        setLastSavedSettings({ ...saved });
         setSettingsChanged(false);
         setPromptsLoading(false);
+        setNativeLanguage(saved.nativeLanguage);
       });
     }
   }, [user]);
@@ -142,27 +159,27 @@ export default function ProfilePage() {
   };
   const handlePromptDraftChange = (key: string, value: string) => {
     setSettingsDraft((prev: any) => ({ ...prev, prompts: { ...prev.prompts, [key]: value } }));
-    setSettingsChanged(true);
+    setPromptsChanged(true);
   };
   const handleSaveSettings = async () => {
     if (!user || !settingsDraft) return;
     setPromptsLoading(true);
     await UserService.updateUserPreferences(user.uid, {
       targetLanguage: settingsDraft.language,
+      nativeLanguage: settingsDraft.nativeLanguage,
       dictionary: settingsDraft.dictionary,
     });
     await UserService.updateUserPrompts(user.uid, settingsDraft.prompts);
     setPrompts(settingsDraft.prompts);
+    setLastSavedSettings({ ...settingsDraft });
     setPromptsLoading(false);
     setSettingsChanged(false);
   };
   const handleCancelSettings = () => {
     // Reset draft to last saved
-    setSettingsDraft({
-      language: language,
-      dictionary: dictionary,
-      prompts: prompts,
-    });
+    if (lastSavedSettings) {
+      setSettingsDraft({ ...lastSavedSettings });
+    }
     setSettingsChanged(false);
   };
 
@@ -183,13 +200,26 @@ export default function ProfilePage() {
     setPromptsSaved(false);
   };
   const handleSavePrompts = async () => {
-    if (!user || !prompts) return;
+    if (!user || !settingsDraft?.prompts) return;
     setPromptsLoading(true);
-    await UserService.updateUserPrompts(user.uid, prompts);
+    await UserService.updateUserPrompts(user.uid, settingsDraft.prompts);
+    setPrompts(settingsDraft.prompts);
+    setPromptsChanged(false);
     setPromptsLoading(false);
     setPromptsSaved(true);
     setTimeout(() => setPromptsSaved(false), 2000);
   };
+
+  useEffect(() => {
+    if (settingsDraft && dictionaries.length > 0) {
+      const langCode = settingsDraft.language || language;
+      const glossCode = settingsDraft.nativeLanguage || nativeLanguage;
+      const dict = getDictionaryForPair(langCode, glossCode, dictionaries);
+      if (dict) {
+        setSettingsDraft((prev: any) => ({ ...prev, dictionary: dict.collection }));
+      }
+    }
+  }, [settingsDraft?.language, settingsDraft?.nativeLanguage, dictionaries]);
 
   if (!user) {
     return (
@@ -200,6 +230,19 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  const getLangName = (code: string) => {
+    const lang = languagesData.find(l => l.code === code);
+    return lang ? lang.name : code;
+  };
+
+  const promptKeys = [
+    'wordExplainSystem',
+    'wordExplainUser',
+    'sentenceBreakdown',
+    'sentenceTranslation',
+  ] as const;
+  type PromptKey = typeof promptKeys[number];
 
   return (
     <div className="w-full max-w-6xl mx-auto px-6 py-8" style={{ fontFamily: 'var(--font-family)' }}>
@@ -216,112 +259,64 @@ export default function ProfilePage() {
           
           <section className="mb-8">
             <h2 className="text-xl font-bold theme-primary tracking-tight mb-6" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>Settings</h2>
-            
-            <div className="mb-6 flex items-center gap-4">
-              <label className="font-semibold theme-text">Dictionary:</label>
-              {!dictionaryLoaded ? (
-                <span className="theme-text-secondary">Loading...</span>
-              ) : (
-                <select
-                  className="select-themed font-semibold"
-                  value={settingsDraft?.dictionary || dictionary}
-                  onChange={e => handleDraftChange('dictionary', e.target.value)}
-                  style={{ minWidth: 220 }}
-                >
-                  {dictionaries.map(d => <option key={d.collection} value={d.collection}>{d.name}</option>)}
-                </select>
-              )}
+            <div className="mb-6 flex flex-col gap-2">
+              <div className="flex items-center gap-4">
+                <label className="font-semibold theme-text">Dictionary:</label>
+                {!dictionaryLoaded ? (
+                  <span className="theme-text-secondary">Loading...</span>
+                ) : (
+                  <select
+                    className="select-themed font-semibold"
+                    value={settingsDraft?.dictionary || dictionary}
+                    onChange={e => handleDraftChange('dictionary', e.target.value)}
+                    style={{ minWidth: 220 }}
+                  >
+                    {dictionaries.map(d => <option key={d.collection} value={d.collection}>{d.name}</option>)}
+                  </select>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 ml-2 mb-2">The dictionary used for word lookups and definitions. Changes automatically based on your language settings if a matching dictionary exists.</div>
             </div>
-            <div className="mb-6 flex items-center gap-4">
-              <label className="font-semibold theme-text">Native Language:</label>
-              {!languageLoaded ? (
-                <span className="theme-text-secondary">Loading...</span>
-              ) : (
-                <select
-                  className="select-themed font-semibold"
-                  value={nativeLanguage}
-                  onChange={async (e) => {
-                    setNativeLanguage(e.target.value);
-                    localStorage.setItem('reader-native-language', e.target.value);
-                    handleDraftChange('nativeLanguage', e.target.value);
-                  }}
-                  style={{ minWidth: 160 }}
-                >
-                  <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                  <option value="it">Italian</option>
-                  <option value="pt">Portuguese</option>
-                  <option value="ru">Russian</option>
-                  <option value="zh">Chinese</option>
-                  <option value="ja">Japanese</option>
-                  <option value="ko">Korean</option>
-                  <option value="ar">Arabic</option>
-                  <option value="hi">Hindi</option>
-                  <option value="tr">Turkish</option>
-                  <option value="pl">Polish</option>
-                  <option value="nl">Dutch</option>
-                  <option value="sv">Swedish</option>
-                  <option value="fi">Finnish</option>
-                  <option value="no">Norwegian</option>
-                  <option value="da">Danish</option>
-                  <option value="el">Greek</option>
-                  <option value="he">Hebrew</option>
-                  <option value="cs">Czech</option>
-                  <option value="hu">Hungarian</option>
-                  <option value="ro">Romanian</option>
-                  <option value="bg">Bulgarian</option>
-                  <option value="uk">Ukrainian</option>
-                  <option value="id">Indonesian</option>
-                  <option value="vi">Vietnamese</option>
-                  <option value="th">Thai</option>
-                  <option value="ms">Malay</option>
-                  <option value="fa">Persian</option>
-                  <option value="ur">Urdu</option>
-                  <option value="bn">Bengali</option>
-                  <option value="ta">Tamil</option>
-                  <option value="te">Telugu</option>
-                  <option value="ml">Malayalam</option>
-                  <option value="mr">Marathi</option>
-                  <option value="gu">Gujarati</option>
-                  <option value="pa">Punjabi</option>
-                  <option value="kn">Kannada</option>
-                  <option value="or">Odia</option>
-                  <option value="as">Assamese</option>
-                  <option value="my">Burmese</option>
-                  <option value="km">Khmer</option>
-                  <option value="lo">Lao</option>
-                  <option value="th">Thai</option>
-                  <option value="vi">Vietnamese</option>
-                  <option value="id">Indonesian</option>
-                  <option value="ms">Malay</option>
-                  <option value="jv">Javanese</option>
-                  <option value="su">Sundanese</option>
-                  <option value="tl">Tagalog</option>
-                  <option value="ceb">Cebuano</option>
-                  <option value="ilo">Iloko</option>
-                  <option value="war">Waray-Waray</option>
-                  <option value="pam">Pampanga</option>
-                </select>
-              )}
+            <div className="mb-6 flex flex-col gap-2">
+              <div className="flex items-center gap-4">
+                <label className="font-semibold theme-text">Interface Language:</label>
+                {!languageLoaded ? (
+                  <span className="theme-text-secondary">Loading...</span>
+                ) : (
+                  <select
+                    className="select-themed font-semibold"
+                    value={settingsDraft?.nativeLanguage || nativeLanguage}
+                    onChange={async (e) => {
+                      setNativeLanguage(e.target.value);
+                      localStorage.setItem('reader-native-language', e.target.value);
+                      handleDraftChange('nativeLanguage', e.target.value);
+                    }}
+                    style={{ minWidth: 160 }}
+                  >
+                    {languagesData.map((l: any) => <option key={l.code} value={l.code}>{l.name}</option>)}
+                  </select>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 ml-2 mb-2">The language used for explanations and the app interface.</div>
             </div>
-            <div className="mb-6 flex items-center gap-4">
-              <label className="font-semibold theme-text">Target Language:</label>
-              {!languageLoaded ? (
-                <span className="theme-text-secondary">Loading...</span>
-              ) : (
-                <select
-                  className="select-themed font-semibold"
-                  value={settingsDraft?.language || language}
-                  onChange={e => handleDraftChange('language', e.target.value)}
-                  style={{ minWidth: 160 }}
-                >
-                  {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                </select>
-              )}
+            <div className="mb-6 flex flex-col gap-2">
+              <div className="flex items-center gap-4">
+                <label className="font-semibold theme-text">Target Language:</label>
+                {!languageLoaded ? (
+                  <span className="theme-text-secondary">Loading...</span>
+                ) : (
+                  <select
+                    className="select-themed font-semibold"
+                    value={settingsDraft?.language || language}
+                    onChange={e => handleDraftChange('language', e.target.value)}
+                    style={{ minWidth: 160 }}
+                  >
+                    {languagesData.map((l: any) => <option key={l.code} value={l.code}>{l.name}</option>)}
+                  </select>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 ml-2 mb-2">The language you are learning or reading in.</div>
             </div>
-            {/* Save/Cancel buttons for all settings */}
             {settingsChanged && (
               <div className="flex gap-4 mt-4">
                 <button className="btn-primary" onClick={handleSaveSettings} disabled={promptsLoading}>Save</button>
@@ -337,7 +332,7 @@ export default function ProfilePage() {
               style={{ letterSpacing: '-0.01em', fontWeight: 700 }}
               onClick={() => setPromptsDropdownOpen(v => !v)}
             >
-              Gemini Prompt Settings
+              Prompt Settings
               {promptsDropdownOpen ? <FaChevronUp /> : <FaChevronDown />}
             </button>
             {promptsDropdownOpen && (
@@ -347,46 +342,58 @@ export default function ProfilePage() {
               <div>Loading prompts...</div>
             ) : settingsDraft?.prompts ? (
               <div className="flex flex-col gap-6">
-                <div>
-                  <label className="font-semibold">Word Explanation System Prompt</label>
-                  <textarea
-                    className="w-full border rounded p-2 mt-1 text-sm"
-                    rows={4}
-                    value={settingsDraft.prompts.wordExplainSystem}
-                    onChange={e => handlePromptDraftChange('wordExplainSystem', e.target.value)}
-                  />
-                  <div className="text-xs text-gray-500 mt-1">Used as the system prompt for word explanations. Placeholders: [WORD], [SENTENCE], [INTERFACE_LANG], [TARGET_LANG]</div>
-                </div>
-                <div>
-                  <label className="font-semibold">Word Explanation User Prompt</label>
-                  <textarea
-                    className="w-full border rounded p-2 mt-1 text-sm"
-                    rows={2}
-                    value={settingsDraft.prompts.wordExplainUser}
-                    onChange={e => handlePromptDraftChange('wordExplainUser', e.target.value)}
-                  />
-                  <div className="text-xs text-gray-500 mt-1">Used as the user prompt for word explanations. Placeholders: [WORD], [SENTENCE], [INTERFACE_LANG], [TARGET_LANG]</div>
-                </div>
-                <div>
-                  <label className="font-semibold">Sentence Breakdown Prompt</label>
-                  <textarea
-                    className="w-full border rounded p-2 mt-1 text-sm"
-                    rows={4}
-                    value={settingsDraft.prompts.sentenceBreakdown}
-                    onChange={e => handlePromptDraftChange('sentenceBreakdown', e.target.value)}
-                  />
-                  <div className="text-xs text-gray-500 mt-1">Used for sentence breakdown explanations. Placeholders: [WORD], [SENTENCE], [INTERFACE_LANG], [TARGET_LANG]</div>
-                </div>
-                <div>
-                  <label className="font-semibold">Sentence Translation Prompt</label>
-                  <textarea
-                    className="w-full border rounded p-2 mt-1 text-sm"
-                    rows={3}
-                    value={settingsDraft.prompts.sentenceTranslation}
-                    onChange={e => handlePromptDraftChange('sentenceTranslation', e.target.value)}
-                  />
-                  <div className="text-xs text-gray-500 mt-1">Used for sentence translation. Placeholders: [WORD], [SENTENCE], [INTERFACE_LANG], [TARGET_LANG]</div>
-                </div>
+                {promptKeys.map((key) => (
+                  <div key={key}>
+                    <label className="font-semibold">{key === 'wordExplainSystem' ? 'Word Explanation System Prompt' :
+                      key === 'wordExplainUser' ? 'Word Explanation User Prompt' :
+                      key === 'sentenceBreakdown' ? 'Sentence Breakdown Prompt' :
+                      'Sentence Translation Prompt'}</label>
+                    <textarea
+                      className="w-full border rounded p-2 mt-1 text-sm"
+                      rows={key === 'wordExplainUser' ? 2 : key === 'sentenceTranslation' ? 3 : 4}
+                      value={settingsDraft.prompts[key] as string}
+                      onChange={e => handlePromptDraftChange(key, e.target.value)}
+                    />
+                    <div className="text-xs text-gray-500 mt-1">
+                      {key === 'wordExplainSystem' ? 'Used as the system prompt for word explanations.' :
+                        key === 'wordExplainUser' ? 'Used as the user prompt for word explanations.' :
+                        key === 'sentenceBreakdown' ? (
+                          <>
+                            Used for sentence breakdown explanations. Placeholders: [WORD], [SENTENCE], [INTERFACE_LANG], [TARGET_LANG], [LANGUAGE_EXCEPTION]. [LANGUAGE_EXCEPTION] automatically adds or removes the restriction about not outputting in the target language if the interface and target language are the same.
+                          </>
+                        ) :
+                        'Used for sentence translation.'
+                      }
+                    </div>
+                    <div className="flex gap-2 mt-1">
+                      <button className="btn-secondary" onClick={() => {
+                        const prompt = fillPromptVariables(settingsDraft.prompts[key] as string, {
+                          interfaceLang: getLangName(settingsDraft?.nativeLanguage || 'en'),
+                          targetLang: getLangName(settingsDraft?.language || 'fr'),
+                          word: 'chat',
+                          sentence: 'Bonjour',
+                        });
+                        console.log(`Test ${key} prompt:`, prompt);
+                      }}>Test</button>
+                      <button className="btn-primary" onClick={async () => {
+                        if (!user) return;
+                        const newPrompts = { ...settingsDraft.prompts, [key]: settingsDraft.prompts[key] };
+                        setPromptsLoading(true);
+                        await UserService.updateUserPrompts(user.uid, newPrompts);
+                        setPrompts(newPrompts);
+                        setPromptsChanged(false);
+                        setPromptsLoading(false);
+                        setPromptsSaved(true);
+                        setTimeout(() => setPromptsSaved(false), 2000);
+                      }}>Save</button>
+                      <button className="btn-secondary" onClick={() => {
+                        handlePromptDraftChange(key, defaultPrompts[key as PromptKey]);
+                      }}>Reset to Default</button>
+                    </div>
+                  </div>
+                ))}
+                
+
               </div>
             ) : null)}
             {/* Save/Cancel buttons for prompts (re-use main settings buttons) */}

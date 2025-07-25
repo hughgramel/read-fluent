@@ -1,18 +1,13 @@
 [
-  {
-    "name": "No dictionary",
-    "collection": "none"
-  },
-  {
-    "name": "Spanish-English dictionary",
-    "collection": "dictionary_es"
-  }, 
-  {
-    "name": "French Monolingual Dictionary",
-    "collection": "kty-fr-fr"
-  }, 
-  {
-    "name": "English Monolingual Dictionary",
-    "collection": "kty-en-en"
-  }
+  { "name": "No dictionary", "collection": "none", "language": "none", "glossLanguage": "none" },
+  { "name": "Spanish-English dictionary", "collection": "dictionary_es", "language": "es", "glossLanguage": "en" },
+  { "name": "French Monolingual Dictionary", "collection": "kty-fr-fr", "language": "fr", "glossLanguage": "fr" },
+  { "name": "English Monolingual Dictionary", "collection": "kty-en-en", "language": "en", "glossLanguage": "en" },
+  { "name": "French-English Dictionary", "collection": "kty-fr-en", "language": "fr", "glossLanguage": "en" },
+  { "name": "German-English Dictionary", "collection": "kty-de-en", "language": "de", "glossLanguage": "en" },
+  { "name": "German-French Dictionary", "collection": "kty-de-fr", "language": "de", "glossLanguage": "fr" },
+  { "name": "Italian-English Dictionary", "collection": "kty-it-en", "language": "it", "glossLanguage": "en" },
+  { "name": "French-German Dictionary", "collection": "kty-fr-de", "language": "fr", "glossLanguage": "de" },
+  { "name": "English-Dutch Dictionary", "collection": "kty-en-nl", "language": "en", "glossLanguage": "nl" },
+  { "name": "French-Dutch Dictionary", "collection": "kty-fr-nl", "language": "fr", "glossLanguage": "nl" }
 ] 

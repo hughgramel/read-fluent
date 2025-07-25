@@ -37,7 +37,6 @@ export interface Book {
   downloadURL?: string;
   completed?: boolean;
   css: string;
-  cover: string;
   wordsRead?: number;
 }
 
@@ -157,7 +156,6 @@ export default function library() {
         downloadURL: meta.downloadURL,
         completed: meta.completed || false,
         css: '', // No CSS in metadata
-        cover: '', // No cover in metadata
         wordsRead: meta.wordsRead || 0, // Always include wordsRead
       })));
     });
@@ -565,7 +563,6 @@ export default function library() {
         fileName: file.name,
         dateAdded: new Date().toISOString(),
         css: bookCss,
-        cover: coverUrl,
         wordsRead: 0,
       };
       const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as unknown as Record<string, unknown>);
@@ -595,7 +592,6 @@ export default function library() {
           downloadURL,
           completed: false,
           css: newBook.css,
-          cover: '',
           wordsRead: 0,
         }
       ]);
@@ -666,28 +662,8 @@ export default function library() {
       localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
     }
     await deleteBook(bookId, storagePath);
-    // Refetch metadata and update library
-    getBooks(user.uid).then((metadatas) => {
-      if (!metadatas || metadatas.length === 0) {
-        setBooks([]);
-        return;
-      }
-      setBooks(metadatas.map(meta => ({
-        id: meta.bookId,
-        title: meta.title,
-        author: meta.author,
-        description: '',
-        sections: [],
-        totalWords: meta.totalWords,
-        fileName: meta.fileName,
-        dateAdded: meta.dateAdded,
-        storagePath: meta.storagePath,
-        downloadURL: meta.downloadURL,
-        completed: meta.completed || false,
-        css: '', // No CSS in metadata
-        cover: '', // No cover in metadata
-      })));
-    });
+    // Remove only the deleted book from the books array
+    setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
   };
 
   const nextSection = (fromAutoScroll = false) => {
@@ -856,7 +832,6 @@ export default function library() {
         fileName: `${textTitle.trim().replace(/\s+/g, '_')}.txt`,
         dateAdded: new Date().toISOString(),
         css: '',
-        cover: '',
         wordsRead: 0,
       };
       // Upload JSON to storage
@@ -992,7 +967,6 @@ export default function library() {
           fileName: `${bookTitle.replace(/\s+/g, '_')}.md`,
           dateAdded: new Date().toISOString(),
           css: '',
-          cover: '',
           wordsRead: 0,
         };
         // Upload JSON to storage
@@ -1110,7 +1084,6 @@ export default function library() {
           fileName: `${bookTitle.replace(/\s+/g, '_')}.md`,
           dateAdded: new Date().toISOString(),
           css: '',
-          cover: '',
           wordsRead: 0,
         };
         // Upload JSON to storage
@@ -1153,7 +1126,7 @@ export default function library() {
           downloadURL: meta.downloadURL,
           completed: meta.completed || false,
           css: '',
-          cover: '',
+          wordsRead: 0,
         })));
       });
     }

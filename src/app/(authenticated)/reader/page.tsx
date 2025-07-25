@@ -8,7 +8,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { ReaderHeader } from '@/components/reader/ReaderHeader';
 import { ReaderSidebar } from '@/components/reader/ReaderSidebar';
 import { ReaderContent } from '@/components/reader/ReaderContent';
-import { ReaderSettings } from '@/components/reader/ReaderSettings';
 import { ReaderPopups } from '@/components/reader/ReaderPopups';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
 import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle } from '@/components/reader/ReaderUtils';
@@ -18,6 +17,7 @@ import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle } from 'luci
 import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
 import React from 'react';
 const SpeechPlayer: any = SpeechPlayerImport;
+import { ReaderSettings } from '@/components/reader/ReaderSettings';
 
 // Type for SpeechPlayer ref
 interface SpeechPlayerRef {
@@ -38,7 +38,7 @@ class ReaderErrorBoundary extends React.Component<{ children: React.ReactNode },
     if (typeof error?.message === 'string' && error.message.includes("Failed to execute 'removeChild' on 'Node'")) {
       // Do not set hasError, just ignore
       return { hasError: false, error: null };
-    }
+    } 
     return { hasError: true, error };
   }
   componentDidCatch(error: any, errorInfo: any) {
@@ -704,403 +704,23 @@ export default function ReaderPage() {
       )}
       {/* Settings Modal */}
       {showSettings && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={() => {
+        <ReaderSettings
+          show={showSettings}
+          onClose={() => {
             setShowSettings(false);
             setPendingSettings(null);
             setHasUnsavedSettings(false);
           }}
-        >
-          <div
-            className="card-themed w-full relative"
-            style={{
-              fontFamily: 'var(--font-family)',
-              maxWidth: 400,
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              padding: '2rem',
-              boxSizing: 'border-box',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => {
-                setShowSettings(false);
-                setPendingSettings(null);
-                setHasUnsavedSettings(false);
-              }}
-              className="absolute top-3 right-3 theme-text-secondary hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
-              style={{ lineHeight: 1 }}
-            >
-              ×
-            </button>
-            <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Reader Settings</h2>
-                          <div className="mb-6">
-                <label className="block font-bold mb-2 theme-text">Font Size ({pendingSettings?.readerFontSize || readerSettings.readerFontSize}px)</label>
-              <input
-                type="range"
-                min={14}
-                max={28}
-                step={1}
-                value={pendingSettings?.readerFontSize || readerSettings.readerFontSize}
-                onChange={e => { handlePendingSettingChange({ readerFontSize: Number(e.target.value) }); }}
-                className="w-full accent-[#2563eb]"
-              />
-            </div>
-            <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Text Width ({pendingSettings?.readerWidth || readerSettings.readerWidth}px)</label>
-              <input
-                type="range"
-                min={500}
-                max={1600}
-                step={10}
-                value={pendingSettings?.readerWidth || readerSettings.readerWidth}
-                onChange={e => { handlePendingSettingChange({ readerWidth: Number(e.target.value) }); }}
-                className="w-full accent-[#2563eb]"
-              />
-              <div className="flex justify-between text-sm text-gray-600 mt-1">
-                <span>Narrow (~55 char)</span>
-                <span>Medium (~75 char)</span>
-                <span>Wide (~95 char)</span>
-              </div>
-            </div>
-            
-            {/* Single example text, black color, all settings applied */}
-           
-            <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Font Family</label>
-              <select
-                value={pendingSettings?.readerFont || readerSettings.readerFont}
-                onChange={e => { handlePendingSettingChange({ readerFont: e.target.value }); }}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-              >
-                <option value="serif">Serif (default)</option>
-                <option value="sans-serif">Sans-serif</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Times New Roman">Times New Roman</option>
-                <option value="Arial">Arial</option>
-                <option value="Verdana">Verdana</option>
-                <option value="Noto Sans">Noto Sans</option>
-                <option value="Merriweather">Merriweather</option>
-              </select>
-            </div>
-            {/* Example sentence moved to the very bottom */}
-            {(() => {
-              const currentFontSize = pendingSettings?.readerFontSize || readerSettings.readerFontSize;
-              const currentFont = pendingSettings?.readerFont || readerSettings.readerFont;
-              const currentWidth = pendingSettings?.readerWidth || readerSettings.readerWidth;
-              return (
-                <div className="mt-4 mb-4 p-5 theme-border rounded theme-text" style={{ fontFamily: currentFont, fontSize: currentFontSize, maxWidth: currentWidth, backgroundColor: 'var(--background)', border: '1px solid var(--border-color)' }}>
-                  Example: El rápido zorro marrón salta sobre el perro perezoso.
-                </div>
-              );
-            })()}
-            <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Container Mode</label>
-              <select
-                value={pendingSettings?.readerContainerStyle || readerSettings.readerContainerStyle}
-                onChange={e => {
-                  handlePendingSettingChange({ readerContainerStyle: e.target.value as any });
-                }}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-              >
-                <option value="contained">Contained (default)</option>
-                <option value="border">Border Only</option>
-                <option value="none">None (transparent)</option>
-                <option value="full-width">Full-width (long)</option>
-              </select>
-            </div>
-            
-            {/* 5. Settings modal: add sentences per page setting */}
-            <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Sentences per Page</label>
-              <input
-                type="number"
-                min={10}
-                max={200}
-                step={1}
-                value={pendingSettings?.sentencesPerPage || readerSettings.sentencesPerPage}
-                onChange={e => {
-                  handlePendingSettingChange({ sentencesPerPage: Number(e.target.value) });
-                }}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-              />
-            </div>
-            <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">TTS Speed ({pendingSettings?.ttsSpeed || readerSettings.ttsSpeed}x)</label>
-              <input
-                type="range"
-                min={0.5}
-                max={2}
-                step={0.05}
-                value={pendingSettings?.ttsSpeed || readerSettings.ttsSpeed}
-                onChange={e => {
-                  handlePendingSettingChange({ ttsSpeed: Number(e.target.value) });
-                }}
-                className="w-full accent-[#2563eb]"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Voice Option</label>
-              <div className="flex gap-2 items-center">
-                <select
-                  value={pendingSettings?.ttsVoice || readerSettings.ttsVoice}
-                  onChange={e => {
-                    handlePendingSettingChange({ ttsVoice: e.target.value });
-                  }}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                >
-                  {availableVoices.length === 0 ? (
-                    <option>Loading voices...</option>
-                  ) : (
-                    availableVoices.map(v => (
-                      <option key={v.Name} value={v.Name}>{v.LocalName || v.Name} ({v.Locale})</option>
-                    ))
-                  )}
-                </select>
-                <button type="button" onClick={fetchVoices} disabled={isFetchingVoices} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-xs font-bold">
-                  {isFetchingVoices ? 'Updating...' : 'Update List'}
-                </button>
-              </div>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-word-highlighting"
-                type="checkbox"
-                checked={pendingSettings?.disableWordHighlighting ?? readerSettings.disableWordHighlighting}
-                onChange={e => {
-                  handlePendingSettingChange({ disableWordHighlighting: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="disable-word-highlighting" className="font-bold theme-text select-none cursor-pointer">Disable word highlighting</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-sentence-highlighting"
-                type="checkbox"
-                checked={pendingSettings?.disableSentenceHighlighting ?? readerSettings.disableSentenceHighlighting}
-                onChange={e => {
-                  handlePendingSettingChange({ disableSentenceHighlighting: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="disable-sentence-highlighting" className="font-bold theme-text select-none cursor-pointer">Disable sentence highlighting</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="invisible-text"
-                type="checkbox"
-                checked={pendingSettings?.invisibleText ?? readerSettings.invisibleText}
-                onChange={e => {
-                  handlePendingSettingChange({ invisibleText: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="invisible-text" className="font-bold theme-text select-none cursor-pointer">Invisible text (text is rendered but not visible)</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="show-current-word-when-invisible"
-                type="checkbox"
-                checked={pendingSettings?.showCurrentWordWhenInvisible ?? readerSettings.showCurrentWordWhenInvisible}
-                onChange={e => {
-                  handlePendingSettingChange({ showCurrentWordWhenInvisible: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-                disabled={!(pendingSettings?.invisibleText ?? readerSettings.invisibleText)}
-              />
-              <label htmlFor="show-current-word-when-invisible" className="font-bold theme-text select-none cursor-pointer">Show currently-being-read word when invisible</label>
-            </div>
-            
-            {/* Settings Modal */}
-            <div className="mb-6 flex items-center">
-              <input
-                id="highlight-sentence-on-hover"
-                type="checkbox"
-                checked={pendingSettings?.highlightSentenceOnHover ?? readerSettings.highlightSentenceOnHover}
-                onChange={e => {
-                  handlePendingSettingChange({ highlightSentenceOnHover: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="highlight-sentence-on-hover" className="font-bold theme-text select-none cursor-pointer">Highlight sentences on hover</label>
-            </div>
-            <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Line Spacing</label>
-              <input
-                type="range"
-                min={1.0}
-                max={2.5}
-                step={0.05}
-                value={pendingSettings?.lineSpacing || readerSettings.lineSpacing}
-                onChange={e => {
-                  handlePendingSettingChange({ lineSpacing: Number(e.target.value) });
-                }}
-                className="w-full accent-[#2563eb]"
-              />
-              <div className="flex justify-between text-sm text-gray-600 mt-1">
-                <span>1.0</span>
-                <span>1.5</span>
-                <span>2.5</span>
-              </div>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-word-spans"
-                type="checkbox"
-                checked={pendingSettings?.disableWordSpans ?? readerSettings.disableWordSpans}
-                onChange={e => {
-                  handlePendingSettingChange({ disableWordSpans: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="disable-word-spans" className="font-bold theme-text select-none cursor-pointer">Disable word-level spans (only wrap sentences)</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-sentence-spans"
-                type="checkbox"
-                checked={pendingSettings?.disableSentenceSpans ?? readerSettings.disableSentenceSpans}
-                onChange={e => {
-                  handlePendingSettingChange({ disableSentenceSpans: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="disable-sentence-spans" className="font-bold theme-text select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="show-audio-bar-on-start"
-                type="checkbox"
-                checked={pendingSettings?.showAudioBarOnStart ?? readerSettings.showAudioBarOnStart}
-                onChange={e => {
-                  handlePendingSettingChange({ showAudioBarOnStart: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="show-audio-bar-on-start" className="font-bold theme-text select-none cursor-pointer">Show audio bar on start</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="enable-highlight-words"
-                type="checkbox"
-                checked={pendingSettings?.enableHighlightWords ?? readerSettings.enableHighlightWords}
-                onChange={e => {
-                  handlePendingSettingChange({ enableHighlightWords: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="enable-highlight-words" className="font-bold theme-text select-none cursor-pointer">Enable highlight words</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-word-definition-popup"
-                type="checkbox"
-                checked={pendingSettings?.disableWordDefinitionPopup ?? readerSettings.disableWordDefinitionPopup}
-                onChange={e => {
-                  handlePendingSettingChange({ disableWordDefinitionPopup: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="disable-word-definition-popup" className="font-bold theme-text select-none cursor-pointer">Disable word-definition popup (on click/shift)</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="enable-swipe-navigation"
-                type="checkbox"
-                checked={pendingSettings?.enableSwipeNavigation ?? readerSettings.enableSwipeNavigation ?? true}
-                onChange={e => handlePendingSettingChange({ enableSwipeNavigation: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="enable-swipe-navigation" className="font-bold theme-text select-none cursor-pointer">Enable swipe left/right for page navigation</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="enable-double-tap-navigation"
-                type="checkbox"
-                checked={pendingSettings?.enableDoubleTapNavigation ?? readerSettings.enableDoubleTapNavigation ?? true}
-                onChange={e => handlePendingSettingChange({ enableDoubleTapNavigation: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="enable-double-tap-navigation" className="font-bold theme-text select-none cursor-pointer">Enable double-tap left/right for page navigation</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="auto-mark-page-complete"
-                type="checkbox"
-                checked={pendingSettings?.autoMarkPageComplete ?? readerSettings.autoMarkPageComplete ?? false}
-                onChange={e => handlePendingSettingChange({ autoMarkPageComplete: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="auto-mark-page-complete" className="font-bold theme-text select-none cursor-pointer">Automatically mark page complete when going to next page</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-clipboard-button"
-                type="checkbox"
-                checked={pendingSettings?.disableClipboardButton ?? readerSettings.disableClipboardButton ?? false}
-                onChange={e => handlePendingSettingChange({ disableClipboardButton: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="disable-clipboard-button" className="font-bold theme-text select-none cursor-pointer">Hide clipboard button in reader</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="enable-markdown"
-                type="checkbox"
-                checked={pendingSettings?.enableMarkdown ?? readerSettings.enableMarkdown ?? false}
-                onChange={e => handlePendingSettingChange({ enableMarkdown: e.target.checked })}
-                className="mr-3 h-5 w-5 accent-[#2563eb] border-2 border-gray-300 rounded"
-              />
-              <label htmlFor="enable-markdown" className="font-bold theme-text select-none cursor-pointer">Render page content as markdown</label>
-            </div>
-
-            {/* Save/Cancel Buttons */}
-            {hasUnsavedSettings && (
-              <div style={{
-                position: 'fixed',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 100,
-                display: 'flex',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-              }}>
-                <div style={{
-                  pointerEvents: 'auto',
-                  background: 'rgba(255,255,255,0.98)',
-                  boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
-                  borderTop: '1px solid #e5e7eb',
-                  borderRadius: '0 0 1rem 1rem',
-                  padding: '1rem 2rem',
-                  maxWidth: 400,
-                  width: '100%',
-                  display: 'flex',
-                  gap: '1rem',
-                  justifyContent: 'center',
-                }}>
-                  <button
-                    onClick={handleSaveSettings}
-                    className="btn-primary flex-1"
-                  >
-                    Save Settings
-                  </button>
-                  <button
-                    onClick={handleCancelSettings}
-                    className="btn-secondary flex-1"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+          pendingSettings={pendingSettings}
+          readerSettings={readerSettings}
+          hasUnsavedSettings={hasUnsavedSettings}
+          availableVoices={availableVoices}
+          isFetchingVoices={isFetchingVoices}
+          handlePendingSettingChange={handlePendingSettingChange}
+          handleSaveSettings={handleSaveSettings}
+          handleCancelSettings={handleCancelSettings}
+          fetchVoices={fetchVoices}
+        />
       )}
      
      
