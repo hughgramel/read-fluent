@@ -295,11 +295,6 @@ export default function ReaderPage() {
     setActiveWordIndex(null);
   };
 
-  // Handle sentence hover
-  const handleSentenceHover = (sentenceIndex: number | null) => {
-    setCurrentlyHighlightedSentence(sentenceIndex);
-  };
-
   // Remove long-press and word status cycling, and update click to show definition popup
   const handleWordClick = (word: string, event?: React.MouseEvent, key?: string) => {
     // Always show the definition popup on click
@@ -652,7 +647,6 @@ export default function ReaderPage() {
                   currentlyHighlightedSentence={currentlyHighlightedSentence}
                   isSentenceSelectMode={isSentenceSelectMode}
                   onSentenceClick={handleSentenceClick}
-                  onSentenceHover={handleSentenceHover}
                   onCopyText={handleCopyText}
                   showCopyConfirm={showCopyConfirm}
                   enableHighlightWords={effectiveSettings.enableHighlightWords}
@@ -666,6 +660,7 @@ export default function ReaderPage() {
                   getWordKey={getWordKey}
                   disableWordDefinitionPopup={effectiveSettings.disableWordDefinitionPopup}
                   showHeader={showHeader}
+                  setCurrentlyHighlightedSentence={setCurrentlyHighlightedSentence}
                 />
               </div>
             </div>

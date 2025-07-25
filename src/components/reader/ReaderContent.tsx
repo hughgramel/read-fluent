@@ -26,7 +26,6 @@ interface ReaderContentProps {
   currentlyHighlightedSentence: number | null;
   isSentenceSelectMode: boolean;
   onSentenceClick: (sentence: string, sentenceIndex: number) => void;
-  onSentenceHover: (sentenceIndex: number | null) => void;
   onCopyText: () => void;
   showCopyConfirm: boolean;
   enableHighlightWords: boolean;
@@ -47,6 +46,7 @@ interface ReaderContentProps {
     targetLanguage?: string;
     dictionary?: string;
   };
+  setCurrentlyHighlightedSentence: (sentenceIndex: number | null) => void;
 }
 
 export function ReaderContent({
@@ -69,7 +69,6 @@ export function ReaderContent({
   currentlyHighlightedSentence,
   isSentenceSelectMode,
   onSentenceClick,
-  onSentenceHover,
   onCopyText,
   showCopyConfirm,
   enableHighlightWords,
@@ -84,6 +83,7 @@ export function ReaderContent({
   disableWordDefinitionPopup = false,
   showHeader = false,
   readerSettings,
+  setCurrentlyHighlightedSentence,
 }: ReaderContentProps) {
   // Track which word span is hovered (by word+index)
   const [hoveredWordKey, setHoveredWordKey] = useState<string | null>(null);
@@ -325,6 +325,18 @@ export function ReaderContent({
     el.style.boxShadow = '';
   }
 
+  // Handle sentence hover
+  const handleSentenceHover = (sentenceIndex: number | null) => {
+    console.log('handleSentenceHover', wordPopupWordSentenceSpan.current);
+    if (wordPopupWordSentenceSpan.current) {
+      const int = parseInt(wordPopupWordSentenceSpan.current.getAttribute('data-sentence-index') || '0');
+      if (int === sentenceIndex) {
+        return;
+      }
+    }
+    setCurrentlyHighlightedSentence(sentenceIndex);
+  };
+
   // Helper to render a sentence with word spans (for use in both normal and markdown mode)
   const renderSentenceWithSpans = (sentence: string, sIdx: number) => {
     const words = splitSentenceWithPunctuation(sentence);
@@ -350,10 +362,10 @@ export function ReaderContent({
           verticalAlign: 'baseline',
         }}
         onMouseEnter={() => {
-          if (highlightSentenceOnHover) onSentenceHover(sIdx);
+          if (highlightSentenceOnHover) handleSentenceHover(sIdx);
         }}
         onMouseLeave={() => {
-          if (highlightSentenceOnHover) onSentenceHover(null);
+          if (highlightSentenceOnHover) handleSentenceHover(null);
         }}
         onClick={() => {
           if (isSentenceSelectMode) onSentenceClick(sentence, sIdx);
@@ -599,10 +611,10 @@ export function ReaderContent({
               verticalAlign: 'baseline',
             }}
             onMouseEnter={() => {
-              if (highlightSentenceOnHover) onSentenceHover(sIdx);
+              if (highlightSentenceOnHover) handleSentenceHover(sIdx);
             }}
             onMouseLeave={() => {
-              if (highlightSentenceOnHover) onSentenceHover(null);
+              if (highlightSentenceOnHover) handleSentenceHover(null);
             }}
             onClick={() => {
               if (isSentenceSelectMode) onSentenceClick(sentence, sIdx);
