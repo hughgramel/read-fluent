@@ -256,6 +256,10 @@ export function ReaderContent({
           if (popup && popup.word === currentWord && popup.sentence === currentSentence) {
             console.log('Closing popup for same word');
             setPopup(null);
+            removeWordPopupHighlightStyle(wordPopupWordSpan.current);
+            wordPopupWordSpan.current = null;
+            wordPopupWordSentenceSpan.current = null;
+
           } else {
             // If popup is open for a different word, close it and open for current word
             // If no popup is open, just open for current word
@@ -327,7 +331,6 @@ export function ReaderContent({
 
   // Handle sentence hover
   const handleSentenceHover = (sentenceIndex: number | null) => {
-    console.log('handleSentenceHover', wordPopupWordSentenceSpan.current);
     if (wordPopupWordSentenceSpan.current) {
       const int = parseInt(wordPopupWordSentenceSpan.current.getAttribute('data-sentence-index') || '0');
       if (int === sentenceIndex) {
@@ -390,65 +393,76 @@ export function ReaderContent({
                 >
                   <Clipboard className="w-4 h-4" />
                 </button>
-                <span
-                  style={{
-                    marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
-                    color: isActiveWord ? '#232946' : (showCurrentSentence
-                      ? '#232946'
-                      : (invisibleText
-                          ? (showCurrentWordWhenInvisible
-                              ? '#232946'
-                              : 'rgba(0,0,0,0.001)')
-                          : undefined)),
-                    background: isActiveWord ? '#ffe066' : undefined,
-                    borderRadius: isActiveWord ? 4 : undefined,
-                    borderBottom: !isPunctuation && enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
-                    cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
-                    transition: 'background 0.15s, color 0.15s',
-                  }}
-                  data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
-                  onMouseEnter={e => {
-                    if (isSentenceSelectMode || isPunctuation) return;
-                    setHoveredWordKey(wordKey);
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    hoveredWordInfo.current = { word, sentence, rect };
-                    if (onWordDefinitionHover) onWordDefinitionHover(word, e);
-                    if (enableHighlightWords) onWordHover(word);
-                  }}
-                  onMouseLeave={e => {
-                    if (isSentenceSelectMode || isPunctuation) return;
-                    setHoveredWordKey(null);
-                    hoveredWordInfo.current = null;
-                    if (onWordDefinitionHover) onWordDefinitionHover(null, e);
-                    if (enableHighlightWords) onWordHover(null);
-                  }}
-                  onClick={e => {
-                    if (isSentenceSelectMode || isPunctuation) return;
-                    const el = e.currentTarget as HTMLSpanElement;
-                    const cleanedWord = cleanWordForLookup(word);
-                    // Remove highlight from previous span
-                    if (lastWordPopupWordSpan.current && lastWordPopupWordSpan.current !== el) {
-                      removeWordPopupHighlightStyle(lastWordPopupWordSpan.current);
-                    }
-                    // Set refs for popup word and sentence spans
-                    wordPopupWordSpan.current = el;
-                    lastWordPopupWordSpan.current = el;
-                    // Find the sentence span (parentNode)
-                    let sentenceSpan: HTMLElement | null = null;
-                    if (el.parentElement && el.parentElement.hasAttribute('data-sentence-index')) {
-                      sentenceSpan = el.parentElement as HTMLElement;
-                    } else if (el.closest('[data-sentence-index]')) {
-                      sentenceSpan = el.closest('[data-sentence-index]') as HTMLElement;
-                    }
-                    wordPopupWordSentenceSpan.current = sentenceSpan;
-                    // Log them
-                    console.log('wordPopupWordSpan', wordPopupWordSpan.current);
-                    console.log('wordPopupWordSentenceSpan', wordPopupWordSentenceSpan.current);
-                    // Apply highlight style
-                    applyWordPopupHighlightStyle(wordPopupWordSpan.current);
-                    showPopup(cleanedWord, sentence, el.getBoundingClientRect());
-                  }}
-                >
+                                      <span
+                        style={{
+                          marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
+                          color: isActiveWord ? '#232946' : (showCurrentSentence
+                            ? '#232946'
+                            : (invisibleText
+                                ? (showCurrentWordWhenInvisible
+                                    ? '#232946'
+                                    : 'rgba(0,0,0,0.001)')
+                                : undefined)),
+                          background: isActiveWord ? '#ffe066' : undefined,
+                          borderRadius: isActiveWord ? 4 : undefined,
+                          borderBottom: !isPunctuation && enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                          cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
+                          transition: 'background 0.15s, color 0.15s',
+                        }}
+                        data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
+                        onMouseEnter={e => {
+                          if (isSentenceSelectMode || isPunctuation) return;
+                          setHoveredWordKey(wordKey);
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          hoveredWordInfo.current = { word, sentence, rect };
+                          if (onWordDefinitionHover) onWordDefinitionHover(word, e);
+                          if (enableHighlightWords) onWordHover(word);
+                        }}
+                        onMouseLeave={e => {
+                          if (isSentenceSelectMode || isPunctuation) return;
+                          setHoveredWordKey(null);
+                          hoveredWordInfo.current = null;
+                          if (onWordDefinitionHover) onWordDefinitionHover(null, e);
+                          if (enableHighlightWords) onWordHover(null);
+                        }}
+                        onClick={e => {
+                          if (isSentenceSelectMode || isPunctuation) return;
+                          const el = e.currentTarget as HTMLSpanElement;
+                          const cleanedWord = cleanWordForLookup(word);
+                          
+                          // Check if clicking the same word that's already open
+                          if (popup && popup.word === cleanedWord && popup.sentence === sentence) {
+                            // Close the popup for the same word
+                            setPopup(null);
+                            removeWordPopupHighlightStyle(wordPopupWordSpan.current);
+                            wordPopupWordSpan.current = null;
+                            wordPopupWordSentenceSpan.current = null;
+                            return;
+                          }
+                          
+                          // Remove highlight from previous span
+                          if (lastWordPopupWordSpan.current && lastWordPopupWordSpan.current !== el) {
+                            removeWordPopupHighlightStyle(lastWordPopupWordSpan.current);
+                          }
+                          // Set refs for popup word and sentence spans
+                          wordPopupWordSpan.current = el;
+                          lastWordPopupWordSpan.current = el;
+                          // Find the sentence span (parentNode)
+                          let sentenceSpan: HTMLElement | null = null;
+                          if (el.parentElement && el.parentElement.hasAttribute('data-sentence-index')) {
+                            sentenceSpan = el.parentElement as HTMLElement;
+                          } else if (el.closest('[data-sentence-index]')) {
+                            sentenceSpan = el.closest('[data-sentence-index]') as HTMLElement;
+                          }
+                          wordPopupWordSentenceSpan.current = sentenceSpan;
+                          // Log them
+                          console.log('wordPopupWordSpan', wordPopupWordSpan.current);
+                          console.log('wordPopupWordSentenceSpan', wordPopupWordSentenceSpan.current);
+                          // Apply highlight style
+                          applyWordPopupHighlightStyle(wordPopupWordSpan.current);
+                          showPopup(cleanedWord, sentence, el.getBoundingClientRect());
+                        }}
+                      >
                   {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
                 </span>
               </React.Fragment>
@@ -821,6 +835,17 @@ export function ReaderContent({
                     if (isSentenceSelectMode || isPunctuation) return;
                     const el = e.currentTarget as HTMLSpanElement;
                     const cleanedWord = cleanWordForLookup(word);
+                    
+                    // Check if clicking the same word that's already open
+                    if (popup && popup.word === cleanedWord && popup.sentence === sentence) {
+                      // Close the popup for the same word
+                      setPopup(null);
+                      removeWordPopupHighlightStyle(wordPopupWordSpan.current);
+                      wordPopupWordSpan.current = null;
+                      wordPopupWordSentenceSpan.current = null;
+                      return;
+                    }
+                    
                     // Remove highlight from previous span
                     if (lastWordPopupWordSpan.current && lastWordPopupWordSpan.current !== el) {
                       removeWordPopupHighlightStyle(lastWordPopupWordSpan.current);

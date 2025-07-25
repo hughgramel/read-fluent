@@ -7,7 +7,7 @@ const SpeechPlayer = forwardRef(({
   onWordChange,
   onPlaybackFinish,
   speakingRate = 1.0,
-  voiceName = 'es-MX-JorgeNeural',
+  voiceName = null,
   onProgress,
   onCurrentReadingSentenceEnd,
   onSelectModeToggle,
@@ -16,6 +16,8 @@ const SpeechPlayer = forwardRef(({
   disableWordHighlighting = false,
   disableSentenceHighlighting = false,
   onSentenceSelect,
+  onSettingsChange,
+  readerSettings,
 }, ref) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -32,6 +34,13 @@ const SpeechPlayer = forwardRef(({
   const [availableVoices, setAvailableVoices] = useState([]);
   const [authToken, setAuthToken] = useState(null);
   const [error, setError] = useState(null);
+  const [showNoSpeakerAlert, setShowNoSpeakerAlert] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [pendingSettings, setPendingSettings] = useState({
+    ttsSpeed: speakingRate,
+    ttsVoice: voiceName,
+    targetLanguage: readerSettings?.targetLanguage || 'es'
+  });
   
   const synthesizerRef = useRef(null);
   const playerRef = useRef(null);
@@ -42,6 +51,7 @@ const SpeechPlayer = forwardRef(({
   const autoAdvanceRef = useRef(false);
   const shouldResumeAfterIndexChange = useRef(false);
   const skipInProgress = useRef(false);
+  const ttsSpeedUpdateTimeoutRef = useRef(null);
 
   // Load Speech SDK dynamically
   useEffect(() => {
@@ -72,20 +82,18 @@ const SpeechPlayer = forwardRef(({
     if (isSDKLoaded) getAuthToken();
   }, [isSDKLoaded]);
 
-  // Fetch available voices
-  const fetchVoices = useCallback(() => {
-    if (!isSDKLoaded || !window.SpeechSDK) return;
+  // Fetch available voices from our JSON file
+  const fetchVoices = useCallback(async () => {
     try {
-      const region = process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION || 'eastus';
-      const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`;
-      const headers = {};
-      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-      else if (process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY) headers['Ocp-Apim-Subscription-Key'] = process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY;
-      fetch(endpoint, { headers })
-        .then(response => response.ok ? response.json() : [])
-        .then(voices => setAvailableVoices(voices));
-    } catch {}
-  }, [isSDKLoaded, authToken]);
+      const response = await fetch('/tts-speakers.json');
+      if (response.ok) {
+        const speakersData = await response.json();
+        setAvailableVoices(speakersData);
+      }
+    } catch (error) {
+      console.error('Failed to load TTS speakers:', error);
+    }
+  }, []);
   useEffect(() => { fetchVoices(); }, [fetchVoices]);
 
   // Handle force start at specific sentence
@@ -108,7 +116,11 @@ const SpeechPlayer = forwardRef(({
     if (authToken) speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(authToken, region);
     else if (process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY) speechConfig = SpeechSDK.SpeechConfig.fromSubscription(process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY, region);
     else { setError('Speech API not configured. Please set NEXT_PUBLIC_AZURE_SPEECH_KEY in your environment variables.'); return; }
-    speechConfig.speechSynthesisVoiceName = voiceName;
+    
+    // Only set voice name if one is provided
+    if (voiceName) {
+      speechConfig.speechSynthesisVoiceName = voiceName;
+    }
     speechConfig.speechSynthesisOutputFormat = SpeechSDK.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3;
     speechConfigRef.current = speechConfig;
   }, [isSDKLoaded, authToken, voiceName]);
@@ -222,7 +234,15 @@ const SpeechPlayer = forwardRef(({
     };
     synthesizer.wordBoundary = (s, e) => { wordBoundaryListRef.current.push(e); };
     synthesizerRef.current = synthesizer;
-    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="es-MX"><voice name="${voiceName}"><prosody rate="${speakingRate}">${sentence}</prosody></voice></speak>`;
+    
+    // Generate SSML with or without voice specification
+    let ssml;
+    if (voiceName) {
+      ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="es-MX"><voice name="${voiceName}"><prosody rate="${speakingRate}">${sentence}</prosody></voice></speak>`;
+    } else {
+      ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="es-MX"><prosody rate="${speakingRate}">${sentence}</prosody></speak>`;
+    }
+    
     const complete_cb = (result) => { try { synthesizer.close(); } catch (e) {} synthesizerRef.current = null; };
     const err_cb = (err) => { setError('Speech synthesis error: ' + err); try { synthesizer.close(); } catch (e) {} synthesizerRef.current = null; setIsPlaying(false); setIsPaused(false); isCurrentlyPlayingRef.current = false; };
     synthesizer.speakSsmlAsync(ssml, complete_cb, err_cb);
@@ -238,6 +258,13 @@ const SpeechPlayer = forwardRef(({
 
   // Control functions
   const handlePlay = () => {
+    // Check if voice is set
+    if (!voiceName) {
+      setShowNoSpeakerAlert(true);
+      setTimeout(() => setShowNoSpeakerAlert(false), 3000);
+      return;
+    }
+    
     let idx = currentSentenceIndex;
     if (idx === null || idx === undefined || isNaN(idx) || idx < 0 || idx >= (sentences?.length || 0)) {
       idx = 0;
@@ -305,7 +332,14 @@ const SpeechPlayer = forwardRef(({
   }));
 
   // Cleanup on unmount
-  useEffect(() => { return () => { handleStop(); }; }, []);
+  useEffect(() => { 
+    return () => { 
+      handleStop(); 
+      if (ttsSpeedUpdateTimeoutRef.current) {
+        clearTimeout(ttsSpeedUpdateTimeoutRef.current);
+      }
+    }; 
+  }, []);
 
   // Resume playback after index change if needed
   useEffect(() => {
@@ -335,6 +369,62 @@ const SpeechPlayer = forwardRef(({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrevious, handleNext]);
 
+  // Update pending settings when props change
+  useEffect(() => {
+    setPendingSettings({
+      ttsSpeed: speakingRate,
+      ttsVoice: voiceName,
+      targetLanguage: readerSettings?.targetLanguage || 'es'
+    });
+  }, [speakingRate, voiceName, readerSettings?.targetLanguage]);
+
+  // Handle settings changes
+  const handleSettingChange = (key, value) => {
+    const newSettings = { ...pendingSettings, [key]: value };
+    setPendingSettings(newSettings);
+    
+    // Special handling for TTS speed - debounce the update
+    if (key === 'ttsSpeed') {
+      // Clear any existing timeout
+      if (ttsSpeedUpdateTimeoutRef.current) {
+        clearTimeout(ttsSpeedUpdateTimeoutRef.current);
+      }
+      
+      // Set a new timeout to update after 1 second of inactivity
+      ttsSpeedUpdateTimeoutRef.current = setTimeout(() => {
+        if (onSettingsChange) {
+          onSettingsChange(newSettings);
+        }
+      }, 1000);
+    } else {
+      // For non-speed settings, update immediately
+      if (onSettingsChange) {
+        onSettingsChange(newSettings);
+      }
+    }
+  };
+
+  // Global click handler to close settings when clicking outside
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      if (showSettings) {
+        // Check if the click is outside the SpeechPlayer component
+        const speechPlayerElement = document.querySelector('[data-speech-player]');
+        if (speechPlayerElement && !speechPlayerElement.contains(e.target)) {
+          setShowSettings(false);
+        }
+      }
+    };
+
+    if (showSettings) {
+      document.addEventListener('click', handleGlobalClick);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleGlobalClick);
+    };
+  }, [showSettings]);
+
   if (!isSDKLoaded) {
     return (<div className="fixed bottom-4 right-4 bg-[var(--background)] border theme-border rounded-lg shadow-lg p-4"><div className="text-sm theme-text">Loading Speech SDK...</div></div>);
   }
@@ -342,31 +432,117 @@ const SpeechPlayer = forwardRef(({
     return (<div className="fixed bottom-4 right-4 bg-red-50 border border-red-300 rounded-lg shadow-lg p-4"><div className="text-sm text-red-600">Error: {error}</div></div>);
   }
   return (
-    <div className="fixed bottom-4 right-4 bg-[var(--background)] border theme-border rounded-lg shadow-lg p-4 min-w-[220px] flex flex-col items-center">
-      <div className="flex items-center gap-2 justify-center">
-        <button onClick={handlePrevious} disabled={currentSentenceIndex === 0} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors" title="Previous">
-          <SkipBack size={22} className="text-[var(--primary-color)]" />
-        </button>
-        {isPlaying && !isPaused ? (
-          <button onClick={handlePause} className="p-3 bg-[var(--primary-color)] hover:bg-[var(--primary-color-hover)] text-white rounded-full transition-colors" title="Pause">
-            <Pause size={28} className="text-white" />
+    <>
+      <div 
+        data-speech-player
+        className="fixed bottom-4 right-4 bg-[var(--background)] border theme-border rounded-lg shadow-lg p-4 flex flex-col items-end transition-all duration-300 ease-in-out min-w-[220px]"
+      >
+        {/* Settings panel - integrated into main container */}
+        <div className={`w-full overflow-hidden transition-all duration-300 ease-in-out ${showSettings ? 'max-h-96 opacity-100 mb-4' : 'max-h-0 opacity-0 mb-0'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold theme-text">TTS Settings</h3>
+            <button 
+              onClick={() => setShowSettings(false)}
+              className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+              title="Close settings"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m18 15-6-6-6 6"/>
+              </svg>
+            </button>
+          </div>
+          
+          {/* Speed slider */}
+          <div className="mb-4">
+            <label className="block text-xs font-medium theme-text mb-2">
+              Speed ({pendingSettings.ttsSpeed}x)
+            </label>
+            <input
+              type="range"
+              min={0.5}
+              max={2}
+              step={0.05}
+              value={pendingSettings.ttsSpeed}
+              onChange={e => handleSettingChange('ttsSpeed', Number(e.target.value))}
+              className="w-full accent-[#2563eb]"
+            />
+          </div>
+
+          {/* Speaker dropdown */}
+          <div className="mb-2">
+            <label className="block text-xs font-medium theme-text mb-2">
+              Speaker
+            </label>
+            <select
+              value={pendingSettings.ttsVoice || ''}
+              onChange={e => handleSettingChange('ttsVoice', e.target.value || null)}
+              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+            >
+              <option value="">No speaker selected</option>
+              {(() => {
+                const targetLang = pendingSettings.targetLanguage;
+                const langData = availableVoices[targetLang];
+                const speakersForLang = langData?.speakers || [];
+                return speakersForLang.map((speaker) => (
+                  <option key={speaker.name} value={speaker.name}>
+                    {speaker.displayName}
+                  </option>
+                ));
+              })()}
+            </select>
+            <div className="text-xs text-gray-500 mt-1">
+              Target language: {pendingSettings.targetLanguage}
+            </div>
+          </div>
+        </div>
+
+        {/* Main controls */}
+        <div className="flex items-center gap-2 justify-center">
+          <button onClick={handlePrevious} disabled={currentSentenceIndex === 0} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors" title="Previous">
+            <SkipBack size={22} className="text-[var(--primary-color)]" />
           </button>
-        ) : (
-          <button onClick={handlePlay} className="p-3 bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors" title={isPaused ? "Resume" : "Play"}>
-            <Play size={28} className="text-white" />
+          {isPlaying && !isPaused ? (
+            <button onClick={handlePause} className="p-3 bg-[var(--primary-color)] hover:bg-[var(--primary-color-hover)] text-white rounded-full transition-colors" title="Pause">
+              <Pause size={28} className="text-white" />
+            </button>
+          ) : (
+            <button onClick={handlePlay} className="p-3 bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors" title={isPaused ? "Resume" : "Play"}>
+              <Play size={28} className="text-white" />
+            </button>
+          )}
+          <button onClick={handleNext} disabled={currentSentenceIndex === sentences.length - 1} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors" title="Next">
+            <SkipForward size={22} className="text-[var(--primary-color)]" />
           </button>
-        )}
-        <button onClick={handleNext} disabled={currentSentenceIndex === sentences.length - 1} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors" title="Next">
-          <SkipForward size={22} className="text-[var(--primary-color)]" />
-        </button>
-        <button onClick={repeatCurrentSentence} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white rounded-full transition-colors" title="Repeat current sentence">
-          <Repeat size={22} className="text-yellow-500" />
-        </button>
-        <button onClick={toggleSelectMode} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white rounded-full transition-colors" title="Select active sentence">
-          <MousePointerClick size={22} className="text-purple-500" />
-        </button>
+          <button onClick={repeatCurrentSentence} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white rounded-full transition-colors" title="Repeat current sentence">
+            <Repeat size={22} className="text-yellow-500" />
+          </button>
+          <button onClick={toggleSelectMode} className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white rounded-full transition-colors" title="Select active sentence">
+            <MousePointerClick size={22} className="text-purple-500" />
+          </button>
+          
+          {/* Settings button with dots */}
+          <button 
+            onClick={() => setShowSettings(!showSettings)} 
+            className="p-2 bg-[var(--sidebar-background)] hover:bg-[var(--primary-color)] hover:text-white rounded-full transition-colors" 
+            title="TTS Settings"
+          >
+            <div className="flex flex-col gap-0.5">
+              <div className="w-1 h-1 bg-[var(--primary-color)] rounded-full"></div>
+              <div className="w-1 h-1 bg-[var(--primary-color)] rounded-full"></div>
+              <div className="w-1 h-1 bg-[var(--primary-color)] rounded-full"></div>
+            </div>
+          </button>
+        </div>
       </div>
-    </div>
+      
+      {/* No speaker alert */}
+      {showNoSpeakerAlert && (
+        <div className="fixed bottom-32 right-4 bg-red-50 border border-red-300 rounded-lg shadow-lg p-3 max-w-xs">
+          <div className="text-sm text-red-600 font-medium">No speaker set</div>
+          <div className="text-xs text-red-500 mt-1">Please select a TTS speaker in reader settings</div>
+        </div>
+      )}
+    </>
   );
 });
 

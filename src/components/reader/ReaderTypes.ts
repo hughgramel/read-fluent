@@ -45,7 +45,7 @@ export interface ReaderSettings {
   readerContainerStyle: 'contained' | 'border' | 'none' | 'full-width';
   sentencesPerPage: number;
   ttsSpeed: number;
-  ttsVoice: string;
+  ttsVoice: string | null;
   disableWordHighlighting: boolean;
   disableSentenceHighlighting: boolean;
   invisibleText: boolean;

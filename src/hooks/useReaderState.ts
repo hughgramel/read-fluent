@@ -215,7 +215,7 @@ export function useReaderState(user: any) {
             readerContainerStyle: prefs.readerContainerStyle || 'contained',
             sentencesPerPage: prefs.sentencesPerPage || 50,
             ttsSpeed: prefs.ttsSpeed || 1.0,
-            ttsVoice: prefs.ttsVoice || 'es-MX-JorgeNeural',
+            ttsVoice: prefs.ttsVoice || null,
             disableWordHighlighting: prefs.disableWordHighlighting !== undefined ? prefs.disableWordHighlighting : true,
             disableSentenceHighlighting: prefs.disableSentenceHighlighting !== undefined ? prefs.disableSentenceHighlighting : true,
             invisibleText: !!prefs.invisibleText,
@@ -283,20 +283,18 @@ export function useReaderState(user: any) {
     }
   }, [user, book]);
 
-  // Fetch voices from Azure
+  // Fetch voices from our JSON file
   const fetchVoices = useCallback(async () => {
     setIsFetchingVoices(true);
     try {
-      const region = process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION || 'eastus';
-      const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`;
-      const headers: Record<string, string> = {};
-      if (process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY) headers['Ocp-Apim-Subscription-Key'] = process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY;
-      const response = await fetch(endpoint, { headers });
+      const response = await fetch('/tts-speakers.json');
       if (response.ok) {
-        const voices = await response.json();
-        setAvailableVoices(voices);
+        const speakersData = await response.json();
+        setAvailableVoices(speakersData);
       }
-    } catch {}
+    } catch (error) {
+      console.error('Failed to load TTS speakers:', error);
+    }
     setIsFetchingVoices(false);
   }, []);
 

@@ -309,28 +309,67 @@ export default function ReaderPage() {
     }
   }, [showSettings, readerSettings]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (ttsSpeedUpdateTimeoutRef.current) {
+        clearTimeout(ttsSpeedUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Debounced TTS speed update
+  const ttsSpeedUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Handle pending settings changes
   const handlePendingSettingChange = (newSettings: Partial<ReaderSettingsType>) => {
     if (pendingSettings) {
       setPendingSettings({ ...pendingSettings, ...newSettings });
       setHasUnsavedSettings(true);
+      
+      // Special handling for TTS speed - debounce the update
+      if ('ttsSpeed' in newSettings) {
+        // Clear any existing timeout
+        if (ttsSpeedUpdateTimeoutRef.current) {
+          clearTimeout(ttsSpeedUpdateTimeoutRef.current);
+        }
+        
+        // Set a new timeout to update after 1 second of inactivity
+        ttsSpeedUpdateTimeoutRef.current = setTimeout(async () => {
+          const updatedSettings = { ...pendingSettings, ...newSettings };
+          await savePreferences(updatedSettings);
+          setHasUnsavedSettings(false);
+        }, 1000);
+      }
     }
   };
 
   // Save pending settings
   const handleSaveSettings = async () => {
     if (pendingSettings) {
+      // Clear any pending TTS speed update
+      if (ttsSpeedUpdateTimeoutRef.current) {
+        clearTimeout(ttsSpeedUpdateTimeoutRef.current);
+        ttsSpeedUpdateTimeoutRef.current = null;
+      }
+      
       await savePreferences(pendingSettings);
       setHasUnsavedSettings(false);
-      setShowSettings(false);
+      // Don't close the settings modal automatically
     }
   };
 
   // Cancel pending settings
   const handleCancelSettings = () => {
+    // Clear any pending TTS speed update
+    if (ttsSpeedUpdateTimeoutRef.current) {
+      clearTimeout(ttsSpeedUpdateTimeoutRef.current);
+      ttsSpeedUpdateTimeoutRef.current = null;
+    }
+    
     setPendingSettings(readerSettings);
     setHasUnsavedSettings(false);
-    setShowSettings(false);
+    // Don't close the settings modal automatically
   };
 
   // Prevent popup from opening if TTS or sentence select mode is active
@@ -695,6 +734,16 @@ export default function ReaderPage() {
           onSelectModeToggle={setIsSentenceSelectMode}
           forceStartAt={forcedSpeechStartIndex}
           onForceStartProcessed={() => setForcedSpeechStartIndex(null)}
+          onSettingsChange={async (newSettings: { ttsSpeed: number; ttsVoice: string | null }) => {
+            // Update the reader settings with the new TTS settings
+            const updatedSettings = {
+              ...effectiveSettings,
+              ttsSpeed: newSettings.ttsSpeed,
+              ttsVoice: newSettings.ttsVoice
+            };
+            await savePreferences(updatedSettings);
+          }}
+          readerSettings={effectiveSettings}
         />
       )}
       {/* Settings Modal */}
@@ -712,8 +761,8 @@ export default function ReaderPage() {
             className="card-themed w-full relative"
             style={{
               fontFamily: 'var(--font-family)',
-              maxWidth: 400,
-              maxHeight: '90vh',
+              maxWidth: 600,
+              maxHeight: '80vh',
               overflowY: 'auto',
               padding: '2rem',
               boxSizing: 'border-box',
@@ -839,26 +888,33 @@ export default function ReaderPage() {
             </div>
 
             <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Voice Option</label>
+              <label className="block font-bold mb-2 theme-text">TTS Speaker</label>
               <div className="flex gap-2 items-center">
                 <select
-                  value={pendingSettings?.ttsVoice || readerSettings.ttsVoice}
+                  value={pendingSettings?.ttsVoice || readerSettings.ttsVoice || ''}
                   onChange={e => {
-                    handlePendingSettingChange({ ttsVoice: e.target.value });
+                    handlePendingSettingChange({ ttsVoice: e.target.value || undefined });
                   }}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
                 >
-                  {availableVoices.length === 0 ? (
-                    <option>Loading voices...</option>
-                  ) : (
-                    availableVoices.map(v => (
-                      <option key={v.Name} value={v.Name}>{v.LocalName || v.Name} ({v.Locale})</option>
-                    ))
-                  )}
+                  <option value="">No speaker selected</option>
+                  {(() => {
+                    const targetLang = pendingSettings?.targetLanguage || readerSettings.targetLanguage;
+                    const langData = (availableVoices as any)[targetLang];
+                    const speakersForLang = langData?.speakers || [];
+                    return speakersForLang.map((speaker: any) => (
+                      <option key={speaker.name} value={speaker.name}>
+                        {speaker.displayName}
+                      </option>
+                    ));
+                  })()}
                 </select>
                 <button type="button" onClick={fetchVoices} disabled={isFetchingVoices} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-xs font-bold">
                   {isFetchingVoices ? 'Updating...' : 'Update List'}
                 </button>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Target language: {pendingSettings?.targetLanguage || readerSettings.targetLanguage}
               </div>
             </div>
             <div className="mb-6 flex items-center">
@@ -1098,7 +1154,21 @@ export default function ReaderPage() {
               <button
                 className="btn-secondary w-full"
                 onClick={() => {
-                  setPendingSettings({ ...defaultReaderSettings });
+                  // Get the current target language
+                  const currentTargetLang = pendingSettings?.targetLanguage || readerSettings.targetLanguage;
+                  
+                  // Get the default voice for this language from the TTS speakers
+                  const langData = (availableVoices as any)[currentTargetLang];
+                  const defaultVoice = langData?.default || null;
+                  
+                  // Create reset settings with the proper default voice
+                  const resetSettings = {
+                    ...defaultReaderSettings,
+                    targetLanguage: currentTargetLang, // Preserve current target language
+                    ttsVoice: defaultVoice // Set the default voice for the current target language
+                  };
+                  
+                  setPendingSettings(resetSettings);
                   setHasUnsavedSettings(true);
                 }}
               >
