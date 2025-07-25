@@ -7,6 +7,9 @@ import { WordService, Word } from '@/services/wordService';
 import { ReadingSessionService } from '@/services/readingSessionService';
 import { SentenceService } from '@/services/sentenceService';
 import { getPageWordCount, cleanWord } from '@/components/reader/ReaderUtils';
+import defaultReaderSettingsJson from '@/constants/reader-default-settings.json';
+
+export const defaultReaderSettings: ReaderSettings = defaultReaderSettingsJson as ReaderSettings;
 
 export function useReaderState(user: any) {
   const router = useRouter();
@@ -43,35 +46,7 @@ export function useReaderState(user: any) {
 
   // Settings state
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>({
-    targetLanguage: 'es',
-    dictionary: 'none',
-    readerFont: 'serif',
-    readerWidth: 1200,
-    readerFontSize: 18,
-    disableWordUnderlines: false,
-    viewMode: 'scroll-section',
-    disableWordsReadPopup: false,
-    readerContainerStyle: 'contained',
-    sentencesPerPage: 50,
-    ttsSpeed: 1.0,
-    ttsVoice: 'es-MX-JorgeNeural',
-    disableWordHighlighting: true,
-    disableSentenceHighlighting: true,
-    invisibleText: false,
-    showCurrentWordWhenInvisible: false,
-    highlightSentenceOnHover: false,
-    lineSpacing: 1.5,
-    disableWordSpans: false,
-    disableSentenceSpans: false,
-    nativeLanguage: 'en',
-    showAudioBarOnStart: true,
-    enableHighlightWords: false,
-    disableWordDefinitionPopup: false,
-    enableSwipeNavigation: true,
-    enableDoubleTapNavigation: true,
-    autoMarkPageComplete: false,
-    disableClipboardButton: false,
-    enableMarkdown: false,
+    ...defaultReaderSettings,
   });
 
   // Word tracking state
