@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { BookOpen, Target, Brain, BarChart2, Clock, Zap, ArrowRight } from 'lucide-react';
+import { FaSyncAlt } from 'react-icons/fa';
+import Link from 'next/link';
 
 export default function AboutPage() {
   const { user } = useAuth();
@@ -152,6 +154,19 @@ export default function AboutPage() {
           >
             Contact Support
           </a>
+        </section>
+
+        {/* Patch Notes Section */}
+        <section className="card-themed">
+          <h2 className="text-2xl font-bold theme-text mb-6" style={{ letterSpacing: '-0.01em' }}>Stay Updated</h2>
+          <p className="theme-text-secondary mb-6">Keep track of the latest features and improvements in ReadFluent.</p>
+          <Link
+            href="/patch-notes"
+            className="inline-flex items-center gap-2 theme-primary font-semibold hover:underline"
+          >
+            <FaSyncAlt />
+            Patch Notes
+          </Link>
         </section>
       </div>
     </div>

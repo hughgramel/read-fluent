@@ -10,3 +10,5 @@
 - Better TTS settings
 - Added word popup settings and ability to set default settings for word popup
 - Updated reader settings, added ability to set default settings for reader
+- Added ability to generate content with custom language, genre, topic, difficulty, DELF level, length
+- UI changes

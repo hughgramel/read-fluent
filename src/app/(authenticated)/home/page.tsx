@@ -8,6 +8,7 @@ import { getBooks } from '@/services/epubService';
 import { FiEdit2 } from 'react-icons/fi';
 import { FaCalendarCheck, FaBookOpen, FaCreditCard, FaGraduationCap, FaRegListAlt, FaInfoCircle, FaGithub, FaReddit, FaDiscord, FaFileAlt, FaCopyright, FaSyncAlt } from 'react-icons/fa';
 import { Book } from '../library/page';
+import Link from 'next/link';
 
 export default function Home() {
   const { user } = useAuth();
@@ -215,7 +216,7 @@ export default function Home() {
               <div className="flex flex-col gap-2 mt-auto">
                 <a href="#" className="flex items-center gap-2 theme-primary font-semibold hover:underline"><FaCopyright /> Attributions</a>
                 <a href="#" className="flex items-center gap-2 theme-primary font-semibold hover:underline"><FaFileAlt /> Overview</a>
-                <a href="/patch-notes" className="flex items-center gap-2 theme-primary font-semibold hover:underline"><FaInfoCircle /> Patch Notes</a>
+                <Link href="/patch-notes" className="flex items-center gap-2 theme-primary font-semibold hover:underline"><FaInfoCircle /> Patch Notes</Link>
               </div>
             </div>
             {/* Contact */}
@@ -231,9 +232,9 @@ export default function Home() {
             {/* Version */}
             <div className="card-themed-secondary p-6 min-w-[260px] flex flex-col">
               <h3 className="text-xl font-bold mb-2 theme-text">Version</h3>
-              <p className="theme-text-secondary mb-4">The current ReadFluent version is v0.1.0.</p>
+              <p className="theme-text-secondary mb-4">The current ReadFluent version is v0.2.</p>
               <div className="flex flex-col gap-2 mt-auto">
-                <a href="/patch-notes" className="flex items-center gap-2 theme-primary font-semibold hover:underline"><FaSyncAlt /> Update notes</a>
+                <Link href="/patch-notes" className="flex items-center gap-2 theme-primary font-semibold hover:underline"><FaSyncAlt /> Patch notes</Link>
               </div>
             </div>
           </div>
