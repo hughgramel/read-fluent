@@ -159,56 +159,28 @@ export default function ReviewPage() {
 
   return (
     <div 
-      className="page-container w-full min-h-screen"
+      className="page-container w-full min-h-screen pt-8 pb-4 px-2 sm:pt-0 sm:pb-0 sm:px-0 relative"
       style={{ 
         fontFamily: 'var(--font-family)'
       }}
     >
+      {/* Floating Settings Button - top right */}
+      <button
+        onClick={() => setIsGlobalSettingsOpen(true)}
+        className="fixed top-4 right-4 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-colors sm:absolute sm:top-8 sm:right-8"
+        title="Global Settings"
+        style={{ padding: 0 }}
+      >
+        <FaCog size={24} className="text-gray-600" />
+      </button>
       <div className="w-full flex flex-col items-center">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4 w-full max-w-3xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold theme-text">Review</h1>
-          <button 
-            onClick={handleAddTestCards} 
-            className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 hidden sm:inline-block"
-          >
-            Add 5 Test Cards (Due Today)
-          </button>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setIsCardBrowserOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg theme-text-secondary hover:theme-text transition-colors"
-              style={{ 
-                background: 'rgba(var(--primary-color-rgb), 0.1)',
-                border: '1px solid var(--border-color)'
-              }}
-              title="Browse Cards"
-            >
-              <span className="text-sm">📚</span>
-              <span className="hidden sm:inline">Browse</span>
-            </button>
-            <button
-              onClick={() => setIsGlobalSettingsOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg theme-text-secondary hover:theme-text transition-colors"
-              style={{ 
-                background: 'rgba(var(--primary-color-rgb), 0.1)',
-                border: '1px solid var(--border-color)'
-              }}
-              title="Global Settings"
-            >
-              <FaCog size={16} />
-              <span className="hidden sm:inline">Settings</span>
-            </button>
-          </div>
-        </div>
-
         {/* Study All Button */}
-        <div className="mb-8 sm:mb-12 w-full flex justify-center">
+        <div className="mb-10 sm:mb-12 w-full flex justify-center">
           <div 
-            className="card-themed-primary rounded-2xl shadow-lg p-6 sm:p-8 text-center w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl"
+            className="card-themed-primary rounded-2xl shadow-lg p-6 sm:p-8 text-center w-full max-w-xs sm:max-w-xl md:max-w-2xl lg:max-w-3xl relative"
             style={{ minHeight: 260 }}
           >
-            <h2 className="text-xl sm:text-2xl font-semibold theme-text mb-4">
+            <h2 className="text-xl sm:text-2xl font-semibold theme-text mb-4 mt-2">
               Ready to Study?
             </h2>
             <div className="mb-6">
@@ -254,7 +226,7 @@ export default function ReviewPage() {
         </div>
 
         {/* Decks List */}
-        <div className="w-full flex flex-col items-center">
+        <div className="w-full flex flex-col items-center mt-8 sm:mt-0">
           <div className="flex flex-row items-center justify-center gap-4 mb-4">
             <h2 className="text-xl sm:text-2xl font-bold theme-text mb-0">Your Decks</h2>
             <button
@@ -316,10 +288,12 @@ export default function ReviewPage() {
       )}
 
       {/* Card Browser */}
-      <CardBrowser
-        isOpen={isCardBrowserOpen}
-        onClose={() => setIsCardBrowserOpen(false)}
-      />
+      {isCardBrowserOpen && (
+        <CardBrowser
+          isOpen={isCardBrowserOpen}
+          onClose={() => setIsCardBrowserOpen(false)}
+        />
+      )}
     </div>
   );
 } 

@@ -104,9 +104,9 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
     setPreloadQueue(q => [...q, ...newCards]);
   }, []);
 
-  // After setting currentCard, keep the buffer full
+  // Always keep the buffer full after every answer or card change
   useEffect(() => {
-    if (studySession && currentCard) {
+    if (studySession && (currentCard || preloadQueue.length === 0)) {
       if (preloadQueue.length < 3) {
         preloadNextCards(studySession, 3 - preloadQueue.length);
       }
@@ -138,7 +138,6 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
       setPreloadQueue(q => {
         const nextCard = q[0];
         const rest = q.slice(1);
-        setProgress(studySession.getStudyProgress());
         if (nextCard && isCard(nextCard)) {
           setCurrentCard(nextCard);
           setShowBack(false);
@@ -151,9 +150,10 @@ export function StudySession({ userId, onComplete, onExit }: StudySessionProps) 
               setCurrentCardProgress(sessionProgress);
             })();
           }
-          if (studySession && rest.length < 3) {
-            preloadNextCards(studySession, 3 - rest.length);
-          }
+        }
+        // Always refill the buffer after using a card
+        if (studySession && rest.length < 3) {
+          preloadNextCards(studySession, 3 - rest.length);
         }
         return rest;
       });

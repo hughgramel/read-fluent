@@ -392,7 +392,13 @@ export class StudySession {
     CardService.updateCardInCache(this.session.userId, card.id, { correctCount: 0, totalReviews: (card.totalReviews || 0) + 1, lastReviewed: new Date() });
     this.cardSessionProgress.set(card.id, 0);
     console.log(`[StudySession] New card ${card.id} incorrect answer: session progress reset to 0`);
-    this.newCardBatch = StudySession.shuffleArray(this.newCardBatch);
+    // Move the failed card to a random later position in the batch
+    const currentPosition = this.newCardBatch.findIndex(c => c.id === card.id);
+    if (currentPosition !== -1) {
+      this.shuffleNewCardInBatch(card, this.newCardBatch, currentPosition);
+    } else {
+      this.newCardBatch = StudySession.shuffleArray(this.newCardBatch);
+    }
   }
   
   /**

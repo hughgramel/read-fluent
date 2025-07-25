@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye, CheckCircle, XCircle, HelpCircle, Bot, ListOrdered } from 'lucide-react';
+import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye, CheckCircle, XCircle, HelpCircle, Bot, ListOrdered, Plus } from 'lucide-react';
 import { Bookmark as BookmarkIcon, Bookmark as BookmarkFilledIcon } from 'lucide-react';
 import { WordType } from './ReaderTypes';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
@@ -624,6 +624,41 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     }
   };
 
+  // Add a callback for showing a toast (could be a prop or global, here we use window for demo)
+  const showToast = (msg: string) => {
+    if (window && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: msg }));
+    }
+  };
+
+  // Keyboard shortcut for 'q' to save sentence
+  useEffect(() => {
+    const handleQ = (e: KeyboardEvent) => {
+      if ((e.key === 'q' || e.key === 'Q') && !isSaved && !isSaving) {
+        e.preventDefault();
+        saveSentence();
+        showToast(`Saving sentence with "${word}"`);
+      }
+    };
+    window.addEventListener('keydown', handleQ);
+    return () => window.removeEventListener('keydown', handleQ);
+  }, [isSaved, isSaving, word, sentence]);
+
+  // Refactor save logic for reuse
+  const saveSentence = async () => {
+    if (user && user.uid) {
+      setIsSaving(true);
+      await SentenceService.addSentence(user.uid, sentence, word);
+      setIsSaving(false);
+      setIsSaved(true);
+      setSaveAnim(true);
+      setTimeout(() => setSaveAnim(false), 300);
+      console.log('Saved sentence with target word:', sentence, word);
+    } else {
+      console.log('No user, cannot save sentence');
+    }
+  };
+
   return (
     <div
       data-popup="word-popup"
@@ -682,39 +717,33 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button
           onClick={async () => {
-            if (user && user.uid) {
-              setIsSaving(true);
-              await SentenceService.addSentence(user.uid, sentence, word);
-              setIsSaving(false);
-              setIsSaved(true);
-              setSaveAnim(true);
-              setTimeout(() => setSaveAnim(false), 300);
-              console.log('Saved sentence with target word:', sentence, word);
-            } else {
-              console.log('No user, cannot save sentence');
-            }
+            await saveSentence();
           }}
           style={{
-            background: 'transparent',
+            background: isSaved ? '#22c55e' : '#f3f4f6',
             border: 'none',
             cursor: isSaved ? 'default' : 'pointer',
-            padding: 4,
-            borderRadius: 4,
+            width: 38,
+            height: 38,
+            borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             transition: 'background 0.2s, transform 0.15s',
-            color: isSaved ? '#232946' : '#666',
-            transform: saveAnim ? 'scale(1.2)' : 'scale(1)',
+            color: isSaved ? '#fff' : '#666',
+            transform: saveAnim ? 'scale(1.12)' : 'scale(1)',
             filter: isSaved ? 'brightness(1)' : 'none',
             opacity: isSaving ? 0.7 : 1,
+            boxShadow: isSaved ? '0 0 0 2px #22c55e33' : '0 1px 4px rgba(0,0,0,0.08)',
+            fontSize: 18,
+            marginRight: 8,
           }}
           title={isSaved ? 'Sentence saved' : 'Save sentence'}
           disabled={isSaved || isSaving}
         >
           {isSaved
-            ? <BookmarkIcon size={16} color="#232323" fill="#232323" style={{ display: 'block' }} />
-            : <BookmarkIcon size={16} color="#666" style={{ display: 'block' }} />
+            ? <CheckCircle size={20} color="#fff" fill="#22c55e" style={{ display: 'block', transition: 'all 0.2s' }} />
+            : <Plus size={20} color="#666" style={{ display: 'block', transition: 'all 0.2s' }} />
           }
         </button>
           {onClose && (

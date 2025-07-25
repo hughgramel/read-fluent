@@ -208,15 +208,15 @@ export function DeckList({ onDeckReview, refreshTrigger, minimalistMobile = fals
 
   return (
     <>
-      <div className="w-full flex flex-col gap-6">
+      <div className="w-full flex flex-col gap-6 px-2 sm:px-0">
         {/* Header with Create Button */}
   
 
         {/* Decks List */}
         {decks.length === 0 ? (
-          <div className="text-center py-8 sm:py-12">
+          <div className="text-center py-12 sm:py-12">
             <div
-              className="rounded-2xl p-6 sm:p-8 mx-auto max-w-md"
+              className="rounded-2xl p-8 sm:p-8 mx-auto max-w-md"
               style={{
                 background: 'var(--card-background, #fff)',
                 boxShadow: '0 4px 16px 0 rgba(31, 38, 135, 0.08)',
