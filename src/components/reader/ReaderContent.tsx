@@ -214,13 +214,13 @@ export function ReaderContent({
     }
     
     if (position === 'below') {
-      y = rect.bottom + 6;
+      y = rect.bottom - 2; // Reduced from 6 to 2 to move up slightly
       // Ensure popup doesn't go off the bottom edge
       if (y + popupHeight > viewportHeight - padding) {
         y = viewportHeight - popupHeight - padding;
       }
     } else {
-      y = rect.top - popupHeight - 6;
+      y = rect.top - popupHeight - 10; // Increased from 6 to 10 to move up more when above
       // Ensure popup doesn't go off the top edge (account for header)
       if (y < headerHeight + padding) {
         y = headerHeight + padding;
