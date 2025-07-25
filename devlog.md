@@ -7,3 +7,4 @@
 - TTS voice dropdown now filtered by the target language.
 - TTS voice dropdown now shows a message if no voice is set for the target language.
 - Highlighting of words now default, highlights on click
+- Better TTS settings

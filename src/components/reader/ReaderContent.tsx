@@ -45,6 +45,7 @@ interface ReaderContentProps {
     disableClipboardButton: boolean;
     targetLanguage?: string;
     dictionary?: string;
+    wordPopupDefaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
   };
   setCurrentlyHighlightedSentence: (sentenceIndex: number | null) => void;
 }
@@ -900,6 +901,7 @@ export function ReaderContent({
           nativeLanguage={readerSettings.nativeLanguage || 'en'}
           targetLanguage={readerSettings.targetLanguage || 'es'}
           dictionaryCollection={readerSettings.dictionary || 'none'}
+          defaultTab={readerSettings.wordPopupDefaultTab || 'word-explain'}
         />
       )}
     </div>

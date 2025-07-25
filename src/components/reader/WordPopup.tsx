@@ -50,6 +50,8 @@ interface WordPopupProps {
   targetLanguage: string;
   /** Firestore collection name for dictionary, or 'none' for no dictionary */
   dictionaryCollection: string;
+  /** Default tab to show when popup opens */
+  defaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
 }
 
 // Utility to render Yomitan/Wiktionary structured-content JSON
@@ -240,10 +242,10 @@ const languageTransformImports: Record<string, () => Promise<any>> = {
   // Add more as needed
 };
 
-export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage, dictionaryCollection }: WordPopupProps) {
+export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage, dictionaryCollection, defaultTab = 'word-explain' }: WordPopupProps) {
   const [showPlaceholder, setShowPlaceholder] = useState(false);
   const [placeholderText, setPlaceholderText] = useState('');
-  const [activeTab, setActiveTab] = useState<'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'>('definition');
+  const [activeTab, setActiveTab] = useState<'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'>(defaultTab);
   const [dictEntries, setDictEntries] = useState<any[]>([]);
   const [dictLoading, setDictLoading] = useState(false);
   const [dictError, setDictError] = useState<string | null>(null);
@@ -1050,7 +1052,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
             )}
           </div>
         )}
-        {activeTab !== 'definition' && activeTab !== 'translate' && (showPlaceholder ? placeholderText : sentence)}
+        {activeTab === 'sentence' && (showPlaceholder ? placeholderText : sentence)}
       </div>
 
       {/* Word status indicator - bottom right */}

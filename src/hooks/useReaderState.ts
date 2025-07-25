@@ -235,6 +235,7 @@ export function useReaderState(user: any) {
             autoMarkPageComplete: prefs.autoMarkPageComplete !== undefined ? prefs.autoMarkPageComplete : false,
             disableClipboardButton: !!prefs.disableClipboardButton,
             enableMarkdown: !!prefs.enableMarkdown,
+            wordPopupDefaultTab: prefs.wordPopupDefaultTab || 'word-explain',
           }));
           setIsSpeechPlayerActive(!!prefs.showAudioBarOnStart);
         }

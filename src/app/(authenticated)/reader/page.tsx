@@ -12,7 +12,7 @@ import { ReaderPopups } from '@/components/reader/ReaderPopups';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
 import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle } from '@/components/reader/ReaderUtils';
 import { ReaderSettings as ReaderSettingsType } from '@/components/reader/ReaderTypes';
-import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle, BookOpen, Bot, ListOrdered, Languages, Eye } from 'lucide-react';
 // @ts-ignore
 import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
 import React from 'react';
@@ -781,8 +781,91 @@ export default function ReaderPage() {
               ×
             </button>
             <h2 className="text-2xl font-extrabold mb-4 theme-text tracking-tight text-center">Reader Settings</h2>
-                          <div className="mb-6">
-                <label className="block font-bold mb-2 theme-text">Font Size ({pendingSettings?.readerFontSize || readerSettings.readerFontSize}px)</label>
+            
+            {/* Default Tab Selection */}
+            <div className="mb-6">
+              <label className="block font-bold mb-2 theme-text">Default Tab</label>
+              <p className="text-sm text-gray-600 mb-3">Which tab would you like to have open by default in the dictionary?</p>
+              
+              {/* Tab Icons Row */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'definition' })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                    (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'definition'
+                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
+                      : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}
+                >
+                  <BookOpen size={20} />
+                  <span className="text-xs mt-1">Definition</span>
+                </button>
+                
+                <button
+                  onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'word-explain' })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                    (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'word-explain'
+                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
+                      : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}
+                >
+                  <Bot size={20} />
+                  <span className="text-xs mt-1">AI Word</span>
+                </button>
+                
+                <button
+                  onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'explain' })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                    (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'explain'
+                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
+                      : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}
+                >
+                  <ListOrdered size={20} />
+                  <span className="text-xs mt-1">AI Sentence</span>
+                </button>
+                
+                <button
+                  onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'translate' })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                    (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'translate'
+                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
+                      : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}
+                >
+                  <Languages size={20} />
+                  <span className="text-xs mt-1">Translation</span>
+                </button>
+                
+                <button
+                  onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'sentence' })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                    (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'sentence'
+                      ? 'border-[#2563eb] bg-[#2563eb] text-white'
+                      : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}
+                >
+                  <Eye size={20} />
+                  <span className="text-xs mt-1">Sentence</span>
+                </button>
+              </div>
+              
+              {/* Dropdown for mobile/alternative selection */}
+              <select
+                value={pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab || 'word-explain'}
+                onChange={e => handlePendingSettingChange({ wordPopupDefaultTab: e.target.value as any })}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+              >
+                <option value="definition">Definition</option>
+                <option value="word-explain">AI Word Explanation</option>
+                <option value="explain">AI Sentence Breakdown</option>
+                <option value="translate">Translation</option>
+                <option value="sentence">Sentence</option>
+              </select>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block font-bold mb-2 theme-text">Font Size ({pendingSettings?.readerFontSize || readerSettings.readerFontSize}px)</label>
               <input
                 type="range"
                 min={14}

@@ -27,5 +27,6 @@
   "enableDoubleTapNavigation": true,
   "autoMarkPageComplete": false,
   "disableClipboardButton": false,
-  "enableMarkdown": false
+  "enableMarkdown": false,
+  "wordPopupDefaultTab": "word-explain"
 } 
