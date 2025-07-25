@@ -4,3 +4,6 @@
 - Dictionaries will now automatically switch to match your selected interface and target languages, if available.
 - Updated settings UI, added better prompts, added [LANGUAGE_EXCEPTION] placeholder
 - Fixed bug where all Books cards were deleted when deleting a single one. 
+- TTS voice dropdown now filtered by the target language.
+- TTS voice dropdown now shows a message if no voice is set for the target language.
+- Highlighting of words now default, highlights on click
