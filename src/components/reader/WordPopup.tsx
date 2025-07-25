@@ -705,7 +705,6 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
               pointerEvents: 'auto',
               display: 'flex',
               flexDirection: 'column',
-              overflowY: 'auto',
             }
           : {
         position: 'fixed',
@@ -731,7 +730,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       onClick={handlePopupClick}
     >
       {/* Word and close button row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexShrink: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>{displayWord}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button
@@ -787,7 +786,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       </div>
 
       {/* Action buttons row - circular and smaller, positioned below word */}
-      <div style={{ display: 'flex', gap: isMobile ? 4 : 6, flexShrink: 0, marginBottom: isMobile ? 6 : 8, justifyContent: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: isMobile ? 4 : 6, flexShrink: 0, marginBottom: isMobile ? 4 : 6, justifyContent: 'flex-start' }}>
         {/* Definition tab */}
         <button
           onClick={() => handleButtonClick('definition')}
@@ -898,7 +897,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         flex: 1,
         overflowY: 'auto',
         minHeight: 0,
-        maxHeight: isMobile ? '120px' : '140px'
+        maxHeight: isMobile ? '140px' : '180px'
       }}>
         {activeTab === 'definition' && (
           <div>
@@ -1012,14 +1011,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
           </div>
         )}
         {activeTab === 'word-explain' && (
-          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4, overflowY: 'auto', maxHeight: isMobile ? '120px' : '140px' }}>
+          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
             {wordExplainLoading && !wordExplainResult && !wordExplainError && <div>Loading word explanation...</div>}
             {wordExplainError && <div className="text-red-500">{wordExplainError}</div>}
             {wordExplainResult && <ReactMarkdown>{wordExplainResult}</ReactMarkdown>}
           </div>
         )}
         {activeTab === 'explain' && (
-          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4, overflowY: 'auto', maxHeight: isMobile ? '120px' : '140px' }}>
+          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
             {explainLoading ? (
               <div>Loading explanation...</div>
             ) : explainError ? (
@@ -1041,7 +1040,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
           </div>
         )}
         {activeTab === 'translate' && (
-          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4, overflowY: 'auto', maxHeight: isMobile ? '120px' : '140px' }}>
+          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
             {translateLoading && !translateResult && !translateError && <div>Loading translation...</div>}
             {translateError && <div className="text-red-500">{translateError}</div>}
             {translateResult && (

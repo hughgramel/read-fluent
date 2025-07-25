@@ -21,15 +21,7 @@ const SpeechPlayer = forwardRef(({
 }, ref) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('reader-current-sentence-index');
-      if (saved && !isNaN(Number(saved))) {
-        return Number(saved);
-      }
-    }
-    return 0;
-  });
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [authToken, setAuthToken] = useState(null);
@@ -104,6 +96,7 @@ const SpeechPlayer = forwardRef(({
         onSentenceSelect(forceStartAt);
       }
       if (onForceStartProcessed) onForceStartProcessed();
+      // Don't automatically play - just select the sentence
     }
   }, [forceStartAt, onForceStartProcessed, onSentenceSelect]);
 
@@ -270,7 +263,6 @@ const SpeechPlayer = forwardRef(({
       idx = 0;
       setCurrentSentenceIndex(0);
       if (typeof onSentenceChange === 'function') onSentenceChange(0);
-      if (typeof onSentenceSelect === 'function') onSentenceSelect(0);
     }
     playCurrentSentence(true);
   };
@@ -349,12 +341,18 @@ const SpeechPlayer = forwardRef(({
     }
   }, [currentSentenceIndex, playCurrentSentence]);
 
-  // Save currentSentenceIndex to localStorage on every change
+  // Reset sentence index when sentences change (new page)
   useEffect(() => {
+    setCurrentSentenceIndex(0);
+    if (typeof onSentenceChange === 'function') onSentenceChange(0);
+    if (typeof onSentenceSelect === 'function') onSentenceSelect(0);
+    // Clear localStorage to prevent persistence across pages
     if (typeof window !== 'undefined') {
-      localStorage.setItem('reader-current-sentence-index', String(currentSentenceIndex));
+      localStorage.removeItem('reader-current-sentence-index');
     }
-  }, [currentSentenceIndex]);
+  }, [sentences, onSentenceChange, onSentenceSelect]);
+
+  // Note: Removed localStorage persistence for currentSentenceIndex to prevent cross-page persistence
 
   // Keyboard shortcuts for previous/next (a/d)
   useEffect(() => {

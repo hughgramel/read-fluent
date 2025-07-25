@@ -20,13 +20,13 @@
   "nativeLanguage": "en",
   "targetLanguage": "es",
   "dictionary": "none",
-  "showAudioBarOnStart": true,
+  "showAudioBarOnStart": false,
   "enableHighlightWords": false,
   "disableWordDefinitionPopup": false,
   "enableSwipeNavigation": true,
   "enableDoubleTapNavigation": true,
   "autoMarkPageComplete": false,
-  "disableClipboardButton": false,
+  "disableClipboardButton": true,
   "enableMarkdown": false,
   "wordPopupDefaultTab": "word-explain"
 } 

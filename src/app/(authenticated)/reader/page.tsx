@@ -89,9 +89,9 @@ export default function ReaderPage() {
       // Double tap detected
       if (side === 'right') {
         if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
-        nextPage();
+        handleNextPage();
       } else {
-        prevPage();
+        handlePrevPage();
       }
       lastTapRef.current = 0;
       lastTapSideRef.current = null;
@@ -118,9 +118,9 @@ export default function ReaderPage() {
         // Double tap detected
         if (side === 'right') {
           if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
-          nextPage();
+          handleNextPage();
         } else {
-          prevPage();
+          handlePrevPage();
         }
         lastTapRef.current = 0;
         lastTapSideRef.current = null;
@@ -138,10 +138,10 @@ export default function ReaderPage() {
     const deltaY = e.changedTouches[0].clientY - swipeStartY.current;
     if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
       if (deltaX > 0) {
-        prevPage();
+        handlePrevPage();
       } else {
         if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
-        nextPage();
+        handleNextPage();
       }
     }
     swipeStartX.current = null;
@@ -226,10 +226,40 @@ export default function ReaderPage() {
     getWordKey,
   } = useReaderState(user);
 
+  // Wrapper function for sentence click that passes speech player ref
+  const handleSentenceClickWrapper = (sentence: string, sentenceIndex: number) => {
+    handleSentenceClick(sentence, sentenceIndex, speechPlayerRef);
+  };
+
+  // Wrapper functions for navigation that pause speech player first
+  const handleNextPage = () => {
+    // Pause speech player if it's currently playing
+    if (speechPlayerRef.current && isSpeechPlayerActive) {
+      speechPlayerRef.current.pause();
+    }
+    // Reset speech player state for new page
+    setActiveSentenceIndex(0);
+    setActiveWordIndex(0);
+    setCurrentlyHighlightedSentence(0);
+    setActiveSentenceIndex(0);
+    nextPage();
+  };
+
+  const handlePrevPage = () => {
+    // Pause speech player if it's currently playing
+    if (speechPlayerRef.current && isSpeechPlayerActive) {
+      speechPlayerRef.current.pause();
+    }
+    // Reset speech player state for new page
+    setActiveSentenceIndex(null);
+    setActiveWordIndex(null);
+    prevPage();
+  };
+
   // Keyboard navigation
   useReaderKeyboard({
-    onPrevPage: prevPage,
-    onNextPage: nextPage,
+    onPrevPage: handlePrevPage,
+    onNextPage: handleNextPage,
     onMarkPageComplete: handleMarkPageComplete,
     onUnmarkPageComplete: handleUnmarkPageComplete,
     onToggleInvisibleText: () => savePreferences({ invisibleText: !readerSettings.invisibleText }),
@@ -497,7 +527,7 @@ export default function ReaderPage() {
                 </button>
               )}
               <button 
-                onClick={prevPage} 
+                onClick={handlePrevPage} 
                 disabled={globalPageNumber === 1} 
                 className="btn-primary flex items-center justify-center h-11 w-11 min-w-0 min-h-0 font-bold rounded-full shadow-sm border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
                 style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 44, height: 44, minWidth: 44, minHeight: 44, padding: 0 }}
@@ -508,7 +538,7 @@ export default function ReaderPage() {
               </button>
               <span className="text-base font-bold theme-text whitespace-nowrap">{globalPageNumber} / {totalPages}</span>
               <button 
-                onClick={nextPage} 
+                onClick={handleNextPage} 
                 disabled={globalPageNumber === totalPages} 
                 className="btn-primary flex items-center justify-center h-11 w-11 min-w-0 min-h-0 font-bold rounded-full shadow-sm border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
                 style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 44, height: 44, minWidth: 44, minHeight: 44, padding: 0 }}
@@ -685,7 +715,7 @@ export default function ReaderPage() {
                   activeWordIndex={activeWordIndex}
                   currentlyHighlightedSentence={currentlyHighlightedSentence}
                   isSentenceSelectMode={isSentenceSelectMode}
-                  onSentenceClick={handleSentenceClick}
+                  onSentenceClick={handleSentenceClickWrapper}
                   onCopyText={handleCopyText}
                   showCopyConfirm={showCopyConfirm}
                   enableHighlightWords={effectiveSettings.enableHighlightWords}

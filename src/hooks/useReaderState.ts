@@ -430,8 +430,12 @@ export function useReaderState(user: any) {
   }, [user]);
 
   // Handle sentence click
-  const handleSentenceClick = useCallback(async (sentence: string, sentenceIndex: number) => {
+  const handleSentenceClick = useCallback(async (sentence: string, sentenceIndex: number, speechPlayerRef?: any) => {
     if (isSentenceSelectMode) {
+      // Pause the current speech playback before changing to the new sentence
+      if (speechPlayerRef?.current) {
+        speechPlayerRef.current.pause();
+      }
       setForcedSpeechStartIndex(sentenceIndex);
       setIsSentenceSelectMode(false);
       return;
