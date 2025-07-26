@@ -24,6 +24,8 @@ const SpeechPlayer = forwardRef(({
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [availableVoices, setAvailableVoices] = useState([]);
+  const [filteredVoices, setFilteredVoices] = useState([]);
+  const [countryCodes, setCountryCodes] = useState({});
   const [authToken, setAuthToken] = useState(null);
   const [error, setError] = useState(null);
   const [showNoSpeakerAlert, setShowNoSpeakerAlert] = useState(false);
@@ -74,18 +76,70 @@ const SpeechPlayer = forwardRef(({
     if (isSDKLoaded) getAuthToken();
   }, [isSDKLoaded]);
 
-  // Fetch available voices from our JSON file
-  const fetchVoices = useCallback(async () => {
-    try {
-      const response = await fetch('/tts-speakers.json');
-      if (response.ok) {
-        const speakersData = await response.json();
-        setAvailableVoices(speakersData);
-      }
-    } catch (error) {
-      console.error('Failed to load TTS speakers:', error);
+  // Fetch available voices from Azure Speech API
+  const fetchVoices = useCallback(() => {
+    if (!isSDKLoaded || !window.SpeechSDK) {
+      console.log('[SpeechPlayer] Cannot fetch voices: SDK not loaded');
+      return;
     }
+    
+    console.log('[SpeechPlayer] Starting to fetch voices from Azure...');
+    try {
+      const region = process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION || 'eastus';
+      const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`;
+      const headers = {};
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+      else if (process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY) headers['Ocp-Apim-Subscription-Key'] = process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY;
+      
+      console.log('[SpeechPlayer] Fetching from endpoint:', endpoint);
+      console.log('[SpeechPlayer] Using headers:', headers);
+      
+      fetch(endpoint, { headers })
+        .then(response => {
+          console.log('[SpeechPlayer] Response status:', response.status);
+          return response.ok ? response.json() : [];
+        })
+        .then(voices => {
+          console.log('[SpeechPlayer] Fetched voices from Azure:', voices);
+          console.log('[SpeechPlayer] Number of voices:', voices.length);
+          setAvailableVoices(voices);
+        })
+        .catch(error => {
+          console.error('[SpeechPlayer] Error fetching voices:', error);
+        });
+    } catch (error) {
+      console.error('[SpeechPlayer] Error in fetchVoices:', error);
+    }
+  }, [isSDKLoaded, authToken]);
+  // Load country codes
+  useEffect(() => {
+    fetch('/country-codes.json')
+      .then(response => response.json())
+      .then(setCountryCodes)
+      .catch(error => console.error('Failed to load country codes:', error));
   }, []);
+
+  // Filter voices by target language
+  useEffect(() => {
+    if (availableVoices.length > 0 && pendingSettings.targetLanguage) {
+      console.log('[SpeechPlayer] Filtering voices for target language:', pendingSettings.targetLanguage);
+      console.log('[SpeechPlayer] All available voices:', availableVoices);
+      
+      const targetLang = pendingSettings.targetLanguage.toLowerCase();
+      const voicesForLanguage = availableVoices.filter(voice => {
+        const locale = voice.Locale || '';
+        const languageCode = locale.split('-')[0]?.toLowerCase();
+        console.log(`[SpeechPlayer] Voice: ${voice.Name}, Locale: ${locale}, Language Code: ${languageCode}, Target: ${targetLang}`);
+        return languageCode === targetLang;
+      });
+      
+      console.log('[SpeechPlayer] Voices filtered for language:', voicesForLanguage);
+      setFilteredVoices(voicesForLanguage);
+    } else {
+      setFilteredVoices([]);
+    }
+  }, [availableVoices, pendingSettings.targetLanguage]);
+
   useEffect(() => { fetchVoices(); }, [fetchVoices]);
 
   // Handle force start at specific sentence
@@ -126,6 +180,19 @@ const SpeechPlayer = forwardRef(({
       .replace(/[.,!?;:"'""''()\[\]{}…—–]/g, '') // remove punctuation
       .trim();
   }
+
+  // Helper function to format voice name with country name
+  const formatVoiceName = (voice) => {
+    const locale = voice.Locale || '';
+    const parts = locale.split('-');
+    if (parts.length >= 2) {
+      const countryCode = parts[1];
+      const countryName = countryCodes[countryCode] || countryCode;
+      console.log(`[SpeechPlayer] Formatting voice: ${voice.Name}, Locale: ${locale}, Country Code: ${countryCode}, Country Name: ${countryName}`);
+      return `${voice.LocalName || voice.Name} (${countryName})`;
+    }
+    return voice.LocalName || voice.Name;
+  };
 
   // Start word highlighting interval (robust, throttled)
   const startWordHighlighting = () => {
@@ -474,16 +541,17 @@ const SpeechPlayer = forwardRef(({
             <select
               value={pendingSettings.ttsVoice || ''}
               onChange={e => handleSettingChange('ttsVoice', e.target.value || null)}
-              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#2563eb] max-w-[200px]"
+              style={{ maxWidth: '200px' }}
             >
               <option value="">No speaker selected</option>
               {(() => {
-                const targetLang = pendingSettings.targetLanguage;
-                const langData = availableVoices[targetLang];
-                const speakersForLang = langData?.speakers || [];
-                return speakersForLang.map((speaker) => (
-                  <option key={speaker.name} value={speaker.name}>
-                    {speaker.displayName}
+                console.log('[SpeechPlayer Settings] Filtered voices:', filteredVoices);
+                console.log('[SpeechPlayer Settings] Target language:', pendingSettings.targetLanguage);
+                
+                return filteredVoices.map((voice) => (
+                  <option key={voice.Name} value={voice.Name}>
+                    {formatVoiceName(voice)}
                   </option>
                 ));
               })()}

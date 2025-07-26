@@ -169,6 +169,7 @@ export default function ReaderPage() {
     isSentenceSelectMode,
     forcedSpeechStartIndex,
     availableVoices,
+    filteredVoices,
     isFetchingVoices,
     readerSettings,
     isWHeld,
@@ -225,6 +226,7 @@ export default function ReaderPage() {
     handleDefinitionPopupMouseEnter,
     handleDefinitionPopupMouseLeave,
     getWordKey,
+    formatVoiceName,
   } = useReaderState(user);
 
   // Wrapper function for sentence click that passes speech player ref
@@ -1038,16 +1040,17 @@ export default function ReaderPage() {
                   onChange={e => {
                     handlePendingSettingChange({ ttsVoice: e.target.value || undefined });
                   }}
-                  className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
+                  className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text max-w-[300px]"
+                  style={{ maxWidth: '300px' }}
                 >
                   <option value="">No speaker selected</option>
                   {(() => {
-                    const targetLang = pendingSettings?.targetLanguage || readerSettings.targetLanguage;
-                    const langData = (availableVoices as any)[targetLang];
-                    const speakersForLang = langData?.speakers || [];
-                    return speakersForLang.map((speaker: any) => (
-                      <option key={speaker.name} value={speaker.name}>
-                        {speaker.displayName}
+                    console.log('[Reader Settings] Filtered voices:', filteredVoices);
+                    console.log('[Reader Settings] Target language:', pendingSettings?.targetLanguage || readerSettings.targetLanguage);
+                    
+                    return filteredVoices.map((voice: any) => (
+                      <option key={voice.Name} value={voice.Name}>
+                        {formatVoiceName(voice)}
                       </option>
                     ));
                   })()}

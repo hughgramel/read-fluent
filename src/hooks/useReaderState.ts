@@ -42,6 +42,8 @@ export function useReaderState(user: any) {
   const [isSentenceSelectMode, setIsSentenceSelectMode] = useState(false);
   const [forcedSpeechStartIndex, setForcedSpeechStartIndex] = useState<number | null>(null);
   const [availableVoices, setAvailableVoices] = useState<TTSVoice[]>([]);
+  const [filteredVoices, setFilteredVoices] = useState<TTSVoice[]>([]);
+  const [countryCodes, setCountryCodes] = useState<Record<string, string>>({});
   const [isFetchingVoices, setIsFetchingVoices] = useState(false);
 
   // Settings state
@@ -284,20 +286,68 @@ export function useReaderState(user: any) {
     }
   }, [user, book]);
 
-  // Fetch voices from our JSON file
-  const fetchVoices = useCallback(async () => {
+  // Fetch voices from Azure Speech API
+  const fetchVoices = useCallback(() => {
     setIsFetchingVoices(true);
+    console.log('[useReaderState] Starting to fetch voices from Azure...');
     try {
-      const response = await fetch('/tts-speakers.json');
-      if (response.ok) {
-        const speakersData = await response.json();
-        setAvailableVoices(speakersData);
-      }
+      const region = process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION || 'eastus';
+      const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`;
+      const headers: Record<string, string> = {};
+      if (process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY) headers['Ocp-Apim-Subscription-Key'] = process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY;
+      
+      console.log('[useReaderState] Fetching from endpoint:', endpoint);
+      console.log('[useReaderState] Using headers:', headers);
+      
+      fetch(endpoint, { headers })
+        .then(response => {
+          console.log('[useReaderState] Response status:', response.status);
+          return response.ok ? response.json() : [];
+        })
+        .then(voices => {
+          console.log('[useReaderState] Fetched voices from Azure:', voices);
+          console.log('[useReaderState] Number of voices:', voices.length);
+          setAvailableVoices(voices);
+          setIsFetchingVoices(false);
+        })
+        .catch((error) => {
+          console.error('[useReaderState] Error fetching voices:', error);
+          setIsFetchingVoices(false);
+        });
     } catch (error) {
-      console.error('Failed to load TTS speakers:', error);
+      console.error('[useReaderState] Error in fetchVoices:', error);
+      setIsFetchingVoices(false);
     }
-    setIsFetchingVoices(false);
   }, []);
+
+  // Load country codes
+  useEffect(() => {
+    fetch('/country-codes.json')
+      .then(response => response.json())
+      .then(setCountryCodes)
+      .catch(error => console.error('Failed to load country codes:', error));
+  }, []);
+
+  // Filter voices by target language
+  useEffect(() => {
+    if (availableVoices.length > 0 && readerSettings.targetLanguage) {
+      console.log('[useReaderState] Filtering voices for target language:', readerSettings.targetLanguage);
+      console.log('[useReaderState] All available voices:', availableVoices);
+      
+      const targetLang = readerSettings.targetLanguage.toLowerCase();
+      const voicesForLanguage = availableVoices.filter(voice => {
+        const locale = voice.Locale || '';
+        const languageCode = locale.split('-')[0]?.toLowerCase();
+        console.log(`[useReaderState] Voice: ${voice.Name}, Locale: ${locale}, Language Code: ${languageCode}, Target: ${targetLang}`);
+        return languageCode === targetLang;
+      });
+      
+      console.log('[useReaderState] Voices filtered for language:', voicesForLanguage);
+      setFilteredVoices(voicesForLanguage);
+    } else {
+      setFilteredVoices([]);
+    }
+  }, [availableVoices, readerSettings.targetLanguage]);
 
   useEffect(() => { fetchVoices(); }, [fetchVoices]);
 
@@ -562,6 +612,19 @@ export function useReaderState(user: any) {
   // Helper to generate a unique key for a word span (e.g., word+index)
   const getWordKey = (word: string, idx: number) => `${word}__${idx}`;
 
+  // Helper function to format voice name with country name
+  const formatVoiceName = (voice: TTSVoice): string => {
+    const locale = voice.Locale || '';
+    const parts = locale.split('-');
+    if (parts.length >= 2) {
+      const countryCode = parts[1];
+      const countryName = countryCodes[countryCode] || countryCode;
+      console.log(`[useReaderState] Formatting voice: ${voice.Name}, Locale: ${locale}, Country Code: ${countryCode}, Country Name: ${countryName}`);
+      return `${voice.LocalName || voice.Name} (${countryName})`;
+    }
+    return voice.LocalName || voice.Name;
+  };
+
   // Update handleWordDefinitionHover to add/remove from the set and update anchor
   const handleWordDefinitionHover = useCallback((word: string | null, event?: React.MouseEvent, key?: string) => {
     setHoveredDefinitionWordKeys(prev => {
@@ -689,6 +752,7 @@ export function useReaderState(user: any) {
     isSentenceSelectMode,
     forcedSpeechStartIndex,
     availableVoices,
+    filteredVoices,
     isFetchingVoices,
     readerSettings,
     isWHeld,
@@ -753,5 +817,6 @@ export function useReaderState(user: any) {
     handleDefinitionPopupMouseEnter,
     handleDefinitionPopupMouseLeave,
     getWordKey,
+    formatVoiceName,
   };
 } 
