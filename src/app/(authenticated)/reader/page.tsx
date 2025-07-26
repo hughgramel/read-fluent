@@ -913,7 +913,7 @@ export default function ReaderPage() {
               <select
                 value={pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab || 'word-explain'}
                 onChange={e => handlePendingSettingChange({ wordPopupDefaultTab: e.target.value as any })}
-                className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
+                className="w-full border border-[var(--border-color)] rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               >
                 <option value="definition">Definition</option>
                 <option value="word-explain">AI Word Explanation</option>
@@ -962,7 +962,7 @@ export default function ReaderPage() {
               <select
                 value={pendingSettings?.readerFont || readerSettings.readerFont}
                 onChange={e => { handlePendingSettingChange({ readerFont: e.target.value }); }}
-                className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
+                className="w-full border border-[var(--border-color)] rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               >
                 <option value="serif">Serif (default)</option>
                 <option value="sans-serif">Sans-serif</option>
@@ -992,7 +992,7 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ readerContainerStyle: e.target.value as any });
                 }}
-                className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
+                className="w-full border border-[var(--border-color)] rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               >
                 <option value="contained">Contained (default)</option>
                 <option value="border">Border Only</option>
@@ -1013,7 +1013,7 @@ export default function ReaderPage() {
                 onChange={e => {
                   handlePendingSettingChange({ sentencesPerPage: Number(e.target.value) });
                 }}
-                className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
+                className="w-full border border-[var(--border-color)] rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               />
             </div>
             <div className="mb-6">
@@ -1040,7 +1040,7 @@ export default function ReaderPage() {
                   onChange={e => {
                     handlePendingSettingChange({ ttsVoice: e.target.value || undefined });
                   }}
-                  className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text max-w-[300px]"
+                  className="w-full border border-[var(--border-color)] rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text max-w-[300px]"
                   style={{ maxWidth: '300px' }}
                 >
                   <option value="">No speaker selected</option>
@@ -1353,6 +1353,14 @@ export default function ReaderPage() {
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
                       <span className="theme-text">Next page</span>
                       <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">→</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Previous page (swipe)</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">← Swipe</kbd>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="theme-text">Next page (swipe)</span>
+                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">→ Swipe</kbd>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
                       <span className="theme-text">Mark/Unmark page complete</span>
