@@ -14,8 +14,7 @@ interface ReaderContentProps {
   lineSpacing: number;
   isMobile: boolean;
   invisibleText: boolean;
-  disableSentenceSpans: boolean;
-  disableWordSpans: boolean;
+
   disableWordHighlighting: boolean;
   disableSentenceHighlighting: boolean;
   highlightSentenceOnHover: boolean;
@@ -60,8 +59,7 @@ export function ReaderContent({
   lineSpacing,
   isMobile,
   invisibleText,
-  disableSentenceSpans,
-  disableWordSpans,
+
   disableWordHighlighting,
   disableSentenceHighlighting,
   highlightSentenceOnHover,

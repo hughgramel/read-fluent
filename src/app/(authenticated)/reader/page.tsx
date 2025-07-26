@@ -756,8 +756,7 @@ export default function ReaderPage() {
                   lineSpacing={effectiveSettings.lineSpacing}
                   isMobile={isMobile}
                   invisibleText={effectiveSettings.invisibleText}
-                  disableSentenceSpans={effectiveSettings.disableSentenceSpans}
-                  disableWordSpans={effectiveSettings.disableWordSpans}
+
                   disableWordHighlighting={effectiveSettings.disableWordHighlighting}
                   disableSentenceHighlighting={effectiveSettings.disableSentenceHighlighting}
                   highlightSentenceOnHover={effectiveSettings.highlightSentenceOnHover}
@@ -1188,32 +1187,7 @@ export default function ReaderPage() {
                 <span>2.5</span>
               </div>
             </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-word-spans"
-                type="checkbox"
-                checked={pendingSettings?.disableWordSpans ?? readerSettings.disableWordSpans}
-                onChange={e => {
-                  handlePendingSettingChange({ disableWordSpans: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 border-2 theme-border rounded"
-                style={{ accentColor: 'var(--primary-color)' }}
-              />
-              <label htmlFor="disable-word-spans" className="font-bold theme-text select-none cursor-pointer">Disable word-level spans (only wrap sentences)</label>
-            </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="disable-sentence-spans"
-                type="checkbox"
-                checked={pendingSettings?.disableSentenceSpans ?? readerSettings.disableSentenceSpans}
-                onChange={e => {
-                  handlePendingSettingChange({ disableSentenceSpans: e.target.checked });
-                }}
-                className="mr-3 h-5 w-5 border-2 theme-border rounded"
-                style={{ accentColor: 'var(--primary-color)' }}
-              />
-              <label htmlFor="disable-sentence-spans" className="font-bold theme-text select-none cursor-pointer">Disable sentence-level spans (merge all text on page)</label>
-            </div>
+
             <div className="mb-6 flex items-center">
               <input
                 id="show-audio-bar-on-start"

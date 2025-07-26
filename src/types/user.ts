@@ -38,8 +38,7 @@ export interface UserPreferences {
   showCurrentWordWhenInvisible?: boolean;
   highlightSentenceOnHover?: boolean;
   lineSpacing?: number;
-  disableWordSpans?: boolean;
-  disableSentenceSpans?: boolean;
+
   showAudioBarOnStart?: boolean; // NEW: show audio bar on start (default true)
   enableHighlightWords?: boolean; // Enable word highlighting based on status
   highlightInsteadOfUnderline?: boolean; // Use highlights instead of underlines for word status

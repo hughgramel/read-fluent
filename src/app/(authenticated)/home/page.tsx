@@ -232,7 +232,7 @@ export default function Home() {
             {/* Version */}
             <div className="card-themed-secondary p-6 min-w-[260px] flex flex-col">
               <h3 className="text-xl font-bold mb-2 theme-text">Version</h3>
-              <p className="theme-text-secondary mb-4">The current ReadFluent version is v0.2.</p>
+              <p className="theme-text-secondary mb-4">The current ReadFluent version is v0.3.</p>
               <div className="flex flex-col gap-2 mt-auto">
                 <Link href="/patch-notes" className="flex items-center gap-2 theme-primary font-semibold hover:underline"><FaSyncAlt /> Patch notes</Link>
               </div>

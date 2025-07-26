@@ -1,58 +1,7 @@
 # DEVLOG v0.3
-- Updated available interface, target languages, dictionaries, adding Dutch, Italian, and German and persistence of these changes
-- Interface language will now be used directly when generating prompts (Was always English before)
-- Dictionaries will now automatically switch to match your selected interface and target languages, if available
-- Updated profile settings UI, added better prompts, added [LANGUAGE_EXCEPTION] placeholder
-- Fixed bug where all Books cards were deleted when deleting a single one
-- TTS voice dropdown now filtered by the target language
-- TTS voice dropdown now shows a message if no voice is set for the target language
-- Highlighting of words now default, highlights on click
-- Better TTS settings
-- Added word popup settings and ability to set default settings for word popup
-- Updated reader settings, added ability to set default settings for reader
-- Added ability to generate content with custom language, genre, topic, difficulty, DELF level, length
-- UI changes
-- Implemented AI content generation using Gemini 2.0 Flash for creating custom stories and articles
-- Added content generation modal with customizable options (language, genre, topic, difficulty, DELF level, length)
-- Created ContentGenerationService for AI-powered content creation and database storage
-- Added programmatic title generation (Topic + Genre format) for generated content
-- Implemented manual word counting for generated content accuracy
-- Added generate button with lightning bolt icon next to add button in library
-- Updated modal to pre-select appropriate tab based on button clicked (Add vs Generate)
-- Added loading states, error handling, and success messages for content generation
-- Integrated generated content into existing book library system with proper metadata
-- **Changed page viewing system from sentences to words**: Books now use words per page (default 250, range 250-500) instead of sentences per page
-- **Removed sentences per page setting**: The setting is no longer configurable in reader settings and is set at book creation time
-- **Updated book creation**: All book creation methods (EPUB upload, text upload, AI generation) now include wordsPerPage field
-- **Enhanced page calculation**: Pages are now calculated based on word count rather than sentence count for more consistent reading experience
-- **Added swipe navigation shortcuts**: Updated shortcuts section to include swipe left/right for previous/next page navigation
-- **Enhanced EPUB upload in Add Text tab**: Moved EPUB upload button into the "Add Text" tab with improved functionality
-- **Auto-fill EPUB metadata**: When an EPUB file is selected, title and author are automatically filled from the EPUB metadata
-- **Smart form behavior**: Text content field is hidden when EPUB is selected, and EPUB selection is cleared when text content is entered
-- **Improved EPUB button styling**: EPUB upload button now matches the styling of other file upload buttons
-- **Manual override support**: Users can still edit title and author fields after EPUB selection, which clears the EPUB selection
-- **Better file selection feedback**: Shows selected EPUB filename and extracted metadata for user confirmation
-- **Added words per page setting in Add Text tab**: Users can now customize words per page (150-500, default 250) when creating books
-- **Enhanced slider UI**: Added themed range slider with number input for precise words per page control
-- **Consistent words per page across all book types**: All book creation methods (text, EPUB, MD, AI generation) now use the user-selected words per page setting
-- **Fixed EPUB editing behavior**: Users can now edit title and author fields without losing EPUB selection
-- **Improved form state management**: Text content field only shows when no EPUB is selected and no text content is entered
-- **Enhanced user experience**: EPUB selection persists when editing metadata, allowing for custom titles/authors with EPUB uploads
-- **Fixed EPUB title override issue**: Edited title and author are now properly used when creating EPUB books instead of being overridden by file metadata
-- **Added EPUB processing popup**: Shows "Processing EPUB..." with spinner when uploading EPUB, then "Complete!" with checkmark
-- **Enhanced upload flow**: Modal closes immediately when EPUB upload starts, processing popup appears in bottom-right (desktop) or bottom-center (mobile)
-- **Improved user feedback**: Clear visual indication of upload progress and completion status
-- **Added highlight instead of underline setting**: New option to replace underlines with light highlights (LingQ-style) for word status indication
-- **Enhanced word status visualization**: Words can now be highlighted with low-opacity colors instead of underlines, providing a cleaner visual experience
-- **Improved word status colors**: Maintains the same color scheme (red for unknown, purple for tracking, green for known, grey for ignored) but with subtle highlights
-- **Added auto-mark unknown words as known setting**: Automatically marks all unknown words on a page as "known" when advancing to the next page
-- **Added auto-mark as learning on popup setting**: Automatically marks words as "tracking" (learning) when opening the word definition popup
-- **Enhanced reading workflow**: Streamlines the learning process by automatically updating word status based on user actions
-- **Fixed word highlighting persistence**: Words now maintain their status-based styling (underlines/highlights) when popup is closed, instead of losing all styling
-- **Improved word status visualization**: When clicking a word and closing the popup, the word reverts to its proper status-based appearance (unknown=red, tracking=purple, known=green, ignored=grey)
-- **Enhanced auto-marking compatibility**: Auto-marking to learning feature works seamlessly with the new highlighting persistence system
-- **Fixed auto-marking styling issue**: Words auto-marked as "tracking" now correctly show purple styling when popup closes, instead of reverting to red "unknown" styling
-- **Comprehensive word styling persistence**: Words now always maintain their correct status-based styling when popup closes, regardless of whether auto-marking occurred or not
-- **Dynamic status-based styling calculation**: System now calculates and saves the appropriate styling based on current word status rather than static original styling
-- **Fixed multi-word clicking issue**: When clicking multiple unknown words in sequence, each word now correctly maintains its "tracking" status styling when popup closes, instead of reverting to "unknown" styling
-- **Real-time status-based styling restoration**: Word styling is now calculated dynamically based on current word status when popup closes, ensuring accurate visual representation
+- Various UI improvements, default settings changes, and popups
+- When uploading texts, we now have an option for words per page (default 250)
+- Add setting to **automatically update word to learning when clicking words**
+- Add setting for **autmatically updating words to known** when going to next page
+- Full TTS speaker list available now
+

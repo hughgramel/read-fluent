@@ -246,8 +246,7 @@ export function useReaderState(user: any) {
             showCurrentWordWhenInvisible: !!prefs.showCurrentWordWhenInvisible,
             highlightSentenceOnHover: !!prefs.highlightSentenceOnHover,
             lineSpacing: prefs.lineSpacing || 1.5,
-            disableWordSpans: !!prefs.disableWordSpans,
-            disableSentenceSpans: !!prefs.disableSentenceSpans,
+
             nativeLanguage: prefs.nativeLanguage || 'en',
             targetLanguage: prefs.targetLanguage || 'es',
             dictionary: prefs.dictionary || 'none',

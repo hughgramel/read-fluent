@@ -6,10 +6,31 @@ export default function PatchNotes() {
       <div className="max-w-2xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-extrabold theme-text mb-8 tracking-tight" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>Patch Notes</h1>
         <div className="flex flex-col gap-6">
-                      <div className="card-themed rounded-2xl shadow-sm p-5 flex flex-col" style={{ fontSize: '1rem' }}>
+          <div className="card-themed rounded-2xl shadow-sm p-5 flex flex-col" style={{ fontSize: '1rem' }}>
+            <div className="flex flex-row justify-between items-center mb-2">
+              <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>v0.3</span>
+              <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>2025.07.26.</span>
+            </div>
+            <div className="theme-text text-base mt-1 space-y-2" style={{ fontWeight: 400 }}>
+              <div>• Various UI improvements, default settings changes, and popups</div>
+              <div>• When uploading texts, we now have an option for words per page (default 250)</div>
+              <div>• Add setting to automatically update word to learning when clicking words</div>
+              <div>• Add setting for automatically updating words to known when going to next page</div>
+              <div>• Full TTS speaker list available now</div>
+              <div>• Improved default reader settings: 22px font size, 900px width, container mode none</div>
+              <div>• Auto-mark page complete when going to next page (enabled by default)</div>
+              <div>• Auto-mark words as learning when opening popup (enabled by default)</div>
+              <div>• Auto-mark unknown words as known when advancing page (enabled by default)</div>
+              <div>• Highlight instead of underline (enabled by default)</div>
+              <div>• Enable highlight words (enabled by default)</div>
+              <div>• Numbers are now automatically filtered out and treated as ignored words</div>
+              <div>• Removed unnecessary span settings from reader settings</div>
+            </div>
+          </div>
+          <div className="card-themed rounded-2xl shadow-sm p-5 flex flex-col" style={{ fontSize: '1rem' }}>
               <div className="flex flex-row justify-between items-center mb-2">
                 <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>v0.2</span>
-                <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>2025.01.27.</span>
+                <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>2025.07.25.</span>
               </div>
               <div className="theme-text text-base mt-1 space-y-2" style={{ fontWeight: 400 }}>
               <div>• Updated available interface, target languages, dictionaries, adding Dutch, Italian, and German and persistence of these changes</div>

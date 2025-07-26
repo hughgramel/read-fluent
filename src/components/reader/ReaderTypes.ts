@@ -52,8 +52,7 @@ export interface ReaderSettings {
   showCurrentWordWhenInvisible: boolean;
   highlightSentenceOnHover: boolean;
   lineSpacing: number;
-  disableWordSpans: boolean;
-  disableSentenceSpans: boolean;
+
   nativeLanguage: string;
   targetLanguage: string;
   dictionary: string;
