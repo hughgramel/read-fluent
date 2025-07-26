@@ -29,7 +29,7 @@ export interface UserPreferences {
   
   // Reader-specific settings (moved from localStorage)
   readerContainerStyle?: 'contained' | 'border' | 'none' | 'full-width';
-  sentencesPerPage?: number;
+  // sentencesPerPage?: number; // REMOVED - now using wordsPerPage in Book
   ttsSpeed?: number;
   ttsVoice?: string | null;
   disableWordHighlighting?: boolean;

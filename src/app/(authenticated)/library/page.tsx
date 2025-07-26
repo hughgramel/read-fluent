@@ -38,7 +38,9 @@ export interface Book {
   downloadURL?: string;
   completed?: boolean;
   css: string;
+  cover: string;
   wordsRead?: number;
+  wordsPerPage?: number; // Words per page for pagination (250-500, default 250)
 }
 
 interface ReadingProgress {
@@ -170,7 +172,9 @@ export default function library() {
         downloadURL: meta.downloadURL,
         completed: meta.completed || false,
         css: '', // No CSS in metadata
+        cover: '', // No cover in metadata
         wordsRead: meta.wordsRead || 0, // Always include wordsRead
+        wordsPerPage: 250, // Default words per page
       })));
     });
   }, [user]);
@@ -577,7 +581,9 @@ export default function library() {
         fileName: file.name,
         dateAdded: new Date().toISOString(),
         css: bookCss,
+        cover: coverUrl,
         wordsRead: 0,
+        wordsPerPage: 250, // Default words per page
       };
       const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as unknown as Record<string, unknown>);
       const savedMeta = await saveBookMetadata(user.uid, bookId, {
@@ -606,7 +612,9 @@ export default function library() {
           downloadURL,
           completed: false,
           css: newBook.css,
+          cover: newBook.cover,
           wordsRead: 0,
+          wordsPerPage: newBook.wordsPerPage,
         }
       ]);
       setIsUploading(false);
@@ -846,7 +854,9 @@ export default function library() {
         fileName: `${textTitle.trim().replace(/\s+/g, '_')}.txt`,
         dateAdded: new Date().toISOString(),
         css: '',
+        cover: '',
         wordsRead: 0,
+        wordsPerPage: 250, // Default words per page
       };
       // Upload JSON to storage
       const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -981,7 +991,9 @@ export default function library() {
           fileName: `${bookTitle.replace(/\s+/g, '_')}.md`,
           dateAdded: new Date().toISOString(),
           css: '',
+          cover: '',
           wordsRead: 0,
+          wordsPerPage: 250, // Default words per page
         };
         // Upload JSON to storage
         const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -1098,7 +1110,9 @@ export default function library() {
           fileName: `${bookTitle.replace(/\s+/g, '_')}.md`,
           dateAdded: new Date().toISOString(),
           css: '',
+          cover: '',
           wordsRead: 0,
+          wordsPerPage: 250, // Default words per page
         };
         // Upload JSON to storage
         const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -1140,7 +1154,9 @@ export default function library() {
           downloadURL: meta.downloadURL,
           completed: meta.completed || false,
           css: '',
+          cover: '', // No cover in metadata
           wordsRead: 0,
+          wordsPerPage: 250, // Default words per page
         })));
       });
     }
@@ -1264,7 +1280,9 @@ export default function library() {
         downloadURL: meta.downloadURL,
         completed: meta.completed || false,
         css: '',
+        cover: '', // No cover in metadata
         wordsRead: meta.wordsRead || 0,
+        wordsPerPage: 250, // Default words per page
       })));
 
       // Close the modal and show success message
@@ -1602,24 +1620,6 @@ export default function library() {
               <span className="hidden sm:inline">Generate</span>
             </button>
             {/* Upload EPUB Button */}
-            <button
-              className="flex items-center gap-2 btn-primary px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
-              disabled={isUploading}
-              onClick={() => document.getElementById('epub-upload-input')?.click()}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <span className="hidden sm:inline">{isUploading ? 'Uploading...' : 'Upload EPUB'}</span>
-            </button>
-          <input
-            id="epub-upload-input"
-            type="file"
-            accept=".epub"
-            onChange={handleFileSelect}
-            className="hidden"
-            disabled={isUploading}
-          />
             
           </div>
         </div>
@@ -1728,6 +1728,34 @@ export default function library() {
                     </label>
                     {textFile && <div className="text-sm text-gray-700 mt-1">Selected: <span className="font-medium">{textFile.name}</span></div>}
                   </div>
+
+                  <div className="flex flex-col mb-2">
+                    <label className="font-semibold mb-1">Or upload .epub file</label>
+                    <button
+              className="flex items-center gap-2 btn-primary px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
+              disabled={isUploading}
+              onClick={() => document.getElementById('epub-upload-input')?.click()}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <span className="hidden sm:inline">{isUploading ? 'Uploading...' : 'Upload EPUB'}</span>
+            </button>
+          <input
+            id="epub-upload-input"
+            type="file"
+            accept=".epub"
+            onChange={handleFileSelect}
+            className="hidden"
+            disabled={isUploading}
+          />
+
+                  </div>
+
+                  
+
+
+
                   <div className="flex flex-col mb-2">
                     <label className="font-semibold mb-1">Or upload .md file</label>
                     <div className="flex flex-row gap-2">

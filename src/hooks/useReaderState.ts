@@ -147,7 +147,7 @@ export function useReaderState(user: any) {
     });
   }, [user, bookId, pageParam]);
 
-  // Build sectionPages on book or sentencesPerPage change
+  // Build sectionPages on book or wordsPerPage change
   useEffect(() => {
     if (!book) return;
     
@@ -160,9 +160,31 @@ export function useReaderState(user: any) {
       
       const sentences = splitSentences(section.content);
       const pages: string[][] = [];
-      for (let i = 0; i < sentences.length; i += readerSettings.sentencesPerPage) {
-        pages.push(sentences.slice(i, i + readerSettings.sentencesPerPage));
+      
+      // Use wordsPerPage from book (default 250) instead of sentencesPerPage
+      const wordsPerPage = book.wordsPerPage || 250;
+      let currentPageWords = 0;
+      let currentPage: string[] = [];
+      
+      for (const sentence of sentences) {
+        const sentenceWordCount = sentence.split(/\s+/).filter(Boolean).length;
+        
+        // If adding this sentence would exceed the word limit and we have content, start a new page
+        if (currentPageWords + sentenceWordCount > wordsPerPage && currentPage.length > 0) {
+          pages.push([...currentPage]);
+          currentPage = [sentence];
+          currentPageWords = sentenceWordCount;
+        } else {
+          currentPage.push(sentence);
+          currentPageWords += sentenceWordCount;
+        }
       }
+      
+      // Add the last page if it has content
+      if (currentPage.length > 0) {
+        pages.push(currentPage);
+      }
+      
       return pages;
     });
     
@@ -190,7 +212,7 @@ export function useReaderState(user: any) {
       setActiveSentenceIndex(null);
       setActiveWordIndex(null);
     }
-  }, [book, readerSettings.sentencesPerPage, isSpeechPlayerActive]);
+  }, [book, isSpeechPlayerActive]);
 
   // Save progress on change
   useEffect(() => {
@@ -215,7 +237,7 @@ export function useReaderState(user: any) {
             viewMode: (prefs.viewMode as any) || 'scroll-section',
             disableWordsReadPopup: !!prefs.disableWordsReadPopup,
             readerContainerStyle: prefs.readerContainerStyle || 'contained',
-            sentencesPerPage: prefs.sentencesPerPage || 50,
+            // sentencesPerPage removed - now using wordsPerPage in Book
             ttsSpeed: prefs.ttsSpeed || 1.0,
             ttsVoice: prefs.ttsVoice || null,
             disableWordHighlighting: prefs.disableWordHighlighting !== undefined ? prefs.disableWordHighlighting : true,

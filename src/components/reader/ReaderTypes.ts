@@ -20,6 +20,7 @@ export interface Book {
   css: string;
   cover: string;
   wordsRead?: number; // Added for tracking words read
+  wordsPerPage?: number; // Words per page for pagination (250-500, default 250)
 }
 
 export interface ReadingProgress {
@@ -43,7 +44,6 @@ export interface ReaderSettings {
   viewMode: 'scroll-section' | 'scroll-book' | 'paginated-single' | 'paginated-two';
   disableWordsReadPopup: boolean;
   readerContainerStyle: 'contained' | 'border' | 'none' | 'full-width';
-  sentencesPerPage: number;
   ttsSpeed: number;
   ttsVoice: string | null;
   disableWordHighlighting: boolean;

@@ -181,7 +181,8 @@ Respond with ONLY the content text. Do not include any titles, explanations, or 
         dateAdded: new Date().toISOString(),
         css: '',
         cover: '',
-        wordsRead: 0
+        wordsRead: 0,
+        wordsPerPage: 250 // Default words per page
       };
 
       // Upload to Firebase Storage

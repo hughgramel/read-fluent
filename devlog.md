@@ -1,14 +1,28 @@
-# DEVLOG v0.2
+# DEVLOG v0.3
 - Updated available interface, target languages, dictionaries, adding Dutch, Italian, and German and persistence of these changes
 - Interface language will now be used directly when generating prompts (Was always English before)
-- Dictionaries will now automatically switch to match your selected interface and target languages, if available.
+- Dictionaries will now automatically switch to match your selected interface and target languages, if available
 - Updated profile settings UI, added better prompts, added [LANGUAGE_EXCEPTION] placeholder
-- Fixed bug where all Books cards were deleted when deleting a single one. 
-- TTS voice dropdown now filtered by the target language.
-- TTS voice dropdown now shows a message if no voice is set for the target language.
+- Fixed bug where all Books cards were deleted when deleting a single one
+- TTS voice dropdown now filtered by the target language
+- TTS voice dropdown now shows a message if no voice is set for the target language
 - Highlighting of words now default, highlights on click
 - Better TTS settings
 - Added word popup settings and ability to set default settings for word popup
 - Updated reader settings, added ability to set default settings for reader
 - Added ability to generate content with custom language, genre, topic, difficulty, DELF level, length
 - UI changes
+- Implemented AI content generation using Gemini 2.0 Flash for creating custom stories and articles
+- Added content generation modal with customizable options (language, genre, topic, difficulty, DELF level, length)
+- Created ContentGenerationService for AI-powered content creation and database storage
+- Added programmatic title generation (Topic + Genre format) for generated content
+- Implemented manual word counting for generated content accuracy
+- Added generate button with lightning bolt icon next to add button in library
+- Updated modal to pre-select appropriate tab based on button clicked (Add vs Generate)
+- Added loading states, error handling, and success messages for content generation
+- Integrated generated content into existing book library system with proper metadata
+- **Changed page viewing system from sentences to words**: Books now use words per page (default 250, range 250-500) instead of sentences per page
+- **Removed sentences per page setting**: The setting is no longer configurable in reader settings and is set at book creation time
+- **Updated book creation**: All book creation methods (EPUB upload, text upload, AI generation) now include wordsPerPage field
+- **Enhanced page calculation**: Pages are now calculated based on word count rather than sentence count for more consistent reading experience
+- **Added swipe navigation shortcuts**: Updated shortcuts section to include swipe left/right for previous/next page navigation

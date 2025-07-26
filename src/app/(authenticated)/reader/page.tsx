@@ -1002,20 +1002,7 @@ export default function ReaderPage() {
             </div>
             
             {/* 5. Settings modal: add sentences per page setting */}
-            <div className="mb-6">
-              <label className="block font-bold mb-2 theme-text">Sentences per Page</label>
-              <input
-                type="number"
-                min={10}
-                max={200}
-                step={1}
-                value={pendingSettings?.sentencesPerPage || readerSettings.sentencesPerPage}
-                onChange={e => {
-                  handlePendingSettingChange({ sentencesPerPage: Number(e.target.value) });
-                }}
-                className="w-full border border-[var(--border-color)] rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
-              />
-            </div>
+            {/* Sentences per page setting removed - now using wordsPerPage in Book */}
             <div className="mb-6">
               <label className="block font-bold mb-2 theme-text">TTS Speed ({pendingSettings?.ttsSpeed || readerSettings.ttsSpeed}x)</label>
               <input
