@@ -159,141 +159,157 @@ export default function ReviewPage() {
 
   return (
     <div 
-      className="page-container w-full min-h-screen pt-8 pb-4 px-2 sm:pt-0 sm:pb-0 sm:px-0 relative"
+      className="page-container w-full min-h-screen flex items-center justify-center px-2 sm:px-0 relative"
       style={{ 
         fontFamily: 'var(--font-family)'
       }}
-    >
-      {/* Floating Settings Button - top right */}
-      <button
-        onClick={() => setIsGlobalSettingsOpen(true)}
-        className="fixed top-4 right-4 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-colors sm:absolute sm:top-8 sm:right-8"
-        title="Global Settings"
-        style={{ padding: 0 }}
-      >
-        <FaCog size={24} className="text-gray-600" />
-      </button>
-      <div className="w-full flex flex-col items-center">
-        {/* Study All Button */}
-        <div className="mb-10 sm:mb-12 w-full flex justify-center">
-          <div 
-            className="card-themed-primary rounded-2xl shadow-lg p-6 sm:p-8 text-center w-full max-w-xs sm:max-w-xl md:max-w-2xl lg:max-w-3xl relative"
-            style={{ minHeight: 260 }}
-          >
-            <h2 className="text-xl sm:text-2xl font-semibold theme-text mb-4 mt-2">
-              Ready to Study?
-            </h2>
-            <div className="mb-6">
-              {isLoadingDueCount ? (
-                <div className="flex items-center justify-center">
-                  <div 
-                    className="animate-spin rounded-full h-6 w-6 border-b-2 mr-2"
-                    style={{ borderColor: 'var(--primary-color)' }}
-                  ></div>
-                  <span className="theme-text-secondary text-sm sm:text-base">Loading due cards...</span>
-                </div>
-              ) : (
-                <p className="theme-text-secondary text-base sm:text-lg">
-                  {totalDueCount > 0 
-                    ? `${totalDueCount} card${totalDueCount === 1 ? '' : 's'} due for review`
-                    : 'No cards due for review'
-                  }
-                </p>
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
-              <button
-                onClick={handleStartStudySession}
-                disabled={isLoadingDueCount || totalDueCount === 0}
-                className="btn-primary px-6 sm:px-8 py-3 text-base sm:text-lg font-semibold rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 w-full sm:w-auto"
-              >
-                {totalDueCount > 0 ? 'Study All' : 'No Cards Due'}
-              </button>
-              <button
-                onClick={() => setIsCardCreatorOpen(true)}
-                className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-base sm:text-lg font-semibold rounded-xl hover:scale-105 transition-transform w-full sm:w-auto"
-                style={{
-                  background: 'var(--secondary-color)',
-                  color: 'white',
-                  border: 'none'
-                }}
-              >
-                <FaPlus size={16} />
-                Add Card
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Decks List */}
-        <div className="w-full flex flex-col items-center mt-8 sm:mt-0">
-          <div className="flex flex-row items-center justify-center gap-4 mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold theme-text mb-0">Your Decks</h2>
-            <button
-              onClick={handleCreateDeckClick}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform btn-primary"
-              style={{
-                background: 'var(--secondary-color, #67b9e7)',
-                color: 'var(--button-text-color, white)',
-                border: 'none',
-                outline: 'none',
-              }}
-            >
-              + Create Deck
-            </button>
-          </div>
-          <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
-            <DeckList 
-              onDeckReview={handleDeckReview}
-              refreshTrigger={deckRefreshTrigger}
-              minimalistMobile={true}
-            />
-          </div>
-        </div>
+    > 
+      <div className="flex flex-col items-center justify-center">
+        <h1 className="text-2xl sm:text-3xl font-bold theme-text mb-4">Review</h1>
+        <p className="theme-text-secondary text-base sm:text-lg">Coming soon!</p>
       </div>
-
-      {/* Card Creator Popup */}
-      <CardCreatorPopup
-        isOpen={isCardCreatorOpen}
-        onClose={() => setIsCardCreatorOpen(false)}
-        onCardCreated={handleCardCreated}
-      />
-
-      {/* Study Session */}
-      {isStudySessionActive && user && (
-        <StudySession
-          userId={user.uid}
-          onComplete={handleSessionComplete}
-          onExit={handleSessionExit}
-        />
-      )}
-
-      {/* Session Complete */}
-      {sessionStats && (
-        <SessionComplete
-          stats={sessionStats}
-          onClose={handleSessionStatsClose}
-          onStartNewSession={handleStartNewSession}
-        />
-      )}
-
-      {/* Global Settings */}
-      {user && (
-        <GlobalSettings
-          userId={user.uid}
-          isOpen={isGlobalSettingsOpen}
-          onClose={() => setIsGlobalSettingsOpen(false)}
-          onSettingsUpdated={handleGlobalSettingsUpdated}
-        />
-      )}
-
-      {/* Card Browser */}
-      {isCardBrowserOpen && (
-        <CardBrowser
-          isOpen={isCardBrowserOpen}
-          onClose={() => setIsCardBrowserOpen(false)}
-        />
-      )}
     </div>
   );
+
+  // return (
+  //   <div 
+  //     className="page-container w-full min-h-screen pt-8 pb-4 px-2 sm:pt-0 sm:pb-0 sm:px-0 relative"
+  //     style={{ 
+  //       fontFamily: 'var(--font-family)'
+  //     }}
+  //   >
+  //     <>
+  //       {/* Floating Settings Button - top right */}
+  //       <button
+  //         onClick={() => setIsGlobalSettingsOpen(true)}
+  //         className="fixed top-4 right-4 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition-colors sm:absolute sm:top-8 sm:right-8"
+  //         title="Global Settings"
+  //         style={{ padding: 0 }}
+  //       >
+  //         <FaCog size={24} className="text-gray-600" />
+  //       </button>
+  //       <div className="w-full flex flex-col items-center">
+  //         {/* Study All Button */}
+  //         <div className="mb-10 sm:mb-12 w-full flex justify-center">
+  //           <div 
+  //             className="card-themed-primary rounded-2xl shadow-lg p-6 sm:p-8 text-center w-full max-w-xs sm:max-w-xl md:max-w-2xl lg:max-w-3xl relative"
+  //             style={{ minHeight: 260 }}
+  //           >
+  //             <h2 className="text-xl sm:text-2xl font-semibold theme-text mb-4 mt-2">
+  //               Ready to Study?
+  //             </h2>
+  //             <div className="mb-6">
+  //               {isLoadingDueCount ? (
+  //                 <div className="flex items-center justify-center">
+  //                   <div 
+  //                     className="animate-spin rounded-full h-6 w-6 border-b-2 mr-2"
+  //                     style={{ borderColor: 'var(--primary-color)' }}
+  //                   ></div>
+  //                   <span className="theme-text-secondary text-sm sm:text-base">Loading due cards...</span>
+  //                 </div>
+  //               ) : (
+  //                 <p className="theme-text-secondary text-base sm:text-lg">
+  //                   {totalDueCount > 0 
+  //                     ? `${totalDueCount} card${totalDueCount === 1 ? '' : 's'} due for review`
+  //                     : 'No cards due for review'
+  //                   }
+  //                 </p>
+  //               )}
+  //             </div>
+  //             <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+  //               <button
+  //                 onClick={handleStartStudySession}
+  //                 disabled={isLoadingDueCount || totalDueCount === 0}
+  //                 className="btn-primary px-6 sm:px-8 py-3 text-base sm:text-lg font-semibold rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 w-full sm:w-auto"
+  //               >
+  //                 {totalDueCount > 0 ? 'Study All' : 'No Cards Due'}
+  //               </button>
+  //               <button
+  //                 onClick={() => setIsCardCreatorOpen(true)}
+  //                 className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-base sm:text-lg font-semibold rounded-xl hover:scale-105 transition-transform w-full sm:w-auto"
+  //                 style={{
+  //                   background: 'var(--secondary-color)',
+  //                   color: 'white',
+  //                   border: 'none'
+  //                 }}
+  //               >
+  //                 <FaPlus size={16} />
+  //                 Add Card
+  //               </button>
+  //             </div>
+  //           </div>
+  //         </div>
+
+  //         {/* Decks List */}
+  //         <div className="w-full flex flex-col items-center mt-8 sm:mt-0">
+  //           <div className="flex flex-row items-center justify-center gap-4 mb-4">
+  //             <h2 className="text-xl sm:text-2xl font-bold theme-text mb-0">Your Decks</h2>
+  //             <button
+  //               onClick={handleCreateDeckClick}
+  //               className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium hover:scale-105 transition-transform btn-primary"
+  //               style={{
+  //                 background: 'var(--secondary-color, #67b9e7)',
+  //                 color: 'var(--button-text-color, white)',
+  //                 border: 'none',
+  //                 outline: 'none',
+  //               }}
+  //             >
+  //               + Create Deck
+  //             </button>
+  //           </div>
+  //           <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
+  //             <DeckList 
+  //               onDeckReview={handleDeckReview}
+  //               refreshTrigger={deckRefreshTrigger}
+  //               minimalistMobile={true}
+  //             />
+  //           </div>
+  //         </div>
+  //       </div>
+
+  //       {/* Card Creator Popup */}
+  //       <CardCreatorPopup
+  //         isOpen={isCardCreatorOpen}
+  //         onClose={() => setIsCardCreatorOpen(false)}
+  //         onCardCreated={handleCardCreated}
+  //       />
+
+  //       {/* Study Session */}
+  //       {isStudySessionActive && user && (
+  //         <StudySession
+  //           userId={user.uid}
+  //           onComplete={handleSessionComplete}
+  //           onExit={handleSessionExit}
+  //         />
+  //       )}
+
+  //       {/* Session Complete */}
+  //       {sessionStats && (
+  //         <SessionComplete
+  //           stats={sessionStats}
+  //           onClose={handleSessionStatsClose}
+  //           onStartNewSession={handleStartNewSession}
+  //         />
+  //       )}
+
+  //       {/* Global Settings */}
+  //       {user && (
+  //         <GlobalSettings
+  //           userId={user.uid}
+  //           isOpen={isGlobalSettingsOpen}
+  //           onClose={() => setIsGlobalSettingsOpen(false)}
+  //           onSettingsUpdated={handleGlobalSettingsUpdated}
+  //         />
+  //       )}
+
+  //       {/* Card Browser */}
+  //       {isCardBrowserOpen && (
+  //         <CardBrowser
+  //           isOpen={isCardBrowserOpen}
+  //           onClose={() => setIsCardBrowserOpen(false)}
+  //         />
+  //       )}
+  //     </>
+  //   </div>
+  // );
 } 

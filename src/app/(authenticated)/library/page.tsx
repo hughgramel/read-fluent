@@ -1585,7 +1585,7 @@ export default function library() {
               }}
             >
               <FiPlus className="w-5 h-5" />
-              <span>Add</span>
+              <span className="hidden sm:inline">Add</span>
             </button>
             {/* Generate Content Button */}
             <button
@@ -1599,7 +1599,7 @@ export default function library() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <span>Generate</span>
+              <span className="hidden sm:inline">Generate</span>
             </button>
             {/* Upload EPUB Button */}
             <button
@@ -1610,7 +1610,7 @@ export default function library() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              <span>{isUploading ? 'Uploading...' : 'Upload EPUB'}</span>
+              <span className="hidden sm:inline">{isUploading ? 'Uploading...' : 'Upload EPUB'}</span>
             </button>
           <input
             id="epub-upload-input"
@@ -1646,7 +1646,7 @@ export default function library() {
             onClick={() => setShowTextModal(false)}
           >
             <div
-              className="card-themed sm:p-12 p-3 sm:max-w-2xl max-w-xs w-[95vw] max-h-[90vh] overflow-y-auto"
+              className="card-themed sm:p-12 p-4 sm:max-w-2xl max-w-sm w-[98vw] max-h-[85vh] overflow-y-auto"
               style={{ fontFamily: 'var(--font-family)', color: 'var(--text-color)', minWidth: 0 }}
               onClick={e => e.stopPropagation()}
             >
@@ -1685,32 +1685,32 @@ export default function library() {
               
               {/* Tab Content */}
               {modalTab === 'add-text' && (
-                <div className="theme-text-secondary text-base space-y-3 px-2">
+                <div className="theme-text-secondary text-sm sm:text-base space-y-2 sm:space-y-3 px-1 sm:px-2">
                   <div className="flex flex-col mb-2">
-                    <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Title</label>
+                    <label className="font-semibold mb-0.5 sm:mb-1 text-sm sm:text-base">Title</label>
                     <input
                       type="text"
                       value={textTitle}
                       onChange={e => setTextTitle(e.target.value)}
-                      className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg"
+                      className="input-themed text-sm sm:text-base p-2 sm:p-3 rounded-md sm:rounded-lg"
                     />
                   </div>
                   <div className="flex flex-col mb-2">
-                    <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Author</label>
+                    <label className="font-semibold mb-0.5 sm:mb-1 text-sm sm:text-base">Author</label>
                     <input
                       type="text"
                       value={textAuthor}
                       onChange={e => setTextAuthor(e.target.value)}
-                      className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg"
+                      className="input-themed text-sm sm:text-base p-2 sm:p-3 rounded-md sm:rounded-lg"
                     />
                   </div>
                   <div className="flex flex-col mb-2">
-                    <label className="font-semibold mb-0.5 sm:mb-1 text-base sm:text-lg">Text Content</label>
+                    <label className="font-semibold mb-0.5 sm:mb-1 text-sm sm:text-base">Text Content</label>
                     <textarea
                       value={textContent}
                       onChange={e => setTextContent(e.target.value)}
-                      rows={5}
-                      className="input-themed text-base sm:text-lg p-2 sm:p-3 rounded-md sm:rounded-lg sm:min-h-[220px] min-h-[100px] max-h-[140px]"
+                      rows={4}
+                      className="input-themed text-sm sm:text-base p-2 sm:p-3 rounded-md sm:rounded-lg sm:min-h-[220px] min-h-[80px] max-h-[120px]"
                       style={{ resize: 'vertical' }}
                     />
                   </div>
@@ -1777,13 +1777,13 @@ export default function library() {
               )}
               
               {modalTab === 'generate' && (
-                <div className="theme-text-secondary text-base space-y-4 px-2">
+                <div className="theme-text-secondary text-sm sm:text-base space-y-3 sm:space-y-4 px-1 sm:px-2">
                   <div className="flex flex-col mb-4">
-                    <label className="font-semibold mb-2 text-base">Language</label>
+                    <label className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Language</label>
                     <select
                       value={generateLanguage}
                       onChange={e => setGenerateLanguage(e.target.value)}
-                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      className="w-full theme-border rounded px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
                       style={{ borderColor: 'var(--border-color)' }}
                     >
                       <option value="es">Spanish</option>
@@ -1796,11 +1796,11 @@ export default function library() {
                   </div>
 
                   <div className="flex flex-col mb-4">
-                    <label className="font-semibold mb-2 text-base">Genre</label>
+                    <label className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Genre</label>
                     <select
                       value={generateGenre}
                       onChange={e => setGenerateGenre(e.target.value)}
-                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      className="w-full theme-border rounded px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
                       style={{ borderColor: 'var(--border-color)' }}
                     >
                       <option value="story">Story</option>
@@ -1814,19 +1814,19 @@ export default function library() {
                   </div>
 
                   <div className="flex flex-col mb-4">
-                    <label className="font-semibold mb-2 text-base">Topic</label>
+                    <label className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Topic</label>
                     <input
                       type="text"
                       value={generateTopic}
                       onChange={e => setGenerateTopic(e.target.value)}
                       placeholder="Enter a topic for your content (e.g., 'A day at the beach', 'Climate change', 'Traveling to Paris')"
-                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      className="w-full theme-border rounded px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
                       style={{ borderColor: 'var(--border-color)' }}
                     />
                   </div>
 
                   <div className="flex flex-col mb-4">
-                    <label className="font-semibold mb-2 text-base">Difficulty Level</label>
+                    <label className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Difficulty Level</label>
                     <select
                       value={generateDifficulty}
                       onChange={e => {
@@ -1841,7 +1841,7 @@ export default function library() {
                           setGenerateDelfLevel('c1');
                         }
                       }}
-                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      className="w-full theme-border rounded px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
                       style={{ borderColor: 'var(--border-color)' }}
                     >
                       <option value="beginner">Beginner</option>
@@ -1851,11 +1851,11 @@ export default function library() {
                   </div>
 
                   <div className="flex flex-col mb-4">
-                    <label className="font-semibold mb-2 text-base">DELF Level (Optional)</label>
+                    <label className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">DELF Level (Optional)</label>
                     <select
                       value={generateDelfLevel}
                       onChange={e => setGenerateDelfLevel(e.target.value)}
-                      className="w-full theme-border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
+                      className="w-full theme-border rounded px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
                       style={{ borderColor: 'var(--border-color)' }}
                     >
                       {generateDifficulty === 'beginner' && (
@@ -1880,7 +1880,7 @@ export default function library() {
                   </div>
 
                   <div className="flex flex-col mb-6">
-                    <label className="font-semibold mb-2 text-base">Length ({generateLength} words)</label>
+                    <label className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Length ({generateLength} words)</label>
                     <input
                       type="range"
                       min={500}

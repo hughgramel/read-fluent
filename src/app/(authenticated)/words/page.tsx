@@ -63,7 +63,7 @@ export default function WordsPage() {
   useEffect(() => {
     if (user) {
       UserService.getUserPreferences(user.uid).then(prefs => {
-        if (prefs?.language) setProfileLang(prefs.language);
+        if (prefs?.targetLanguage) setProfileLang(prefs.targetLanguage);
         else setProfileLang('en');
         setLangLoaded(true);
       });

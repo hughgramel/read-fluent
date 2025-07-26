@@ -8,12 +8,12 @@ interface MobileNavProps {
 }
 
 const navigation = [
-  { name: 'Home', href: '/home', icon: <FaHome size={22} /> },
-  { name: 'Library', href: '/library', icon: <FaBookOpen size={22} /> },
-  { name: 'Review', href: '/review', icon: <FaRegClone size={22} /> },
-  { name: 'History', href: '/history', icon: <FaRegSave size={22} /> },
-  { name: 'Words', href: '/words', icon: <PiTextAaBold size={22} /> },
-  { name: 'Profile', href: '/profile', icon: <FaUser size={22} /> },
+  { name: 'Home', href: '/home', icon: <FaHome size={26} /> },
+  { name: 'Library', href: '/library', icon: <FaBookOpen size={26} /> },
+  { name: 'Review', href: '/review', icon: <FaRegClone size={26} /> },
+  { name: 'History', href: '/history', icon: <FaRegSave size={26} /> },
+  { name: 'Words', href: '/words', icon: <PiTextAaBold size={26} /> },
+  { name: 'Profile', href: '/profile', icon: <FaUser size={26} /> },
 ];
 
 const GRAY = 'rgb(98,108,145)';

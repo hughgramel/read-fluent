@@ -102,7 +102,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       UserService.getUserPreferences(user.uid).then(prefs => {
-        if (prefs?.language) setLanguage(prefs.language);
+        if (prefs?.targetLanguage) setLanguage(prefs.targetLanguage);
         else setLanguage('en');
         if (prefs?.dictionary) setDictionary(prefs.dictionary);
         else setDictionary('none');
@@ -137,7 +137,7 @@ export default function ProfilePage() {
       ]).then(([promptsFromDb, prefs]) => {
         const mergedPrompts = { ...defaultPrompts, ...promptsFromDb };
         const saved = {
-          language: prefs?.language || prefs?.targetLanguage || 'en',
+          language: prefs?.targetLanguage || 'en',
           nativeLanguage: prefs?.nativeLanguage || localStorage.getItem('reader-native-language') || 'en',
           dictionary: prefs?.dictionary || 'none',
           prompts: mergedPrompts,
@@ -156,6 +156,10 @@ export default function ProfilePage() {
   const handleDraftChange = (key: string, value: string) => {
     setSettingsDraft((prev: any) => ({ ...prev, [key]: value }));
     setSettingsChanged(true);
+    // Set flag for manual language changes to trigger dictionary auto-switch
+    if (key === 'language' || key === 'nativeLanguage') {
+      setUserManuallyChangedLanguage(true);
+    }
   };
   const handlePromptDraftChange = (key: string, value: string) => {
     setSettingsDraft((prev: any) => ({ ...prev, prompts: { ...prev.prompts, [key]: value } }));
@@ -164,16 +168,25 @@ export default function ProfilePage() {
   const handleSaveSettings = async () => {
     if (!user || !settingsDraft) return;
     setPromptsLoading(true);
-    await UserService.updateUserPreferences(user.uid, {
-      targetLanguage: settingsDraft.language,
-      nativeLanguage: settingsDraft.nativeLanguage,
-      dictionary: settingsDraft.dictionary,
-    });
-    await UserService.updateUserPrompts(user.uid, settingsDraft.prompts);
-    setPrompts(settingsDraft.prompts);
-    setLastSavedSettings({ ...settingsDraft });
-    setPromptsLoading(false);
-    setSettingsChanged(false);
+    try {
+      await UserService.updateUserPreferences(user.uid, {
+        targetLanguage: settingsDraft.language,
+        nativeLanguage: settingsDraft.nativeLanguage,
+        dictionary: settingsDraft.dictionary,
+      });
+      await UserService.updateUserPrompts(user.uid, settingsDraft.prompts);
+      setPrompts(settingsDraft.prompts);
+      setLastSavedSettings({ ...settingsDraft });
+      setSettingsChanged(false);
+      // Update local state to reflect saved values
+      setLanguage(settingsDraft.language);
+      setNativeLanguage(settingsDraft.nativeLanguage);
+      setDictionary(settingsDraft.dictionary);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    } finally {
+      setPromptsLoading(false);
+    }
   };
   const handleCancelSettings = () => {
     // Reset draft to last saved
@@ -210,16 +223,21 @@ export default function ProfilePage() {
     setTimeout(() => setPromptsSaved(false), 2000);
   };
 
+  // Only auto-switch dictionary when user manually changes language/nativeLanguage
+  // Don't auto-switch when loading saved preferences
+  const [userManuallyChangedLanguage, setUserManuallyChangedLanguage] = useState(false);
+  
   useEffect(() => {
-    if (settingsDraft && dictionaries.length > 0) {
+    if (settingsDraft && dictionaries.length > 0 && userManuallyChangedLanguage) {
       const langCode = settingsDraft.language || language;
       const glossCode = settingsDraft.nativeLanguage || nativeLanguage;
       const dict = getDictionaryForPair(langCode, glossCode, dictionaries);
       if (dict) {
         setSettingsDraft((prev: any) => ({ ...prev, dictionary: dict.collection }));
       }
+      setUserManuallyChangedLanguage(false);
     }
-  }, [settingsDraft?.language, settingsDraft?.nativeLanguage, dictionaries]);
+  }, [settingsDraft?.language, settingsDraft?.nativeLanguage, dictionaries, userManuallyChangedLanguage]);
 
   if (!user) {
     return (
@@ -248,12 +266,9 @@ export default function ProfilePage() {
     <div className="w-full max-w-6xl mx-auto px-6 py-8" style={{ fontFamily: 'var(--font-family)' }}>
       <div className="flex flex-col gap-8">
         <div className="w-full">
-          <div className="mb-8">
-            <h1 className="text-3xl font-extrabold theme-text tracking-tight mb-2" style={{ letterSpacing: '-0.01em', fontWeight: 800, lineHeight: 1.1 }}>
-              {user.displayName || 'User'}
-            </h1>
+          <div className="mb-4">
             <p className="text-sm theme-text-secondary">
-              Joined {formatJoinDate(user.createdAt)}
+              Signed in as {user.email}
             </p>
           </div>
           
