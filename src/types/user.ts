@@ -42,6 +42,9 @@ export interface UserPreferences {
   disableSentenceSpans?: boolean;
   showAudioBarOnStart?: boolean; // NEW: show audio bar on start (default true)
   enableHighlightWords?: boolean; // Enable word highlighting based on status
+  highlightInsteadOfUnderline?: boolean; // Use highlights instead of underlines for word status
+  autoMarkUnknownAsKnownOnPageAdvance?: boolean; // Auto-mark unknown words as known when advancing pages
+  autoMarkAsLearningOnPopupOpen?: boolean; // Auto-mark words as learning when opening popup
   disableWordDefinitionPopup?: boolean; // Disable word definition popup
   disableClipboardButton?: boolean; // Hide clipboard button in reader
   enableMarkdown?: boolean; // Render page content as markdown

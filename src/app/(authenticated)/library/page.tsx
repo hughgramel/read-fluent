@@ -94,6 +94,8 @@ export default function library() {
   const [textError, setTextError] = useState('');
   const [textLoading, setTextLoading] = useState(false);
   const [textFile, setTextFile] = useState<File | null>(null);
+  const [epubFile, setEpubFile] = useState<File | null>(null);
+  const [epubMetadata, setEpubMetadata] = useState<{ title: string; author: string } | null>(null);
   const [mdFile, setMdFile] = useState<File | null>(null);
   const [mdError, setMdError] = useState('');
   const [mdLoading, setMdLoading] = useState(false);
@@ -120,6 +122,13 @@ export default function library() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generateSuccess, setGenerateSuccess] = useState<string | null>(null);
+  
+  // Add state for words per page setting
+  const [wordsPerPage, setWordsPerPage] = useState(250);
+  
+  // Add state for processing popup
+  const [showProcessingPopup, setShowProcessingPopup] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<'processing' | 'complete'>('processing');
 
   // Auto-scroll effect
   useEffect(() => {
@@ -174,7 +183,7 @@ export default function library() {
         css: '', // No CSS in metadata
         cover: '', // No cover in metadata
         wordsRead: meta.wordsRead || 0, // Always include wordsRead
-        wordsPerPage: 250, // Default words per page
+        wordsPerPage: wordsPerPage, // Use user-selected words per page
       })));
     });
   }, [user]);
@@ -290,9 +299,41 @@ export default function library() {
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.name.endsWith('.epub')) {
-      await processEpubFile(file);
+      await extractEpubMetadata(file);
     } else {
       setError('Please select a valid EPUB file.');
+    }
+  };
+
+  // Extract EPUB metadata without processing the full file
+  const extractEpubMetadata = async (file: File) => {
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = await JSZip.loadAsync(file);
+      const containerFile = zip.file('META-INF/container.xml');
+      if (!containerFile) throw new Error('Invalid EPUB: No container.xml found');
+      const containerText = await containerFile.async('text');
+      const parser = new DOMParser();
+      const containerDoc = parser.parseFromString(containerText, 'text/xml');
+      const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
+      if (!opfPath) throw new Error('Invalid EPUB: No OPF path found');
+      const opfFile = zip.file(opfPath);
+      if (!opfFile) throw new Error('Invalid EPUB: OPF file not found');
+      const opfText = await opfFile.async('text');
+      const opfDoc = parser.parseFromString(opfText, 'text/xml');
+      
+      const title = opfDoc.querySelector('title')?.textContent || 'Unknown Title';
+      const author = opfDoc.querySelector('creator')?.textContent || 'Unknown Author';
+      
+      setEpubFile(file);
+      setEpubMetadata({ title, author });
+      setTextTitle(title);
+      setTextAuthor(author);
+      setTextFile(null); // Clear text file when EPUB is selected
+      setMdFile(null); // Clear MD file when EPUB is selected
+    } catch (error) {
+      console.error('Error extracting EPUB metadata:', error);
+      setError(`Error reading EPUB file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -333,8 +374,9 @@ export default function library() {
       if (!opfFile) throw new Error('Invalid EPUB: OPF file not found');
       const opfText = await opfFile.async('text');
       const opfDoc = parser.parseFromString(opfText, 'text/xml');
-      const title = opfDoc.querySelector('title')?.textContent || 'Unknown Title';
-      const author = opfDoc.querySelector('creator')?.textContent || 'Unknown Author';
+      // Use title and author from form instead of EPUB metadata
+      const title = textTitle.trim() || opfDoc.querySelector('title')?.textContent || 'Unknown Title';
+      const author = textAuthor.trim() || opfDoc.querySelector('creator')?.textContent || 'Unknown Author';
       const description = opfDoc.querySelector('description')?.textContent || 'No description available';
       const spine = Array.from(opfDoc.querySelectorAll('spine itemref')).map(item => item.getAttribute('idref')).filter(Boolean);
       const sections: BookSection[] = [];
@@ -573,7 +615,7 @@ export default function library() {
       }
       const newBook: Book = {
         id: bookId,
-        title: bookTitle,
+        title: title, // Use the title from form or EPUB metadata
         author,
         description,
         sections,
@@ -583,7 +625,7 @@ export default function library() {
         css: bookCss,
         cover: coverUrl,
         wordsRead: 0,
-        wordsPerPage: 250, // Default words per page
+        wordsPerPage: wordsPerPage, // Use user-selected words per page
       };
       const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as unknown as Record<string, unknown>);
       const savedMeta = await saveBookMetadata(user.uid, bookId, {
@@ -791,6 +833,39 @@ export default function library() {
   // Add handler for text book creation
   const handleCreateTextBook = async () => {
     setTextError('');
+    
+    // Check if we have an EPUB file selected
+    if (epubFile) {
+      if (!textTitle.trim()) {
+        setTextError('Please enter a title.');
+        return;
+      }
+      if (!user?.uid) {
+        setTextError('You must be signed in.');
+        return;
+      }
+      setTextLoading(true);
+      setShowTextModal(false); // Close the modal
+      setShowProcessingPopup(true); // Show processing popup
+      setProcessingStatus('processing');
+      try {
+        // Process the EPUB file
+        await processEpubFile(epubFile);
+        setProcessingStatus('complete');
+        setTimeout(() => {
+          setShowProcessingPopup(false);
+        }, 2000); // Show "Complete!" for 2 seconds
+        setTextLoading(false);
+        return;
+      } catch (error) {
+        setTextError('Failed to process EPUB file.');
+        setShowProcessingPopup(false);
+        setTextLoading(false);
+        return;
+      }
+    }
+    
+    // Handle text content
     if (!textTitle.trim() || !textContent.trim()) {
       setTextError('Please fill in all fields.');
       return;
@@ -856,7 +931,7 @@ export default function library() {
         css: '',
         cover: '',
         wordsRead: 0,
-        wordsPerPage: 250, // Default words per page
+        wordsPerPage: wordsPerPage, // Use user-selected words per page
       };
       // Upload JSON to storage
       const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -886,6 +961,8 @@ export default function library() {
       setTextTitle('');
       setTextAuthor('');
       setTextContent('');
+      setEpubFile(null);
+      setEpubMetadata(null);
     } catch (err) {
       setTextError('Failed to create book.');
     } finally {
@@ -898,6 +975,8 @@ export default function library() {
     const file = event.target.files?.[0];
     if (file && file.name.endsWith('.txt')) {
       setTextFile(file);
+      setEpubFile(null); // Clear EPUB file when text file is selected
+      setEpubMetadata(null);
       const reader = new FileReader();
       reader.onload = (e) => {
         setTextContent(e.target?.result as string || '');
@@ -921,6 +1000,8 @@ export default function library() {
       return;
     }
     setMdFile(file);
+    setEpubFile(null); // Clear EPUB file when MD file is selected
+    setEpubMetadata(null);
     setMdLoading(true);
     try {
       const reader = new FileReader();
@@ -993,7 +1074,7 @@ export default function library() {
           css: '',
           cover: '',
           wordsRead: 0,
-          wordsPerPage: 250, // Default words per page
+          wordsPerPage: wordsPerPage, // Use user-selected words per page
         };
         // Upload JSON to storage
         const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -1112,7 +1193,7 @@ export default function library() {
           css: '',
           cover: '',
           wordsRead: 0,
-          wordsPerPage: 250, // Default words per page
+          wordsPerPage: wordsPerPage, // Use user-selected words per page
         };
         // Upload JSON to storage
         const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as any);
@@ -1156,7 +1237,7 @@ export default function library() {
           css: '',
           cover: '', // No cover in metadata
           wordsRead: 0,
-          wordsPerPage: 250, // Default words per page
+          wordsPerPage: wordsPerPage, // Use user-selected words per page
         })));
       });
     }
@@ -1691,7 +1772,9 @@ export default function library() {
                     <input
                       type="text"
                       value={textTitle}
-                      onChange={e => setTextTitle(e.target.value)}
+                      onChange={e => {
+                        setTextTitle(e.target.value);
+                      }}
                       className="input-themed text-sm sm:text-base p-2 sm:p-3 rounded-md sm:rounded-lg"
                     />
                   </div>
@@ -1700,20 +1783,56 @@ export default function library() {
                     <input
                       type="text"
                       value={textAuthor}
-                      onChange={e => setTextAuthor(e.target.value)}
+                      onChange={e => {
+                        setTextAuthor(e.target.value);
+                      }}
                       className="input-themed text-sm sm:text-base p-2 sm:p-3 rounded-md sm:rounded-lg"
                     />
                   </div>
                   <div className="flex flex-col mb-2">
-                    <label className="font-semibold mb-0.5 sm:mb-1 text-sm sm:text-base">Text Content</label>
-                    <textarea
-                      value={textContent}
-                      onChange={e => setTextContent(e.target.value)}
-                      rows={4}
-                      className="input-themed text-sm sm:text-base p-2 sm:p-3 rounded-md sm:rounded-lg sm:min-h-[220px] min-h-[80px] max-h-[120px]"
-                      style={{ resize: 'vertical' }}
-                    />
+                    <label className="font-semibold mb-0.5 sm:mb-1 text-sm sm:text-base">Words per Page ({wordsPerPage})</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="150"
+                        max="500"
+                        step="25"
+                        value={wordsPerPage}
+                        onChange={e => setWordsPerPage(Number(e.target.value))}
+                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                      />
+                      <input
+                        type="number"
+                        min="150"
+                        max="500"
+                        step="25"
+                        value={wordsPerPage}
+                        onChange={e => setWordsPerPage(Number(e.target.value))}
+                        className="w-20 text-center input-themed text-sm p-2 rounded-md"
+                      />
+                    </div>
+                    <div className="text-xs theme-text-secondary mt-1">
+                      Range: 150-500 words (default: 250)
+                    </div>
                   </div>
+                  {!epubFile && (
+                    <div className="flex flex-col mb-2">
+                      <label className="font-semibold mb-0.5 sm:mb-1 text-sm sm:text-base">Text Content</label>
+                      <textarea
+                        value={textContent}
+                        onChange={e => {
+                          setTextContent(e.target.value);
+                          if (e.target.value.trim()) {
+                            setEpubFile(null);
+                            setEpubMetadata(null);
+                          }
+                        }}
+                        rows={3}
+                        className="input-themed text-sm sm:text-base p-2 sm:p-3 rounded-md sm:rounded-lg sm:min-h-[160px] min-h-[60px] max-h-[100px]"
+                        style={{ resize: 'vertical' }}
+                      />
+                    </div>
+                  )}
                   <div className="flex flex-col mb-2">
                     <label className="font-semibold mb-1">Or upload .txt file</label>
                     <label htmlFor="text-upload-input" className="btn-primary inline-block w-fit px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base sm:text-base text-sm mb-2">
@@ -1731,25 +1850,27 @@ export default function library() {
 
                   <div className="flex flex-col mb-2">
                     <label className="font-semibold mb-1">Or upload .epub file</label>
-                    <button
-              className="flex items-center gap-2 btn-primary px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors border-none focus:outline-none focus:ring-2"
-              disabled={isUploading}
-              onClick={() => document.getElementById('epub-upload-input')?.click()}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <span className="hidden sm:inline">{isUploading ? 'Uploading...' : 'Upload EPUB'}</span>
-            </button>
-          <input
-            id="epub-upload-input"
-            type="file"
-            accept=".epub"
-            onChange={handleFileSelect}
-            className="hidden"
-            disabled={isUploading}
-          />
-
+                    <label htmlFor="epub-upload-input" className="btn-primary inline-block w-fit px-4 sm:px-6 py-2 rounded-md sm:rounded-lg font-semibold shadow-sm transition-colors cursor-pointer text-base sm:text-base text-sm mb-2">
+                      <span>Choose .epub File</span>
+                      <input
+                        id="epub-upload-input"
+                        type="file"
+                        accept=".epub"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        disabled={isUploading}
+                      />
+                    </label>
+                    {epubFile && (
+                      <div className="text-sm text-gray-700 mt-1">
+                        Selected: <span className="font-medium">{epubFile.name}</span>
+                        {epubMetadata && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Title: {epubMetadata.title} | Author: {epubMetadata.author}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   
@@ -1949,6 +2070,30 @@ export default function library() {
           </div>
         )}
       </div>
+      
+      {/* Processing Popup */}
+      {showProcessingPopup && (
+        <div className="fixed z-50 bottom-4 right-4 sm:bottom-4 sm:right-4 sm:left-auto left-1/2 transform -translate-x-1/2 sm:transform-none">
+          <div className="card-themed rounded-lg shadow-lg p-4 flex items-center gap-3">
+            {processingStatus === 'processing' ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2" style={{ borderColor: 'var(--primary-color)' }}></div>
+                <span className="text-sm font-medium theme-text">Processing EPUB...</span>
+              </>
+            ) : (
+              <>
+                <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--primary-color)' }}>
+                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium theme-text">Complete!</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      
       <ComprehensionModal />
     </div>
   );

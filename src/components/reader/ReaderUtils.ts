@@ -35,9 +35,27 @@ export function getWordUnderline(type: WordType | undefined, hovered: boolean): 
   return 'none';
 }
 
-// Helper: clean word for lookup (remove punctuation, lowercase)
+// Helper: get word highlight style for highlighting feature (LingQ-style)
+export function getWordHighlight(type: WordType | undefined, hovered: boolean): string {
+  if (type === 'tracking') return 'rgba(167, 139, 250, 0.3)'; // purple with low opacity
+  if (!type || type === 'unknown') return 'rgba(239, 68, 68, 0.3)'; // red with low opacity
+  if (type === 'known') return hovered ? 'rgba(22, 163, 74, 0.3)' : 'none'; // green with low opacity on hover
+  if (type === 'ignored') return hovered ? 'rgba(75, 85, 99, 0.3)' : 'none'; // dark grey with low opacity on hover
+  return 'none';
+}
+
+// Helper: check if a word is numeric
+export function isNumeric(word: string): boolean {
+  return /^-?\d*\.?\d+$/.test(word.trim());
+}
+
+// Helper: clean word for lookup (remove punctuation, lowercase, but exclude numbers)
 export function cleanWord(word: string): string {
-  return word.replace(/[^\p{L}\p{M}\d'-]/gu, '').toLowerCase();
+  // If the word is purely numeric, return empty string to indicate it should be ignored
+  if (isNumeric(word)) {
+    return '';
+  }
+  return word.replace(/[^\p{L}\p{M}'-]/gu, '').toLowerCase();
 }
 
 // Helper: robust sentence splitter

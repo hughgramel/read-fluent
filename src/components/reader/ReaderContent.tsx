@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Clipboard } from 'lucide-react';
 import { WordType } from './ReaderTypes';
-import { getWordUnderline, cleanWord } from './ReaderUtils';
+import { getWordUnderline, getWordHighlight, cleanWord, isNumeric } from './ReaderUtils';
 import { WordPopup } from './WordPopup';
 import ReactMarkdown from 'react-markdown';
 import { Components } from 'react-markdown';
@@ -29,6 +29,7 @@ interface ReaderContentProps {
   onCopyText: () => void;
   showCopyConfirm: boolean;
   enableHighlightWords: boolean;
+  highlightInsteadOfUnderline?: boolean;
   getWordStatus: (word: string) => WordType | undefined;
   updateWordStatus: (word: string, status: WordType) => void;
   hoveredWord: string | null;
@@ -46,6 +47,7 @@ interface ReaderContentProps {
     targetLanguage?: string;
     dictionary?: string;
     wordPopupDefaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
+    autoMarkAsLearningOnPopupOpen?: boolean;
   };
   setCurrentlyHighlightedSentence: (sentenceIndex: number | null) => void;
 }
@@ -73,6 +75,7 @@ export function ReaderContent({
   onCopyText,
   showCopyConfirm,
   enableHighlightWords,
+  highlightInsteadOfUnderline = false,
   getWordStatus,
   updateWordStatus,
   hoveredWord,
@@ -94,6 +97,8 @@ export function ReaderContent({
   const wordPopupWordSentenceSpan = useRef<HTMLElement | null>(null);
   // Add a ref to track the last selected word span for popup
   const lastWordPopupWordSpan = useRef<HTMLElement | null>(null);
+  // Add a ref to store the original styling before popup highlight
+  const originalWordStyle = useRef<{ background: string; borderRadius: string; boxShadow: string; borderBottom: string } | null>(null);
 
   // Update hoveredWordInfo when hoveredWordKey changes
   useEffect(() => {
@@ -146,6 +151,33 @@ export function ReaderContent({
   const showPopup = (word: string, sentence: string, rect: DOMRect | null) => {
     if (disableWordDefinitionPopup) return;
     if (!rect) return;
+    
+    // Auto-mark word as learning when opening popup (if setting is enabled and word highlighting is on)
+    if (readerSettings.autoMarkAsLearningOnPopupOpen && enableHighlightWords && updateWordStatus) {
+      const currentStatus = getWordStatus(word);
+      // Only mark as learning if the word is currently unknown
+      if (!currentStatus || currentStatus === 'unknown') {
+        updateWordStatus(word, 'tracking');
+        // Update the word's styling to reflect the new status immediately
+        if (wordPopupWordSpan.current) {
+          const newStatus = 'tracking';
+          const isHovered = false; // Not hovered when popup is open
+          
+          // Update the styling to reflect the new status
+          if (highlightInsteadOfUnderline && enableHighlightWords) {
+            wordPopupWordSpan.current.style.background = getWordHighlight(newStatus, isHovered);
+            wordPopupWordSpan.current.style.borderRadius = '4px';
+          } else if (enableHighlightWords) {
+            wordPopupWordSpan.current.style.borderBottom = getWordUnderline(newStatus, isHovered);
+          }
+        }
+      }
+    }
+    
+    // Save the current status-based styling after any auto-marking has occurred
+    if (wordPopupWordSpan.current) {
+      saveCurrentStatusStyle(wordPopupWordSpan.current, word);
+    }
     
     // Popup dimensions
     const popupWidth = 400;
@@ -319,15 +351,76 @@ export function ReaderContent({
   // Add a helper to apply and remove the highlight style
   function applyWordPopupHighlightStyle(el: HTMLElement | null) {
     if (!el) return;
+    
+    // Apply popup highlight style
     el.style.background = 'rgba(56, 189, 248, 0.18)';
     el.style.borderRadius = '0.25em';
     el.style.boxShadow = '0 -4px 0 0 rgba(56, 189, 248, 0.18)';
   }
+  
+  // Function to save the current status-based styling (to be called after auto-marking)
+  function saveCurrentStatusStyle(el: HTMLElement | null, word: string) {
+    if (!el) return;
+    
+    const cleanedWord = cleanWordForLookup(word);
+    const currentStatus = getWordStatus(cleanedWord);
+    const isHovered = false; // Not hovered when popup is open
+    
+    // Calculate what the styling should be based on current status
+    let background = '';
+    let borderRadius = '';
+    let borderBottom = '';
+    
+    if (enableHighlightWords && currentStatus) {
+      if (highlightInsteadOfUnderline) {
+        background = getWordHighlight(currentStatus, isHovered);
+        borderRadius = '4px';
+      } else {
+        borderBottom = getWordUnderline(currentStatus, isHovered);
+      }
+    }
+    
+    // Save the current status-based styling
+    originalWordStyle.current = {
+      background,
+      borderRadius,
+      boxShadow: '',
+      borderBottom
+    };
+  }
+  
   function removeWordPopupHighlightStyle(el: HTMLElement | null) {
     if (!el) return;
-    el.style.background = '';
-    el.style.borderRadius = '';
-    el.style.boxShadow = '';
+    
+    // Get the word from the element's text content
+    const wordText = el.textContent?.trim() || '';
+    const cleanedWord = cleanWordForLookup(wordText);
+    
+    // Get the current status of the word
+    const currentStatus = getWordStatus(cleanedWord);
+    const isHovered = false; // Not hovered when popup is closed
+    
+    // Calculate the current status-based styling
+    if (enableHighlightWords && currentStatus) {
+      if (highlightInsteadOfUnderline) {
+        el.style.background = getWordHighlight(currentStatus, isHovered);
+        el.style.borderRadius = '4px';
+        el.style.boxShadow = '';
+      } else {
+        el.style.borderBottom = getWordUnderline(currentStatus, isHovered);
+        el.style.background = '';
+        el.style.borderRadius = '';
+      }
+    } else {
+      // No status or highlighting disabled, clear all styling
+      el.style.background = '';
+      el.style.borderRadius = '';
+      el.style.boxShadow = '';
+      el.style.borderBottom = '';
+    }
+    
+    // Clear the saved styling since we're not using it anymore
+    originalWordStyle.current = null;
   }
 
   // Handle sentence hover
@@ -379,7 +472,8 @@ export function ReaderContent({
           const isPunctuation = /^[.,!?;:]|["'\)\]}]$/.test(word);
           const isLastNonPunctuationWord = !isPunctuation && words.slice(wIdx + 1).every(w => /^[.,!?;:]|["'\)\]}]$/.test(w));
           const cleanedWord = cleanWordForDisplay(word);
-          const wordStatus = enableHighlightWords ? getWordStatus(cleanedWord) : undefined;
+          // Treat numbers as ignored since there are infinite numbers
+          const wordStatus = enableHighlightWords ? (isNumeric(word) ? 'ignored' : getWordStatus(cleanedWord)) : undefined;
           const wordKey = getWordKey ? getWordKey(word, wIdx) : `${word}__${wIdx}`;
           const isHovered = hoveredWordKey === wordKey;
           const isActiveWord = !disableWordHighlighting && sIdx === activeSentenceIndex && wIdx === activeWordIndex;
@@ -404,9 +498,9 @@ export function ReaderContent({
                                     ? '#232946'
                                     : 'rgba(0,0,0,0.001)')
                                 : undefined)),
-                          background: isActiveWord ? '#ffe066' : undefined,
-                          borderRadius: isActiveWord ? 4 : undefined,
-                          borderBottom: !isPunctuation && enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                          background: isActiveWord ? '#ffe066' : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? getWordHighlight(wordStatus, isHovered) : undefined),
+                          borderRadius: isActiveWord ? 4 : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? 4 : undefined),
+                          borderBottom: !isPunctuation && enableHighlightWords && !highlightInsteadOfUnderline ? getWordUnderline(wordStatus, isHovered) : undefined,
                           cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                           transition: 'background 0.15s, color 0.15s',
                         }}
@@ -481,9 +575,9 @@ export function ReaderContent({
                           ? '#232946'
                           : 'rgba(0,0,0,0.001)')
                       : undefined)),
-                background: isActiveWord ? '#ffe066' : undefined,
-                borderRadius: isActiveWord ? 4 : undefined,
-                borderBottom: !isPunctuation && enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                background: isActiveWord ? '#ffe066' : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? getWordHighlight(wordStatus, isHovered) : undefined),
+                borderRadius: isActiveWord ? 4 : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? 4 : undefined),
+                borderBottom: !isPunctuation && enableHighlightWords && !highlightInsteadOfUnderline ? getWordUnderline(wordStatus, isHovered) : undefined,
                 cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                 transition: 'background 0.15s, color 0.15s',
               }}
@@ -647,7 +741,8 @@ export function ReaderContent({
               
               // Clean word for status lookup
               const cleanedWord = cleanWordForDisplay(word);
-              const wordStatus = enableHighlightWords ? getWordStatus(cleanedWord) : undefined;
+              // Treat numbers as ignored since there are infinite numbers
+              const wordStatus = enableHighlightWords ? (isNumeric(word) ? 'ignored' : getWordStatus(cleanedWord)) : undefined;
               const wordKey = getWordKey ? getWordKey(word, wIdx) : `${word}__${wIdx}`;
               const isHovered = hoveredWordKey === wordKey;
               const isActiveWord = !disableWordHighlighting && sIdx === activeSentenceIndex && wIdx === activeWordIndex;
@@ -742,9 +837,9 @@ export function ReaderContent({
                                 ? '#232946'
                                 : 'rgba(0,0,0,0.001)')
                             : undefined)),
-                      background: isActiveWord ? '#ffe066' : undefined,
-                      borderRadius: isActiveWord ? 4 : undefined,
-                      borderBottom: !isPunctuation && enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                      background: isActiveWord ? '#ffe066' : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? getWordHighlight(wordStatus, isHovered) : undefined),
+                      borderRadius: isActiveWord ? 4 : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? 4 : undefined),
+                      borderBottom: !isPunctuation && enableHighlightWords && !highlightInsteadOfUnderline ? getWordUnderline(wordStatus, isHovered) : undefined,
                       cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                       transition: 'background 0.15s, color 0.15s',
                     }}
@@ -808,9 +903,9 @@ export function ReaderContent({
                               ? '#232946'
                               : 'rgba(0,0,0,0.001)')
                           : undefined)),
-                    background: isActiveWord ? '#ffe066' : undefined,
-                    borderRadius: isActiveWord ? 4 : undefined,
-                    borderBottom: !isPunctuation && enableHighlightWords ? getWordUnderline(wordStatus, isHovered) : undefined,
+                    background: isActiveWord ? '#ffe066' : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? getWordHighlight(wordStatus, isHovered) : undefined),
+                    borderRadius: isActiveWord ? 4 : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? 4 : undefined),
+                    borderBottom: !isPunctuation && enableHighlightWords && !highlightInsteadOfUnderline ? getWordUnderline(wordStatus, isHovered) : undefined,
                     cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                     transition: 'background 0.15s, color 0.15s',
                   }}
@@ -894,7 +989,10 @@ export function ReaderContent({
           }}
           wordStatus={getWordStatus(popup.word) || 'unknown'}
           onWordStatusChange={(word, newStatus) => {
-            updateWordStatus(word, newStatus);
+            // Only allow word status changes when highlighting is enabled
+            if (enableHighlightWords) {
+              updateWordStatus(word, newStatus);
+            }
           }}
           readerFont={readerFont}
           // Ensure these are always non-undefined strings

@@ -59,6 +59,9 @@ export interface ReaderSettings {
   dictionary: string;
   showAudioBarOnStart: boolean;
   enableHighlightWords: boolean;
+  highlightInsteadOfUnderline?: boolean; // Use highlights instead of underlines for word status
+  autoMarkUnknownAsKnownOnPageAdvance?: boolean; // Auto-mark unknown words as known when advancing pages
+  autoMarkAsLearningOnPopupOpen?: boolean; // Auto-mark words as learning when opening popup
   disableWordDefinitionPopup?: boolean;
   disableClipboardButton?: boolean; // Hide clipboard button in reader
   enableMarkdown?: boolean; // Render page content as markdown

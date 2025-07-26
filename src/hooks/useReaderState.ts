@@ -253,6 +253,9 @@ export function useReaderState(user: any) {
             dictionary: prefs.dictionary || 'none',
             showAudioBarOnStart: !!prefs.showAudioBarOnStart,
             enableHighlightWords: !!prefs.enableHighlightWords,
+            highlightInsteadOfUnderline: !!prefs.highlightInsteadOfUnderline,
+            autoMarkUnknownAsKnownOnPageAdvance: !!prefs.autoMarkUnknownAsKnownOnPageAdvance,
+            autoMarkAsLearningOnPopupOpen: !!prefs.autoMarkAsLearningOnPopupOpen,
             disableWordDefinitionPopup: !!prefs.disableWordDefinitionPopup,
             enableSwipeNavigation: prefs.enableSwipeNavigation !== undefined ? prefs.enableSwipeNavigation : true,
             enableDoubleTapNavigation: prefs.enableDoubleTapNavigation !== undefined ? prefs.enableDoubleTapNavigation : true,
@@ -381,8 +384,11 @@ export function useReaderState(user: any) {
     setCurrentPageIndex(pageIdx);
   }, [sectionPages.length]);
 
+
+
   const nextPage = useCallback(() => {
     if (!sectionPages.length) return;
+    
     const pagesInSection = sectionPages[currentSectionIndex]?.length || 0;
     if (currentPageIndex < pagesInSection - 1) {
       setCurrentPageIndex(currentPageIndex + 1);
@@ -408,7 +414,7 @@ export function useReaderState(user: any) {
     if (readerSettings.autoMarkPageComplete) {
       handleMarkPageComplete();
     }
-  }, [sectionPages, currentSectionIndex, currentPageIndex, isSpeechPlayerActive]);
+  }, [sectionPages, currentSectionIndex, currentPageIndex, isSpeechPlayerActive, readerSettings.autoMarkPageComplete]);
 
   const prevPage = useCallback(() => {
     if (!sectionPages.length) return;
@@ -599,6 +605,8 @@ export function useReaderState(user: any) {
     }
   }, [user]);
 
+
+
   const getWordStatus = useCallback((word: string): WordType | undefined => {
     return userWords.get(cleanWord(word));
   }, [userWords]);
@@ -742,6 +750,8 @@ export function useReaderState(user: any) {
     globalPageNumber = sectionPages.slice(0, currentSectionIndex).reduce((acc, arr) => acc + arr.length, 0) + currentPageIndex + 1;
   }
   const isPageRead = !!readPagesBySection[currentSectionIndex]?.has(currentPageIndex);
+
+
 
   // Helper to recalculate total words read from sessions
   async function recalculateWordsRead() {

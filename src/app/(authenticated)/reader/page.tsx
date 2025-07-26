@@ -10,9 +10,10 @@ import { ReaderSidebar } from '@/components/reader/ReaderSidebar';
 import { ReaderContent } from '@/components/reader/ReaderContent';
 import { ReaderPopups } from '@/components/reader/ReaderPopups';
 import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
-import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle } from '@/components/reader/ReaderUtils';
+import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle, cleanWord, isNumeric } from '@/components/reader/ReaderUtils';
 import { ReaderSettings as ReaderSettingsType } from '@/components/reader/ReaderTypes';
 import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle, BookOpen, Bot, ListOrdered, Languages, Eye } from 'lucide-react';
+import { WordService } from '@/services/wordService';
 // @ts-ignore
 import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
 import React from 'react';
@@ -90,7 +91,7 @@ export default function ReaderPage() {
       // Double tap detected
       if (side === 'right') {
         if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
-        handleNextPage();
+        handleNextPage().catch(console.error);
       } else {
         handlePrevPage();
       }
@@ -119,7 +120,7 @@ export default function ReaderPage() {
         // Double tap detected
         if (side === 'right') {
           if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
-          handleNextPage();
+          handleNextPage().catch(console.error);
         } else {
           handlePrevPage();
         }
@@ -142,7 +143,7 @@ export default function ReaderPage() {
         handlePrevPage();
       } else {
         if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
-        handleNextPage();
+        handleNextPage().catch(console.error);
       }
     }
     swipeStartX.current = null;
@@ -235,11 +236,58 @@ export default function ReaderPage() {
   };
 
   // Wrapper functions for navigation that pause speech player first
-  const handleNextPage = () => {
+  const handleNextPage = async () => {
     // Pause speech player if it's currently playing
     if (speechPlayerRef.current && isSpeechPlayerActive) {
       speechPlayerRef.current.pause();
     }
+    
+    // Batch update all unknown words on the current page to known status
+    // Only do this when word highlighting is enabled, since users can only see word statuses when highlighting is on
+    if (readerSettings.autoMarkUnknownAsKnownOnPageAdvance && readerSettings.enableHighlightWords && user?.uid && book?.id) {
+      const currentPages = sectionPages[currentSectionIndex] || [];
+      const currentPageSentences = currentPages[currentPageIndex] || [];
+      const currentPageWords = currentPageSentences.flatMap(sentence => 
+        sentence.split(/\s+/).filter(word => word.length > 0)
+      );
+      
+      // Get all unknown words on the current page, excluding numbers
+      const unknownWords = currentPageWords.filter(word => {
+        const cleanedWord = cleanWord(word);
+        
+        // Skip empty words (which include numbers that were cleaned to empty)
+        if (!cleanedWord || cleanedWord.length === 0) {
+          return false;
+        }
+        
+        const status = getWordStatus(cleanedWord);
+        return !status || status === 'unknown';
+      });
+      
+      // Batch update all unknown words to known status
+      if (unknownWords.length > 0) {
+        try {
+          const cleanedUnknownWords = unknownWords.map(word => cleanWord(word)).filter(word => word.length > 0);
+          console.log('Words to batch update:', cleanedUnknownWords);
+          console.log('User ID:', user.uid);
+          if (cleanedUnknownWords.length > 0) {
+            await WordService.batchUpdateWords(user.uid, cleanedUnknownWords, 'known');
+          }
+          
+          // Update local state for immediate visual feedback
+          cleanedUnknownWords.forEach(word => {
+            // Update the userWords map in useReaderState
+            // This will trigger a re-render with updated word highlights
+            updateWordStatus(word, 'known');
+          });
+          
+          console.log(`Batch updated ${unknownWords.length} unknown words to known status`);
+        } catch (error) {
+          console.error('Failed to batch update words:', error);
+        }
+      }
+    }
+    
     // Reset speech player state for new page
     setActiveSentenceIndex(0);
     setActiveWordIndex(0);
@@ -541,7 +589,7 @@ export default function ReaderPage() {
               </button>
               <span className="text-base font-bold theme-text whitespace-nowrap">{globalPageNumber} / {totalPages}</span>
               <button 
-                onClick={handleNextPage} 
+                onClick={() => handleNextPage().catch(console.error)} 
                 disabled={globalPageNumber === totalPages} 
                 className="btn-primary flex items-center justify-center h-11 w-11 min-w-0 min-h-0 font-bold rounded-full shadow-sm border-none transition-colors disabled:bg-gray-300 disabled:text-gray-400"
                 style={isMobile ? { width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 } : { width: 44, height: 44, minWidth: 44, minHeight: 44, padding: 0 }}
@@ -699,7 +747,8 @@ export default function ReaderPage() {
                     disableClipboardButton: !!readerSettings.disableClipboardButton,
                     nativeLanguage: readerSettings.nativeLanguage,
                     enableMarkdown: !!readerSettings.enableMarkdown,
-                    dictionary: readerSettings.dictionary || 'none'
+                    dictionary: readerSettings.dictionary || 'none',
+                    autoMarkAsLearningOnPopupOpen: !!readerSettings.autoMarkAsLearningOnPopupOpen
                   }}
                   readerFont={effectiveSettings.readerFont}
                   readerFontSize={effectiveSettings.readerFontSize}
@@ -722,6 +771,7 @@ export default function ReaderPage() {
                   onCopyText={handleCopyText}
                   showCopyConfirm={showCopyConfirm}
                   enableHighlightWords={effectiveSettings.enableHighlightWords}
+                  highlightInsteadOfUnderline={effectiveSettings.highlightInsteadOfUnderline}
                   getWordStatus={getWordStatus}
                   updateWordStatus={updateWordStatus}
                   hoveredWord={hoveredWord}
@@ -1189,6 +1239,45 @@ export default function ReaderPage() {
                 style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="enable-highlight-words" className="font-bold theme-text select-none cursor-pointer">Enable highlight words</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="highlight-instead-of-underline"
+                type="checkbox"
+                checked={pendingSettings?.highlightInsteadOfUnderline ?? readerSettings.highlightInsteadOfUnderline}
+                onChange={e => {
+                  handlePendingSettingChange({ highlightInsteadOfUnderline: e.target.checked });
+                }}
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
+              />
+              <label htmlFor="highlight-instead-of-underline" className="font-bold theme-text select-none cursor-pointer">Highlight instead of underline</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="auto-mark-unknown-as-known"
+                type="checkbox"
+                checked={pendingSettings?.autoMarkUnknownAsKnownOnPageAdvance ?? readerSettings.autoMarkUnknownAsKnownOnPageAdvance}
+                onChange={e => {
+                  handlePendingSettingChange({ autoMarkUnknownAsKnownOnPageAdvance: e.target.checked });
+                }}
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
+              />
+              <label htmlFor="auto-mark-unknown-as-known" className="font-bold theme-text select-none cursor-pointer">Auto-mark unknown words as known when advancing pages</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="auto-mark-as-learning-on-popup"
+                type="checkbox"
+                checked={pendingSettings?.autoMarkAsLearningOnPopupOpen ?? readerSettings.autoMarkAsLearningOnPopupOpen}
+                onChange={e => {
+                  handlePendingSettingChange({ autoMarkAsLearningOnPopupOpen: e.target.checked });
+                }}
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
+              />
+              <label htmlFor="auto-mark-as-learning-on-popup" className="font-bold theme-text select-none cursor-pointer">Auto-mark words as learning when opening popup</label>
             </div>
             <div className="mb-6 flex items-center">
               <input

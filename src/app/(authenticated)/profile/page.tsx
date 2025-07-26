@@ -169,14 +169,14 @@ export default function ProfilePage() {
     if (!user || !settingsDraft) return;
     setPromptsLoading(true);
     try {
-      await UserService.updateUserPreferences(user.uid, {
-        targetLanguage: settingsDraft.language,
-        nativeLanguage: settingsDraft.nativeLanguage,
-        dictionary: settingsDraft.dictionary,
-      });
-      await UserService.updateUserPrompts(user.uid, settingsDraft.prompts);
-      setPrompts(settingsDraft.prompts);
-      setLastSavedSettings({ ...settingsDraft });
+    await UserService.updateUserPreferences(user.uid, {
+      targetLanguage: settingsDraft.language,
+      nativeLanguage: settingsDraft.nativeLanguage,
+      dictionary: settingsDraft.dictionary,
+    });
+    await UserService.updateUserPrompts(user.uid, settingsDraft.prompts);
+    setPrompts(settingsDraft.prompts);
+    setLastSavedSettings({ ...settingsDraft });
       setSettingsChanged(false);
       // Update local state to reflect saved values
       setLanguage(settingsDraft.language);
@@ -185,7 +185,7 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Failed to save settings:', error);
     } finally {
-      setPromptsLoading(false);
+    setPromptsLoading(false);
     }
   };
   const handleCancelSettings = () => {
@@ -226,7 +226,7 @@ export default function ProfilePage() {
   // Only auto-switch dictionary when user manually changes language/nativeLanguage
   // Don't auto-switch when loading saved preferences
   const [userManuallyChangedLanguage, setUserManuallyChangedLanguage] = useState(false);
-  
+
   useEffect(() => {
     if (settingsDraft && dictionaries.length > 0 && userManuallyChangedLanguage) {
       const langCode = settingsDraft.language || language;
