@@ -16,7 +16,7 @@ export interface UserPreferences {
   darkMode: boolean;
   readerFont?: string; // e.g. 'serif', 'sans', 'merriweather', etc.
   readerWidth?: number; // e.g. 600, 700, 900 (pixels)
-  readerFontSize?: number; // e.g. 18 (pixels)
+  readerFontSize?: number; // e.g. 24 (pixels)
   nativeLanguage?: string; // user's native language
   targetLanguage?: string; // user's target language for learning
   // Add more preferences as needed

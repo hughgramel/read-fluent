@@ -232,7 +232,7 @@ export function useReaderState(user: any) {
             ...prev,
             readerFont: prefs.readerFont || 'serif',
             readerWidth: prefs.readerWidth || 700,
-            readerFontSize: prefs.readerFontSize || 18,
+            readerFontSize: prefs.readerFontSize || 24,
             disableWordUnderlines: !!prefs.disableWordUnderlines,
             viewMode: (prefs.viewMode as any) || 'scroll-section',
             disableWordsReadPopup: !!prefs.disableWordsReadPopup,
