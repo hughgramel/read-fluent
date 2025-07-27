@@ -376,8 +376,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     onWordStatusChange(displayWord, newStatus);
   };
 
-  // Yomitan-style dictionary lookup
-  useEffect(() => {
+    // Extract dictionary lookup logic into a reusable function
+  const fetchYomitanEntries = async () => {
     if (dictionaryCollection === 'none') {
       setDictLoading(false);
       setDictError(null);
@@ -385,118 +385,122 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       setLemmaEntry(null);
       return;
     }
-    // Only fetch if not 'none'
-    const fetchYomitanEntries = async () => {
-      setDictLoading(true);
-      setDictError(null);
-      setDictEntries([]);
-      setLemmaEntry(null);
-      try {
-        const db = getFirestore();
-        // 1. Fetch the index document for the word from the main dictionary collection
-        const indexRef = doc(db, dictionaryCollection, displayWord);
-        const indexSnap = await getDoc(indexRef);
-        if (!indexSnap.exists()) {
-          setDictError('No dictionary entry found.');
+    
+    setDictLoading(true);
+    setDictError(null);
+    setDictEntries([]);
+    setLemmaEntry(null);
+    try {
+      const db = getFirestore();
+      // 1. Fetch the index document for the word from the main dictionary collection
+      const indexRef = doc(db, dictionaryCollection, displayWord);
+      const indexSnap = await getDoc(indexRef);
+      if (!indexSnap.exists()) {
+        setDictError('No dictionary entry found.');
+        setDictLoading(false);
+        return;
+      }
+      let indexData = indexSnap.data();
+      let indexArr: any[] = [];
+      if (typeof indexData.definitions_json === 'string') {
+        try {
+          indexArr = JSON.parse(indexData.definitions_json);
+        } catch (e) {
+          setDictError('Failed to parse dictionary index.');
           setDictLoading(false);
           return;
         }
-        let indexData = indexSnap.data();
-        let indexArr: any[] = [];
-        if (typeof indexData.definitions_json === 'string') {
-          try {
-            indexArr = JSON.parse(indexData.definitions_json);
-          } catch (e) {
-            setDictError('Failed to parse dictionary index.');
-            setDictLoading(false);
-            return;
-          }
-        } else if (Array.isArray(indexData.definitions_json)) {
-          indexArr = indexData.definitions_json;
-        }
-        
-        // 2. Fetch tags from the separate tags collection
-        const tagsCollection = `${dictionaryCollection}-tags`;
-        const tagsRef = doc(db, tagsCollection, displayWord);
-        const tagsSnap = await getDoc(tagsRef);
-        let tagsData = tagsSnap.exists() ? tagsSnap.data() : null;
-        
-        // 3. For each entry, fetch the actual definition document
-        const allEntries: any[] = [];
-        let lemmaWord = displayWord;
-        let lemmaTags: string[] = [];
-        // Find the lemma (the entry without 'alternative' tag)
-        for (const entry of indexArr) {
-          const entryWord = Array.isArray(entry) ? entry[0] : displayWord;
-          const entryTags = Array.isArray(entry) ? entry[1] : [];
-          if (!entryTags.includes('alternative')) {
-            lemmaWord = entryWord;
-            lemmaTags = entryTags;
-          }
-          allEntries.push({ word: entryWord, tags: entryTags });
-        }
-        setDictEntries(allEntries);
-        
-        // 4. If the selected word is an alternative, fetch the lemma's full entry
-        if (displayWord !== lemmaWord) {
-          const lemmaRef = doc(db, dictionaryCollection, lemmaWord);
-          const lemmaSnap = await getDoc(lemmaRef);
-          let lemmaData = lemmaSnap.exists() ? lemmaSnap.data() : null;
-          let lemmaJson = lemmaData && lemmaData.definitions_json ? lemmaData.definitions_json : null;
-          let lemmaParsed = null;
-          if (typeof lemmaJson === 'string') {
-            try {
-              lemmaParsed = JSON.parse(lemmaJson);
-            } catch {}
-          } else if (lemmaJson) {
-            lemmaParsed = lemmaJson;
-          }
-          
-          // Also fetch lemma tags from tags collection
-          const lemmaTagsRef = doc(db, tagsCollection, lemmaWord);
-          const lemmaTagsSnap = await getDoc(lemmaTagsRef);
-          let lemmaTagsData = lemmaTagsSnap.exists() ? lemmaTagsSnap.data() : null;
-          
-          // Debug: print lemma object
-          console.log('[DICT DEBUG] Fetched lemma object for', lemmaWord, lemmaData);
-          console.log('[DICT DEBUG] Fetched lemma tags for', lemmaWord, lemmaTagsData);
-          setLemmaEntry({
-            word: lemmaWord,
-            tags: lemmaTags,
-            definition: lemmaParsed,
-            raw: lemmaData,
-            tagsData: lemmaTagsData
-          });
-        } else {
-          // If the selected word is the lemma, fetch and show its entry as before
-          const defRef = doc(db, dictionaryCollection, lemmaWord);
-          const defSnap = await getDoc(defRef);
-          let defData = defSnap.exists() ? defSnap.data() : null;
-          let defJson = defData && defData.definitions_json ? defData.definitions_json : null;
-          let defParsed = null;
-          if (typeof defJson === 'string') {
-            try {
-              defParsed = JSON.parse(defJson);
-            } catch {}
-          } else if (defJson) {
-            defParsed = defJson;
-          }
-          setLemmaEntry({
-            word: lemmaWord,
-            tags: lemmaTags,
-            definition: defParsed,
-            raw: defData,
-            tagsData: tagsData
-          });
-        }
-        setDictLoading(false);
-      } catch (e: any) {
-        setDictError('Failed to fetch dictionary entries.');
-        setDictLoading(false);
+      } else if (Array.isArray(indexData.definitions_json)) {
+        indexArr = indexData.definitions_json;
       }
-    };
+      
+      // 2. Fetch tags from the separate tags collection
+      const tagsCollection = `${dictionaryCollection}-tags`;
+      const tagsRef = doc(db, tagsCollection, displayWord);
+      const tagsSnap = await getDoc(tagsRef);
+      let tagsData = tagsSnap.exists() ? tagsSnap.data() : null;
+      
+      // 3. For each entry, fetch the actual definition document
+      const allEntries: any[] = [];
+      let lemmaWord = displayWord;
+      let lemmaTags: string[] = [];
+      // Find the lemma (the entry without 'alternative' tag)
+      for (const entry of indexArr) {
+        const entryWord = Array.isArray(entry) ? entry[0] : displayWord;
+        const entryTags = Array.isArray(entry) ? entry[1] : [];
+        if (!entryTags.includes('alternative')) {
+          lemmaWord = entryWord;
+          lemmaTags = entryTags;
+        }
+        allEntries.push({ word: entryWord, tags: entryTags });
+      }
+      setDictEntries(allEntries);
+      
+      // 4. If the selected word is an alternative, fetch the lemma's full entry
+      if (displayWord !== lemmaWord) {
+        const lemmaRef = doc(db, dictionaryCollection, lemmaWord);
+        const lemmaSnap = await getDoc(lemmaRef);
+        let lemmaData = lemmaSnap.exists() ? lemmaSnap.data() : null;
+        let lemmaJson = lemmaData && lemmaData.definitions_json ? lemmaData.definitions_json : null;
+        let lemmaParsed = null;
+        if (typeof lemmaJson === 'string') {
+          try {
+            lemmaParsed = JSON.parse(lemmaJson);
+          } catch {}
+        } else if (lemmaJson) {
+          lemmaParsed = lemmaJson;
+        }
+        
+        // Also fetch lemma tags from tags collection
+        const lemmaTagsRef = doc(db, tagsCollection, lemmaWord);
+        const lemmaTagsSnap = await getDoc(lemmaTagsRef);
+        let lemmaTagsData = lemmaTagsSnap.exists() ? lemmaTagsSnap.data() : null;
+        
+        // Debug: print lemma object
+        console.log('[DICT DEBUG] Fetched lemma object for', lemmaWord, lemmaData);
+        console.log('[DICT DEBUG] Fetched lemma tags for', lemmaWord, lemmaTagsData);
+        setLemmaEntry({
+          word: lemmaWord,
+          tags: lemmaTags,
+          definition: lemmaParsed,
+          raw: lemmaData,
+          tagsData: lemmaTagsData
+        });
+      } else {
+        // If the selected word is the lemma, fetch and show its entry as before
+        const defRef = doc(db, dictionaryCollection, lemmaWord);
+        const defSnap = await getDoc(defRef);
+        let defData = defSnap.exists() ? defSnap.data() : null;
+        let defJson = defData && defData.definitions_json ? defData.definitions_json : null;
+        let defParsed = null;
+        if (typeof defJson === 'string') {
+          try {
+            defParsed = JSON.parse(defJson);
+          } catch {}
+        } else if (defJson) {
+          defParsed = defJson;
+        }
+        setLemmaEntry({
+          word: lemmaWord,
+          tags: lemmaTags,
+          definition: defParsed,
+          raw: defData,
+          tagsData: tagsData
+        });
+      }
+      setDictLoading(false);
+    } catch (e: any) {
+      setDictError('Failed to fetch dictionary entries.');
+      setDictLoading(false);
+    }
+  };
+
+  // Yomitan-style dictionary lookup
+  useEffect(() => {
     fetchYomitanEntries();
   }, [displayWord, dictionaryCollection, sentence]);
+
+
 
   // Gemini API call utility with fallback models
   async function callGemini(prompt: string | { systemPrompt: string, userPrompt: string }): Promise<string> {
@@ -624,6 +628,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         setDictError(null);
         setDictEntries([]);
         setLemmaEntry(null);
+        // Trigger dictionary lookup when definition button is clicked
+        fetchYomitanEntries();
         break;
       case 'explain':
         setPlaceholderText('');
