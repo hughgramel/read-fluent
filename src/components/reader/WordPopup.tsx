@@ -272,7 +272,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     wordExplainSystem: `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language [NATIVE_LANG].\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`,
     wordExplainUser: `[SENTENCE]. Explain usage of word(s): [WORD] (lang: [NATIVE_LANG])`,
     sentenceBreakdown: `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [NATIVE_LANG]. ONLY output text IN [NATIVE_LANG].`,
-    sentenceTranslation: `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [NATIVE_LANG].`
+    sentenceTranslation: `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [NATIVE_LANG].\n\nIMPORTANT: Surround the word that most closely corresponds to the target word [WORD] with asterisks (*word*).`
   };
   const { user } = useAuth ? useAuth() : { user: null };
   useEffect(() => {
@@ -330,7 +330,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
 
   // Clean word for display (remove punctuation but preserve apostrophes for French)
   const cleanWordForDisplay = (w: string) => {
-    return w.replace(/[.,!?;:]|["\)\]}]/g, '').toLowerCase();
+    return w.replace(/[.,!?;:]|["\)\]}]|«»/g, '').toLowerCase();
   };
   const displayWord = cleanWordForDisplay(transformedWord);
 
@@ -664,60 +664,104 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     }
   };
 
+  // Function to render translated text with bold formatting for asterisk-surrounded words
+  const renderTranslatedText = (text: string) => {
+    if (!text) return null;
+    
+    // Split the text by asterisk patterns and render with bold formatting
+    const parts = text.split(/(\*[^*]+\*)/g);
+    
+    return (
+      <div style={{ fontWeight: 500, marginBottom: 6 }}>
+        {parts.map((part, index) => {
+          if (part.startsWith('*') && part.endsWith('*')) {
+            // This is an asterisk-surrounded word, render it bold
+            const word = part.slice(1, -1); // Remove the asterisks
+            return (
+              <span key={index} style={{ fontWeight: 'bold', color: '#2563eb' }}>
+                {word}
+              </span>
+            );
+          } else {
+            // Regular text
+            return <span key={index}>{part}</span>;
+          }
+        })}
+      </div>
+    );
+  };
+
   return (
-    <div
-      data-popup="word-popup"
-      style={{
-        ...(isMobile
-          ? {
-              position: 'fixed',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              top: 'unset',
-              zIndex: 9999,
-              background: 'white',
-              color: '#232946',
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              border: '1px solid #888',
-              boxShadow: '0 -4px 16px rgba(0,0,0,0.12)',
-              padding: '12px 16px 24px 16px',
-              fontSize: 16,
-              width: '100vw',
-              maxWidth: '100vw',
-              minHeight: 180,
-              maxHeight: '60vh',
-              pointerEvents: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-            }
-          : {
-        position: 'fixed',
-              left: Math.max(8, Math.min(x, window.innerWidth - 400 - 8)),
-              top: y + 8,
-        zIndex: 9999,
-        background: 'white',
-        color: '#232946',
-        border: '1px solid #888',
-        borderRadius: 8,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-        padding: '12px 16px',
-        fontSize: 16,
-              width: 400,
-              maxWidth: '95vw',
-              maxHeight: 255,
-              minHeight: 100,
-        pointerEvents: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-            }),
-      }}
-      onClick={handlePopupClick}
-    >
+    <>
+      {/* Mobile backdrop for closing popup */}
+      {isMobile && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 9998,
+            pointerEvents: 'auto',
+          }}
+          onClick={onClose}
+        />
+      )}
+      <div
+        data-popup="word-popup"
+        style={{
+          ...(isMobile
+            ? {
+                position: 'fixed',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                top: 'unset',
+                zIndex: 9999,
+                background: 'white',
+                color: '#232946',
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                border: '1px solid #888',
+                boxShadow: '0 -4px 16px rgba(0,0,0,0.12)',
+                padding: '12px 16px 24px 16px',
+                fontSize: 16,
+                width: '100vw',
+                maxWidth: '100vw',
+                minHeight: 180,
+                maxHeight: '60vh',
+                pointerEvents: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+              }
+            : {
+          position: 'fixed',
+                left: Math.max(8, Math.min(x, window.innerWidth - 400 - 8)),
+                top: y + 8,
+          zIndex: 9999,
+          background: 'white',
+          color: '#232946',
+          border: '1px solid #888',
+          borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          padding: '12px 16px',
+          fontSize: 16,
+                width: 400,
+                maxWidth: '95vw',
+                maxHeight: 255,
+                minHeight: 100,
+          pointerEvents: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+              }),
+        }}
+        onClick={handlePopupClick}
+      >
       {/* Word and close button row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexShrink: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 18 }}>{displayWord}</div>
+        <div style={{ fontWeight: 700, fontSize: isMobile ? 22 : 18 }}>{displayWord}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button
           onClick={async () => {
@@ -772,26 +816,26 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       </div>
 
       {/* Action buttons row - circular and smaller, positioned below word */}
-      <div style={{ display: 'flex', gap: isMobile ? 4 : 6, flexShrink: 0, marginBottom: isMobile ? 4 : 6, justifyContent: 'flex-start' }}>
-        {/* Definition tab */}
+      <div style={{ display: 'flex', gap: isMobile ? 8 : 6, flexShrink: 0, marginBottom: isMobile ? 4 : 6, justifyContent: 'flex-start' }}>
+                  {/* Definition tab */}
         <button
           onClick={() => handleButtonClick('definition')}
           style={{
             background: activeTab === 'definition' ? '#e0e7ff' : '#f8f9fa',
             border: '1px solid #dee2e6',
             borderRadius: '50%',
-            padding: isMobile ? '6px' : '8px',
+            padding: isMobile ? '8px' : '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#495057',
-            width: isMobile ? '28px' : '32px',
-            height: isMobile ? '28px' : '32px',
+            width: isMobile ? '36px' : '32px',
+            height: isMobile ? '36px' : '32px',
           }}
           title="Show word definition"
         >
-          <BookOpen size={isMobile ? 12 : 14} />
+          <BookOpen size={isMobile ? 16 : 14} />
         </button>
         {/* Word Explanation (AI) */}
         <button
@@ -800,18 +844,18 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
             background: activeTab === 'word-explain' ? '#e0e7ff' : '#f8f9fa',
             border: '1px solid #dee2e6',
             borderRadius: '50%',
-            padding: isMobile ? '6px' : '8px',
+            padding: isMobile ? '8px' : '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#495057',
-            width: isMobile ? '28px' : '32px',
-            height: isMobile ? '28px' : '32px',
+            width: isMobile ? '36px' : '32px',
+            height: isMobile ? '36px' : '32px',
           }}
           title="AI Word Explanation"
         >
-          <Bot size={isMobile ? 12 : 14} />
+          <Bot size={isMobile ? 16 : 14} />
         </button>
         {/* Sentence Breakdown (AI) */}
         <button
@@ -820,18 +864,18 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
             background: activeTab === 'explain' ? '#e0e7ff' : '#f8f9fa',
             border: '1px solid #dee2e6',
             borderRadius: '50%',
-            padding: isMobile ? '6px' : '8px',
+            padding: isMobile ? '8px' : '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#495057',
-            width: isMobile ? '28px' : '32px',
-            height: isMobile ? '28px' : '32px',
+            width: isMobile ? '36px' : '32px',
+            height: isMobile ? '36px' : '32px',
           }}
           title="AI Sentence Breakdown"
         >
-          <ListOrdered size={isMobile ? 12 : 14} />
+          <ListOrdered size={isMobile ? 16 : 14} />
         </button>
         {/* Sentence Translation (AI) */}
         <button
@@ -840,18 +884,18 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
             background: activeTab === 'translate' ? '#e0e7ff' : '#f8f9fa',
             border: '1px solid #dee2e6',
             borderRadius: '50%',
-            padding: isMobile ? '6px' : '8px',
+            padding: isMobile ? '8px' : '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#495057',
-            width: isMobile ? '28px' : '32px',
-            height: isMobile ? '28px' : '32px',
+            width: isMobile ? '36px' : '32px',
+            height: isMobile ? '36px' : '32px',
           }}
           title="AI Sentence Translation"
         >
-          <Languages size={isMobile ? 12 : 14} />
+          <Languages size={isMobile ? 16 : 14} />
         </button>
         {/* Sentence tab */}
         <button
@@ -860,18 +904,18 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
             background: activeTab === 'sentence' ? '#e0e7ff' : '#f8f9fa',
             border: '1px solid #dee2e6',
             borderRadius: '50%',
-            padding: isMobile ? '6px' : '8px',
+            padding: isMobile ? '8px' : '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#495057',
-            width: isMobile ? '28px' : '32px',
-            height: isMobile ? '28px' : '32px',
+            width: isMobile ? '36px' : '32px',
+            height: isMobile ? '36px' : '32px',
           }}
           title="See sentence"
         >
-          <Eye size={isMobile ? 12 : 14} />
+          <Eye size={isMobile ? 16 : 14} />
         </button>
       </div>
 
@@ -1031,7 +1075,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
             {translateError && <div className="text-red-500">{translateError}</div>}
             {translateResult && (
               <>
-                <div style={{ fontWeight: 500, marginBottom: 6 }}><ReactMarkdown>{translateResult}</ReactMarkdown></div>
+                {renderTranslatedText(translateResult)}
                 <div style={{ fontStyle: 'italic', color: '#888', fontSize: isMobile ? 12 : 13 }}>{sentence}</div>
               </>
             )}
@@ -1048,20 +1092,20 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         marginTop: isMobile ? 6 : 8, 
         flexShrink: 0 
       }}>
-        <div style={{ fontSize: isMobile ? 11 : 12, color: '#666' }}>{displayWord}</div>
+        <div style={{ fontSize: isMobile ? 14 : 12, color: '#666' }}>{displayWord}</div>
         <button
           onClick={handleWordStatusToggle}
           style={{
             background: statusConfig.bgColor,
             border: 'none',
             borderRadius: 6,
-            padding: isMobile ? '4px 8px' : '6px 12px',
+            padding: isMobile ? '6px 12px' : '6px 12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: isMobile ? 3 : 4,
+            gap: isMobile ? 4 : 4,
             color: 'white',
-            fontSize: isMobile ? 11 : 12,
+            fontSize: isMobile ? 14 : 12,
             fontWeight: 'bold',
             transition: 'opacity 0.2s',
           }}
@@ -1073,11 +1117,12 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
             e.currentTarget.style.opacity = '1';
           }}
         >
-          <StatusIcon size={isMobile ? 10 : 12} />
+          <StatusIcon size={isMobile ? 14 : 12} />
           {statusConfig.label}
         </button>
       </div>
 
     </div>
+    </>
   );
 } 

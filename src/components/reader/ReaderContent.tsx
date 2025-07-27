@@ -140,9 +140,9 @@ export function ReaderContent({
     return word.replace(/[.,!?;:]|["\)\]}]/g, '');
   };
 
-  // Helper to clean asterisks from a word
+  // Helper to clean special characters from a word for dictionary lookup
   function cleanWordForLookup(word: string) {
-    return word.replace(/\*+/g, '');
+    return word.replace(/[«»*]/g, '');
   }
 
   // Show popup (no auto-close timeout)
@@ -350,9 +350,9 @@ export function ReaderContent({
   function applyWordPopupHighlightStyle(el: HTMLElement | null) {
     if (!el) return;
     
-    // Apply popup highlight style
+    // Apply popup highlight style - use consistent border radius with status highlights
     el.style.background = 'rgba(56, 189, 248, 0.18)';
-    el.style.borderRadius = '0.25em';
+    el.style.borderRadius = '4px';
     el.style.boxShadow = '0 -4px 0 0 rgba(56, 189, 248, 0.18)';
   }
   
@@ -450,7 +450,7 @@ export function ReaderContent({
             ? '#232946'
             : (invisibleText ? 'rgba(0,0,0,0.01)' : '#232946'),
           background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
-          borderRadius: isSentenceHovered ? '0.25em' : undefined,
+          borderRadius: isSentenceHovered ? '4px' : undefined,
           transition: 'background 0.15s',
           boxShadow: isSentenceHovered ? '0 -4px 0 0 rgba(56, 189, 248, 0.18)' : undefined,
           display: 'inline',
@@ -711,7 +711,7 @@ export function ReaderContent({
                 ? '#232946'
                 : (invisibleText ? 'rgba(0,0,0,0.01)' : '#232946'),
               background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
-              borderRadius: isSentenceHovered ? '0.25em' : undefined,
+              borderRadius: isSentenceHovered ? '4px' : undefined,
               transition: 'background 0.15s',
               boxShadow: isSentenceHovered ? '0 -4px 0 0 rgba(56, 189, 248, 0.18)' : undefined,
               display: 'inline',

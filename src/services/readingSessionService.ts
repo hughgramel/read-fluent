@@ -15,7 +15,23 @@ const db = getFirestore();
 
 export const ReadingSessionService = {
   async addSession(session: Omit<ReadingSession, 'id'>): Promise<void> {
+    // Check if a session already exists for this user, book, and section
     const sessionsRef = collection(db, 'readingSessions');
+    const existingQuery = query(
+      sessionsRef,
+      where('userId', '==', session.userId),
+      where('bookId', '==', session.bookId),
+      where('sectionId', '==', session.sectionId)
+    );
+    const existingSnapshot = await getDocs(existingQuery);
+    
+    // If a session already exists, don't create a duplicate
+    if (!existingSnapshot.empty) {
+      console.log('Session already exists for', session.sectionId, '- skipping duplicate');
+      return;
+    }
+    
+    // Add new session only if it doesn't exist
     await addDoc(sessionsRef, {
       ...session,
       timestamp: new Date(),

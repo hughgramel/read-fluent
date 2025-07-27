@@ -11,6 +11,7 @@ interface ReaderSidebarProps {
   showSectionWordCount: boolean;
   onGoToPage: (sectionIdx: number, pageIdx: number) => void;
   onToggleSectionWordCount: (checked: boolean) => void;
+  isMobileModal?: boolean;
 }
 
 export function ReaderSidebar({
@@ -21,22 +22,25 @@ export function ReaderSidebar({
   showSectionWordCount,
   onGoToPage,
   onToggleSectionWordCount,
+  isMobileModal = false,
 }: ReaderSidebarProps) {
   return (
-    <div className="flex flex-col items-start pr-6" style={{ minWidth: 220 }}>
-      <div className="font-bold text-lg mb-2 flex items-center gap-2">
-        <span>Sections</span>
-        <label className="flex items-center gap-1 text-xs font-normal ml-2">
-          <input
-            type="checkbox"
-            checked={showSectionWordCount}
-            onChange={e => onToggleSectionWordCount(e.target.checked)}
-            className="accent-[#2563eb] h-4 w-4 border-gray-300 rounded"
-            style={{ marginRight: 4 }}
-          />
-          <span>Show word count</span>
-        </label>
-      </div>
+    <div className="flex flex-col items-start" style={{ minWidth: isMobileModal ? 'auto' : 220, paddingRight: isMobileModal ? 0 : 24 }}>
+      {!isMobileModal && (
+        <div className="font-bold text-lg mb-2 flex items-center gap-2">
+          <span>Sections</span>
+          <label className="flex items-center gap-1 text-xs font-normal ml-2">
+            <input
+              type="checkbox"
+              checked={showSectionWordCount}
+              onChange={e => onToggleSectionWordCount(e.target.checked)}
+              className="accent-[#2563eb] h-4 w-4 border-gray-300 rounded"
+              style={{ marginRight: 4 }}
+            />
+            <span>Show word count</span>
+          </label>
+        </div>
+      )}
       {book.sections.map((section, idx) => {
         const totalPages = sectionPages[idx]?.length || 0;
         const readPages = readPagesBySection[idx]?.size || 0;

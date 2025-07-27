@@ -24,7 +24,7 @@ export default function HistoryPage() {
   const [sessions, setSessions] = useState<ReadingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookTitles, setBookTitles] = useState<{ [key: string]: string }>({});
-  const [sortColumn, setSortColumn] = useState<'timestamp' | 'book' | 'wordCount'>('timestamp');
+  const [sortColumn, setSortColumn] = useState<'timestamp' | 'book' | 'wordCount' | 'section'>('timestamp');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [mergeRows, setMergeRows] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -110,7 +110,7 @@ export default function HistoryPage() {
     }
   };
 
-  const handleSort = (column: 'timestamp' | 'book' | 'wordCount') => {
+  const handleSort = (column: 'timestamp' | 'book' | 'wordCount' | 'section') => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -123,6 +123,17 @@ export default function HistoryPage() {
   const formatDate = (date: Date) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${date.getDate()}-${months[date.getMonth()]}`;
+  };
+
+  // Helper function to format section/page information
+  const formatSectionPage = (sectionId: string) => {
+    const parts = sectionId.split('-');
+    if (parts.length === 2) {
+      const sectionIndex = parseInt(parts[0]) + 1; // Convert to 1-based
+      const pageIndex = parseInt(parts[1]) + 1; // Convert to 1-based
+      return `${sectionIndex}.${pageIndex}`;
+    }
+    return sectionId; // Fallback for malformed sectionId
   };
 
   // Helper to get a string key for merging: book title + date
@@ -160,6 +171,10 @@ export default function HistoryPage() {
       case 'wordCount':
         aValue = a.wordCount;
         bValue = b.wordCount;
+        break;
+      case 'section':
+        aValue = a.sectionId;
+        bValue = b.sectionId;
         break;
       case 'timestamp':
       default:
@@ -281,6 +296,7 @@ export default function HistoryPage() {
                       <div className="flex flex-wrap gap-4 text-sm theme-text-secondary">
                         <div><span className="font-semibold theme-text">Date:</span> {formatDate(session.timestamp)}</div>
                         <div><span className="font-semibold theme-text">Words:</span> {session.wordCount.toLocaleString()}</div>
+                        <div><span className="font-semibold theme-text">Section:</span> {formatSectionPage(session.sectionId)}</div>
                         <div><span className="font-semibold theme-text">#:</span> {index + 1}</div>
                       </div>
                     </div>
@@ -296,7 +312,7 @@ export default function HistoryPage() {
                       <th 
                         className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('book')}
-                        style={{ width: '35%' }}
+                        style={{ width: '25%' }}
                       >
                         <div className="flex items-center gap-2">
                           Book Title
@@ -308,7 +324,7 @@ export default function HistoryPage() {
                       <th 
                         className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('timestamp')}
-                        style={{ width: '15%' }}
+                        style={{ width: '12%' }}
                       >
                         <div className="flex items-center gap-2">
                           Date
@@ -320,7 +336,7 @@ export default function HistoryPage() {
                       <th 
                         className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('wordCount')}
-                        style={{ width: '15%' }}
+                        style={{ width: '12%' }}
                       >
                         <div className="flex items-center gap-2">
                           Words
@@ -329,8 +345,20 @@ export default function HistoryPage() {
                           )}
                         </div>
                       </th>
-                      <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '15%' }}>Time (min)</th>
-                      <th className="py-2 px-3 text-center" style={{ width: '10%' }}></th>
+                      <th 
+                        className="py-2 px-3 border-r border-gray-200 text-left cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('section')}
+                        style={{ width: '12%' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          Section
+                          {sortColumn === 'section' && (
+                            <span className="text-sm">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
+                      <th className="py-2 px-3 border-r border-gray-200 text-left" style={{ width: '12%' }}>Time (min)</th>
+                      <th className="py-2 px-3 text-center" style={{ width: '8%' }}></th>
                     </tr>
                   </thead>
 
@@ -369,6 +397,13 @@ export default function HistoryPage() {
                         <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
                           <span className="font-medium text-black">
                             {session.wordCount.toLocaleString()}
+                          </span>
+                        </td>
+
+                        {/* Section/Page */}
+                        <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                          <span className="font-medium text-black">
+                            {formatSectionPage(session.sectionId)}
                           </span>
                         </td>
 

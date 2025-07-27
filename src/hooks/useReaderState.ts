@@ -154,7 +154,7 @@ export function useReaderState(user: any) {
     const newSectionPages: string[][][] = book.sections.map((section, idx) => {
       function splitSentences(text: string): string[] {
         const paragraphs = text.split(/\n\n+/g).map(p => p.trim()).filter(Boolean);
-        const sentenceRegex = /(?<!\b[A-Z][a-z]\.|Sr\.|Sra\.|Dr\.|Dra\.|etc\.|No\.|N\u00ba)\s*(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/g;
+        const sentenceRegex = /(?<!\b[A-Z][a-z]\.|Sr\.|Sra\.|Dr\.|Dra\.|etc\.|No\.|N\u00ba)\s*(?<=[.!?])\s*(?=[A-ZÁÉÍÓÚÑ]|\[)/g;
         return paragraphs.flatMap(paragraph => paragraph.split(sentenceRegex).map((s: string) => s.trim()).filter(Boolean));
       }
       
@@ -257,7 +257,6 @@ export function useReaderState(user: any) {
             autoMarkAsLearningOnPopupOpen: !!prefs.autoMarkAsLearningOnPopupOpen,
             disableWordDefinitionPopup: !!prefs.disableWordDefinitionPopup,
             enableSwipeNavigation: prefs.enableSwipeNavigation !== undefined ? prefs.enableSwipeNavigation : true,
-            enableDoubleTapNavigation: prefs.enableDoubleTapNavigation !== undefined ? prefs.enableDoubleTapNavigation : true,
             autoMarkPageComplete: prefs.autoMarkPageComplete !== undefined ? prefs.autoMarkPageComplete : false,
             disableClipboardButton: !!prefs.disableClipboardButton,
             enableMarkdown: !!prefs.enableMarkdown,

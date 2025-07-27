@@ -18,6 +18,16 @@ export default function PatchNotes() {
               <div>• Better error handling for AI API calls</div>
               <div>• Reduced reader container margins and padding on mobile for better space utilization</div>
               <div>• Fixed sentence hover state reset on page navigation - no sentence appears hovered when starting a new page</div>
+              <div>• Improved mobile section sidebar modal with proper scrolling, better positioning, and accessible close button</div>
+              <div>• Fixed duplicate reading sessions when navigating pages - removed redundant session creation calls</div>
+              <div>• Improved mobile word popup highlighting - added backdrop for consistent close behavior with desktop</div>
+              <div>• Fixed word cleaning for dictionary lookup - now properly removes guillemets («») and other special characters</div>
+              <div>• Enhanced sentence translation - target word is now highlighted in bold blue when translated</div>
+              <div>• Removed double-tap navigation functionality - simplified mobile navigation to swipe only</div>
+              <div>• Improved mobile word popup - increased text, icons, and word status button sizes for better usability</div>
+              <div>• Fixed sentence splitting - now properly handles periods followed by brackets like .[2]</div>
+              <div>• Standardized highlight heights - all hover, status, and select highlights now use consistent 4px border radius</div>
+              <div>• Added section/page column to reading history - shows 2.1 format for better session tracking</div>
             </div>
           </div>
           <div className="card-themed rounded-2xl shadow-sm p-5 flex flex-col" style={{ fontSize: '1rem' }}>

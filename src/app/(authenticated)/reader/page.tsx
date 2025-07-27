@@ -77,32 +77,6 @@ export default function ReaderPage() {
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
 
-  // Double-tap detection
-  const lastTapRef = useRef<number>(0);
-  const lastTapSideRef = useRef<'left' | 'right' | null>(null);
-
-  function handleReaderTap(e: React.TouchEvent) {
-    if (!isMobile || !readerSettings.enableDoubleTapNavigation) return;
-    const now = Date.now();
-    const tapX = e.touches[0].clientX;
-    const width = (e.target as HTMLElement).clientWidth || window.innerWidth;
-    const side = tapX < width / 2 ? 'left' : 'right';
-    if (lastTapRef.current && now - lastTapRef.current < 350 && lastTapSideRef.current === side) {
-      // Double tap detected
-      if (side === 'right') {
-        if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
-        handleNextPage().catch(console.error);
-      } else {
-        handlePrevPage();
-      }
-      lastTapRef.current = 0;
-      lastTapSideRef.current = null;
-    } else {
-      lastTapRef.current = now;
-      lastTapSideRef.current = side;
-    }
-  }
-
   function handleTouchStart(e: React.TouchEvent) {
     if (!isMobile || !readerSettings.enableSwipeNavigation) return;
     swipeStartX.current = e.touches[0].clientX;
@@ -110,30 +84,6 @@ export default function ReaderPage() {
   }
   function handleTouchEnd(e: React.TouchEvent) {
     if (!isMobile) return;
-    // Double-tap detection
-    if (readerSettings.enableDoubleTapNavigation) {
-      const now = Date.now();
-      const tapX = e.changedTouches[0].clientX;
-      const width = (e.target as HTMLElement).clientWidth || window.innerWidth;
-      const side = tapX < width / 2 ? 'left' : 'right';
-      if (lastTapRef.current && now - lastTapRef.current < 350 && lastTapSideRef.current === side) {
-        // Double tap detected
-        if (side === 'right') {
-          if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
-          handleNextPage().catch(console.error);
-        } else {
-          handlePrevPage();
-        }
-        lastTapRef.current = 0;
-        lastTapSideRef.current = null;
-        swipeStartX.current = null;
-        swipeStartY.current = null;
-        return;
-      } else {
-        lastTapRef.current = now;
-        lastTapSideRef.current = side;
-      }
-    }
     // Swipe detection
     if (!readerSettings.enableSwipeNavigation || swipeStartX.current === null || swipeStartY.current === null) return;
     const deltaX = e.changedTouches[0].clientX - swipeStartX.current;
@@ -142,7 +92,6 @@ export default function ReaderPage() {
       if (deltaX > 0) {
         handlePrevPage();
       } else {
-        if (readerSettings.autoMarkPageComplete) handleMarkPageComplete();
         handleNextPage().catch(console.error);
       }
     }
@@ -665,23 +614,45 @@ export default function ReaderPage() {
           {/* Section Sidebar */}
           {showSectionSidebar && (
             isMobile ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowSectionSidebar(false)}>
-                <div className="bg-white rounded-2xl shadow-lg p-4 max-w-md w-full relative" style={{ fontFamily: 'var(--font-family)', maxWidth: 380 }} onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={() => setShowSectionSidebar(false)}
-                    className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
-                    style={{ lineHeight: 1 }}
-                    aria-label="Close"
-                  >×</button>
-                  <ReaderSidebar
-                    book={book}
-                    sectionPages={sectionPages}
-                    currentSectionIndex={currentSectionIndex}
-                    readPagesBySection={readPagesBySection}
-                    showSectionWordCount={showSectionWordCount}
-                    onGoToPage={goToPage}
-                    onToggleSectionWordCount={setShowSectionWordCount}
-                  />
+              <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 pb-4 px-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowSectionSidebar(false)}>
+                <div className="bg-white rounded-2xl shadow-lg w-full max-w-md relative flex flex-col" style={{ fontFamily: 'var(--font-family)', maxHeight: 'calc(100vh - 8rem)' }} onClick={e => e.stopPropagation()}>
+                  {/* Header with close button and word count toggle */}
+                  <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-semibold text-gray-900">Sections</h3>
+                      <label className="flex items-center gap-2 text-sm text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={showSectionWordCount}
+                          onChange={e => setShowSectionWordCount(e.target.checked)}
+                          className="accent-[#2563eb] h-4 w-4 border-gray-300 rounded"
+                        />
+                        <span>Word count</span>
+                      </label>
+                    </div>
+                    <button
+                      onClick={() => setShowSectionSidebar(false)}
+                      className="p-2 text-gray-400 hover:text-red-500 transition-colors bg-transparent border-none rounded-full hover:bg-gray-100"
+                      aria-label="Close"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  {/* Scrollable content */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <ReaderSidebar
+                      book={book}
+                      sectionPages={sectionPages}
+                      currentSectionIndex={currentSectionIndex}
+                      readPagesBySection={readPagesBySection}
+                      showSectionWordCount={showSectionWordCount}
+                      onGoToPage={goToPage}
+                      onToggleSectionWordCount={setShowSectionWordCount}
+                      isMobileModal={true}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1277,17 +1248,7 @@ export default function ReaderPage() {
               />
               <label htmlFor="enable-swipe-navigation" className="font-bold theme-text select-none cursor-pointer">Enable swipe left/right for page navigation</label>
             </div>
-            <div className="mb-6 flex items-center">
-              <input
-                id="enable-double-tap-navigation"
-                type="checkbox"
-                checked={pendingSettings?.enableDoubleTapNavigation ?? readerSettings.enableDoubleTapNavigation ?? true}
-                onChange={e => handlePendingSettingChange({ enableDoubleTapNavigation: e.target.checked })}
-                className="mr-3 h-5 w-5 border-2 theme-border rounded"
-                style={{ accentColor: 'var(--primary-color)' }}
-              />
-              <label htmlFor="enable-double-tap-navigation" className="font-bold theme-text select-none cursor-pointer">Enable double-tap left/right for page navigation</label>
-            </div>
+
             <div className="mb-6 flex items-center">
               <input
                 id="auto-mark-page-complete"

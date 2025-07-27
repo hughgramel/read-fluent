@@ -525,7 +525,7 @@ export default function library() {
             // First split by paragraphs (double newlines)
             const paragraphs = text.split(/\n\n+/g).map(p => p.trim()).filter(Boolean);
             // Improved regex: avoid splitting after common abbreviations, split on punctuation followed by a capital letter
-            const sentenceRegex = /(?<!\b[A-Z][a-z]\.|Sr\.|Sra\.|Dr\.|Dra\.|etc\.|No\.|N\u00ba)\s*(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/g;
+            const sentenceRegex = /(?<!\b[A-Z][a-z]\.|Sr\.|Sra\.|Dr\.|Dra\.|etc\.|No\.|N\u00ba)\s*(?<=[.!?])\s*(?=[A-ZÁÉÍÓÚÑ]|\[)/g;
             // Split each paragraph into sentences, then flatten
             return paragraphs.flatMap(paragraph => paragraph.split(sentenceRegex).map((s: string) => s.trim()).filter(Boolean));
           }

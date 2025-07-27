@@ -48,7 +48,6 @@ export interface UserPreferences {
   disableClipboardButton?: boolean; // Hide clipboard button in reader
   enableMarkdown?: boolean; // Render page content as markdown
   enableSwipeNavigation?: boolean; // Enable swipe left/right for prev/next page
-  enableDoubleTapNavigation?: boolean; // Enable double-tap left/right for prev/next page
   autoMarkPageComplete?: boolean; // Automatically mark page complete when going to next page
   dictionary?: string; // The selected dictionary collection name
   wordPopupDefaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'; // Default tab for word popup
