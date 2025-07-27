@@ -105,33 +105,10 @@ export function ReaderContent({
     }
   }, [hoveredWordKey]);
 
-  // Function to split sentence into words and separate punctuation from the last word
+  // Function to split sentence into words - keep text raw, don't separate punctuation
   const splitSentenceWithPunctuation = (sentence: string) => {
-    // First, split by whitespace to get words
+    // Simply split by whitespace to get words, keeping punctuation attached to words
     const words = sentence.match(/\S+/g) || [];
-    
-    if (words.length === 0) return [];
-    
-    // Check if the last word ends with punctuation
-    const lastWord = words[words.length - 1];
-    const punctuationMatch = lastWord.match(/^(.+?)([.,!?;:]|["'\)\]}])*$/);
-    
-    if (punctuationMatch && punctuationMatch[2]) {
-      // Split the last word into word and punctuation
-      const wordPart = punctuationMatch[1];
-      const punctuationPart = punctuationMatch[2];
-      
-      // Replace the last word with just the word part
-      const result = [...words.slice(0, -1), wordPart];
-      
-      // Add punctuation as a separate item if it exists
-      if (punctuationPart) {
-        result.push(punctuationPart);
-      }
-      
-      return result;
-    }
-    
     return words;
   };
 
@@ -467,8 +444,10 @@ export function ReaderContent({
         }}
       >
         {words.map((word, wIdx) => {
+          // Check if this word ends with punctuation
           const isPunctuation = /^[.,!?;:]|["'\)\]}]$/.test(word);
-          const isLastNonPunctuationWord = !isPunctuation && words.slice(wIdx + 1).every(w => /^[.,!?;:]|["'\)\]}]$/.test(w));
+          const hasPunctuation = /[.,!?;:]|["'\)\]}]$/.test(word);
+          const isLastWord = wIdx === words.length - 1;
           const cleanedWord = cleanWordForDisplay(word);
           // Treat numbers as ignored since there are infinite numbers
           const wordStatus = enableHighlightWords ? (isNumeric(word) ? 'ignored' : getWordStatus(cleanedWord)) : undefined;
@@ -488,7 +467,7 @@ export function ReaderContent({
                 </button>
                                       <span
                         style={{
-                          marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
+                          marginRight: isPunctuation ? 0 : 4,
                           color: isActiveWord ? '#232946' : (showCurrentSentence
                             ? '#232946'
                             : (invisibleText
@@ -502,7 +481,7 @@ export function ReaderContent({
                           cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                           transition: 'background 0.15s, color 0.15s',
                         }}
-                        data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
+                        data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} hasPunct:${hasPunctuation} margin:${isPunctuation ? 0 : 4}`}
                         onMouseEnter={e => {
                           if (isSentenceSelectMode || isPunctuation) return;
                           setHoveredWordKey(wordKey);
@@ -556,7 +535,7 @@ export function ReaderContent({
                           showPopup(cleanedWord, sentence, el.getBoundingClientRect());
                         }}
                       >
-                  {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
+                  {word + (wIdx < words.length - 1 ? ' ' : '')}
                 </span>
               </React.Fragment>
             );
@@ -565,7 +544,7 @@ export function ReaderContent({
             <span
               key={wIdx}
               style={{
-                marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
+                marginRight: isPunctuation ? 0 : 4,
                 color: isActiveWord ? '#232946' : (showCurrentSentence
                   ? '#232946'
                   : (invisibleText
@@ -579,7 +558,7 @@ export function ReaderContent({
                 cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                 transition: 'background 0.15s, color 0.15s',
               }}
-              data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
+              data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} hasPunct:${hasPunctuation} margin:${isPunctuation ? 0 : 4}`}
               onMouseEnter={e => {
                 if (isSentenceSelectMode || isPunctuation) return;
                 setHoveredWordKey(wordKey);
@@ -622,7 +601,7 @@ export function ReaderContent({
                 showPopup(cleanedWord, sentence, el.getBoundingClientRect());
               }}
             >
-              {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
+              {word + (wIdx < words.length - 1 ? ' ' : '')}
             </span>
           );
         })}
@@ -731,9 +710,9 @@ export function ReaderContent({
               // Check if this is punctuation
               const isPunctuation = /^[.,!?;:]|["'\)\]}]$/.test(word);
              
-              // Check if this is the last non-punctuation word in the sentence
-              const isLastNonPunctuationWord = !isPunctuation && 
-                words.slice(wIdx + 1).every(w => /^[.,!?;:]|["'\)\]}]$/.test(w));
+              // Check if this word ends with punctuation
+              const hasPunctuation = /[.,!?;:]|["'\)\]}]$/.test(word);
+              const isLastWord = wIdx === words.length - 1;
               
              
               
@@ -759,7 +738,7 @@ export function ReaderContent({
                       </button>
                       <span
                         style={{
-                          marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
+                          marginRight: isPunctuation ? 0 : 4,
                           color: isActiveWord ? '#232946' : (showCurrentSentence
                             ? '#232946'
                             : (invisibleText
@@ -773,7 +752,7 @@ export function ReaderContent({
                           cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                           transition: 'background 0.15s, color 0.15s',
                         }}
-                        data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
+                        data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} hasPunct:${hasPunctuation} margin:${isPunctuation ? 0 : 4}`}
                         onMouseEnter={e => {
                           if (isSentenceSelectMode || isPunctuation) return;
                           setHoveredWordKey(wordKey);
@@ -817,7 +796,7 @@ export function ReaderContent({
                           showPopup(cleanedWord, sentence, el.getBoundingClientRect());
                         }}
                       >
-                        {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
+                        {word + (wIdx < words.length - 1 ? ' ' : '')}
                       </span>
                     </React.Fragment>
                   );
@@ -827,7 +806,7 @@ export function ReaderContent({
                   <span
                     key={wIdx}
                     style={{
-                      marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
+                      marginRight: isPunctuation ? 0 : 4,
                       color: isActiveWord ? '#232946' : (showCurrentSentence
                         ? '#232946'
                         : (invisibleText
@@ -841,7 +820,7 @@ export function ReaderContent({
                       cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                       transition: 'background 0.15s, color 0.15s',
                     }}
-                    data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
+                    data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} hasPunct:${hasPunctuation} margin:${isPunctuation ? 0 : 4}`}
                     onMouseEnter={e => {
                       if (isSentenceSelectMode || isPunctuation) return;
                       setHoveredWordKey(wordKey);
@@ -885,7 +864,7 @@ export function ReaderContent({
                       showPopup(cleanedWord, sentence, el.getBoundingClientRect());
                     }}
                   >
-                    {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
+                    {word + (wIdx < words.length - 1 ? ' ' : '')}
                   </span>
                 );
               }
@@ -893,7 +872,7 @@ export function ReaderContent({
                 <span
                   key={wIdx}
                   style={{
-                    marginRight: isPunctuation || isLastNonPunctuationWord ? 0 : 4,
+                    marginRight: isPunctuation ? 0 : 4,
                     color: isActiveWord ? '#232946' : (showCurrentSentence
                       ? '#232946'
                       : (invisibleText
@@ -907,7 +886,7 @@ export function ReaderContent({
                     cursor: !isPunctuation && enableHighlightWords ? 'pointer' : 'default',
                     transition: 'background 0.15s, color 0.15s',
                   }}
-                  data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} isLastBeforePunct:${isLastNonPunctuationWord} margin:${isPunctuation || isLastNonPunctuationWord ? 0 : 4}`}
+                  data-debug={`word:"${word}" idx:${wIdx} isPunct:${isPunctuation} hasPunct:${hasPunctuation} margin:${isPunctuation ? 0 : 4}`}
                   onMouseEnter={e => {
                     if (isSentenceSelectMode || isPunctuation) return;
                     setHoveredWordKey(wordKey);
@@ -963,7 +942,7 @@ export function ReaderContent({
                     showPopup(cleanedWord, sentence, el.getBoundingClientRect());
                   }}
                 >
-                  {word + (isPunctuation ? '' : (wIdx < words.length - 1 ? ' ' : ''))}
+                  {word + (wIdx < words.length - 1 ? ' ' : '')}
                 </span>
               );
             })}
