@@ -17,6 +17,7 @@ export default function PatchNotes() {
               <div>• Enhanced story generation with fallback model support</div>
               <div>• Better error handling for AI API calls</div>
               <div>• Reduced reader container margins and padding on mobile for better space utilization</div>
+              <div>• Fixed sentence hover state reset on page navigation - no sentence appears hovered when starting a new page</div>
             </div>
           </div>
           <div className="card-themed rounded-2xl shadow-sm p-5 flex flex-col" style={{ fontSize: '1rem' }}>

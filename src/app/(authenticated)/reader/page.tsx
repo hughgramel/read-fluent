@@ -291,7 +291,7 @@ export default function ReaderPage() {
     // Reset speech player state for new page
     setActiveSentenceIndex(0);
     setActiveWordIndex(0);
-    setCurrentlyHighlightedSentence(0);
+    setCurrentlyHighlightedSentence(null);
     setActiveSentenceIndex(0);
     nextPage();
   };
