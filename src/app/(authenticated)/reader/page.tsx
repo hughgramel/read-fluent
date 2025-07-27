@@ -660,7 +660,7 @@ export default function ReaderPage() {
       <ReaderErrorBoundary>
         {/* Layout: sidebar + main content */}
         <div style={{ height: showHeader ? '64px' : isMobile ? '40px' : '0' }} />
-        <div className="flex w-full px-0 py-12" style={{ margin: '0 auto', marginTop: isMobile ? 56 : 0 }}>
+        <div className="flex w-full px-0" style={{ margin: '0 auto', marginTop: isMobile ? 8 : 0, paddingTop: isMobile ? '1rem' : '3rem', paddingBottom: isMobile ? '1rem' : '3rem' }}>
           
           {/* Section Sidebar */}
           {showSectionSidebar && (
@@ -712,7 +712,7 @@ export default function ReaderPage() {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: 'calc(100vh - 260px)', height: '100%' }}>
+            <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 260px)', height: '100%' }}>
               <div className={getReaderContainerClass(effectiveSettings.readerContainerStyle)} style={{
                 ...getReaderContainerStyle(effectiveSettings.readerContainerStyle, effectiveSettings.readerFont, effectiveSettings.readerWidth, isMobile),
                 margin: '0 auto',
@@ -723,7 +723,7 @@ export default function ReaderPage() {
                 color: effectiveSettings.invisibleText && !effectiveSettings.disableSentenceHighlighting && !effectiveSettings.disableWordHighlighting ? 'rgba(0,0,0,0.001)' : '#232946',
                 maxWidth: isMobile ? '95vw' : effectiveSettings.readerWidth,
                 width: isMobile ? '100%' : effectiveSettings.readerWidth,
-                padding: isMobile ? '1.25rem 0.5rem' : '1.5rem',
+                padding: isMobile ? '0.5rem 0.25rem' : '1.5rem',
                 boxSizing: 'border-box',
                 overflowX: isMobile ? 'hidden' : undefined,
               }}>
@@ -731,7 +731,7 @@ export default function ReaderPage() {
                 {isMobile && !readerSettings.disableClipboardButton && (
                   <button
                     onClick={handleCopyText}
-                    className="mb-4 flex items-center gap-2 px-3 py-2 text-sm font-medium theme-text-secondary hover:theme-text transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg theme-border border sm:px-4"
+                    className="mb-2 flex items-center gap-2 px-3 py-2 text-sm font-medium theme-text-secondary hover:theme-text transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg theme-border border sm:px-4"
                     style={{ alignSelf: 'flex-start' }}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" strokeWidth="2" fill="none"/></svg>

@@ -3,7 +3,6 @@ import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye, CheckCircle, XCir
 import { Bookmark as BookmarkIcon, Bookmark as BookmarkFilledIcon } from 'lucide-react';
 import { WordType } from './ReaderTypes';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import ReactMarkdown from 'react-markdown';
 import { SentenceService } from '@/services/sentenceService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +10,7 @@ import { MultiLanguageTransformer } from '@/language/multi-language-transformer'
 import { useRef } from 'react';
 import { UserService } from '@/services/userService';
 import { fillPromptVariables } from '@/utils/promptUtils';
+import { GeminiUtils } from '@/utils/geminiUtils';
 
 
 export type DatabaseTermEntry = {
@@ -477,23 +477,9 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     fetchYomitanEntries();
   }, [displayWord, dictionaryCollection]);
 
-  // Gemini API call utility using @google/generative-ai
+  // Gemini API call utility with fallback models
   async function callGemini(prompt: string | { systemPrompt: string, userPrompt: string }): Promise<string> {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || (typeof window !== 'undefined' ? (window as any).NEXT_PUBLIC_GEMINI_API_KEY : undefined);
-    if (!apiKey) throw new Error('Gemini API key not set');
-    const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    if (typeof prompt === 'string') {
-      const result = await model.generateContent(prompt);
-      return result.response.text();
-    } else {
-      // Use systemPrompt as context, userPrompt as the main prompt
-      const result = await model.generateContent({ contents: [
-        { role: 'system', parts: [{ text: prompt.systemPrompt }] },
-        { role: 'user', parts: [{ text: prompt.userPrompt }] },
-      ] });
-      return result.response.text();
-    }
+    return GeminiUtils.callGeminiLegacy(prompt);
   }
 
   // Prompts

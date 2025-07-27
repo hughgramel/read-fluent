@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { uploadBookJson, saveBookMetadata } from './epubService';
 import { Book, BookSection } from '@/components/reader/ReaderTypes';
+import { GeminiUtils } from '@/utils/geminiUtils';
 
 export interface GenerateContentParams {
   language: string;
@@ -20,14 +20,7 @@ export interface GeneratedContent {
 
 export class ContentGenerationService {
   private static async callGemini(prompt: string): Promise<string> {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || (typeof window !== 'undefined' ? (window as any).NEXT_PUBLIC_GEMINI_API_KEY : undefined);
-    if (!apiKey) throw new Error('Gemini API key not set');
-    
-    const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return GeminiUtils.callGemini({ prompt });
   }
 
   private static getLanguageName(languageCode: string): string {

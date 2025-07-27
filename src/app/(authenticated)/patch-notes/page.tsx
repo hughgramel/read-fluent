@@ -8,6 +8,19 @@ export default function PatchNotes() {
         <div className="flex flex-col gap-6">
           <div className="card-themed rounded-2xl shadow-sm p-5 flex flex-col" style={{ fontSize: '1rem' }}>
             <div className="flex flex-row justify-between items-center mb-2">
+              <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>v0.4</span>
+              <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>2025.01.27.</span>
+            </div>
+            <div className="theme-text text-base mt-1 space-y-2" style={{ fontWeight: 400 }}>
+              <div>• Added fallback Gemini models to handle rate limiting (2.0-flash → 2.0-flash-lite → 1.5-flash)</div>
+              <div>• Improved AI word explanations and sentence breakdowns with automatic model switching</div>
+              <div>• Enhanced story generation with fallback model support</div>
+              <div>• Better error handling for AI API calls</div>
+              <div>• Reduced reader container margins and padding on mobile for better space utilization</div>
+            </div>
+          </div>
+          <div className="card-themed rounded-2xl shadow-sm p-5 flex flex-col" style={{ fontSize: '1rem' }}>
+            <div className="flex flex-row justify-between items-center mb-2">
               <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>v0.3</span>
               <span className="font-semibold theme-text text-base" style={{ fontWeight: 700 }}>2025.07.26.</span>
             </div>

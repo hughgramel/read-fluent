@@ -128,7 +128,7 @@ export function getReaderContainerStyle(
     maxWidth: readerWidth, 
     width: readerWidth, 
     margin: '0', 
-    padding: isMobile ? '1.5rem 0.75rem' : '2.5rem 2.5rem',
+    padding: isMobile ? '0.75rem 0.5rem' : '2.5rem 2.5rem',
   };
   if (readerContainerStyle === 'none') {
     style = { ...style, boxShadow: 'none', border: 'none', background: 'transparent' };
