@@ -973,6 +973,7 @@ export function ReaderContent({
       {/* Popup for word/sentence */}
       {popup && (
         <WordPopup
+          key={`${popup.word}-${popup.sentence}`}
           word={popup.word}
           sentence={popup.sentence}
           x={popup.x}

@@ -338,6 +338,27 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const interfaceLang = nativeLanguage;
   const targetLang = targetLanguage;
 
+  // Reset all content when word or sentence changes
+  useEffect(() => {
+    // Clear all cached results when word or sentence changes
+    setWordExplainResult(null);
+    setWordExplainError(null);
+    setWordExplainLoading(false);
+    setExplainResult(null);
+    setExplainError(null);
+    setExplainLoading(false);
+    setTranslateResult(null);
+    setTranslateError(null);
+    setTranslateLoading(false);
+    setShowPlaceholder(false);
+    setPlaceholderText('');
+  }, [word, sentence]);
+
+  // Set default tab when component mounts or defaultTab changes
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
+
   const handlePopupClick = (e: React.MouseEvent) => {
     // Prevent clicks on the popup from bubbling up to the container
     e.stopPropagation();
@@ -475,7 +496,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       }
     };
     fetchYomitanEntries();
-  }, [displayWord, dictionaryCollection]);
+  }, [displayWord, dictionaryCollection, sentence]);
 
   // Gemini API call utility with fallback models
   async function callGemini(prompt: string | { systemPrompt: string, userPrompt: string }): Promise<string> {
@@ -513,7 +534,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         .catch(e => setWordExplainError(e.message))
         .finally(() => setWordExplainLoading(false));
     }
-  }, [activeTab, word, nativeLanguage, targetLanguage]);
+  }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
 
   // Handle Explain tab
   useEffect(() => {
@@ -533,7 +554,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         .catch(e => setExplainError(e.message))
         .finally(() => setExplainLoading(false));
     }
-  }, [activeTab, sentence, nativeLanguage, targetLanguage]);
+  }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
 
   // Handle Translate tab
   useEffect(() => {
@@ -553,7 +574,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         .catch(e => setTranslateError(e.message))
         .finally(() => setTranslateLoading(false));
     }
-  }, [activeTab, sentence, nativeLanguage, targetLanguage]);
+  }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
 
   const getStatusConfig = (status: WordType) => {
     switch (status) {
