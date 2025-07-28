@@ -277,9 +277,11 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const [isCardCreated, setIsCardCreated] = useState(false);
   const [cardCreateAnim, setCardCreateAnim] = useState(false);
   const [isPlayingWord, setIsPlayingWord] = useState(false);
-  const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
   // For debugging: store last Gemini prompt for each tab
   const [lastWordExplainPrompt, setLastWordExplainPrompt] = useState<string | null>(null);
+  
+  // Use ref to track auto-play state to prevent multiple triggers
+  const hasAutoPlayedRef = useRef(false);
   const [lastExplainPrompt, setLastExplainPrompt] = useState<string | null>(null);
   const [lastTranslatePrompt, setLastTranslatePrompt] = useState<string | null>(null);
   const [userPrompts, setUserPrompts] = useState<any | null>(null);
@@ -548,18 +550,22 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     }
   };
 
-  // Reset auto-play state when word changes
+  // Reset auto-play ref when word changes (new popup)
   useEffect(() => {
-    setHasAutoPlayed(false);
+    hasAutoPlayedRef.current = false;
   }, [word]);
 
-  // Auto-play word when popup opens (only once)
+  // Auto-play word when popup opens (only once per popup session)
   useEffect(() => {
-    if (autoPlayWordOnPopup && displayWord && !hasAutoPlayed) {
-      setHasAutoPlayed(true);
-      playWord();
+    if (autoPlayWordOnPopup && displayWord && !hasAutoPlayedRef.current) {
+      hasAutoPlayedRef.current = true;
+      // Use setTimeout to ensure this only runs once after the popup is fully rendered
+      const timer = setTimeout(() => {
+        playWord();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [displayWord, autoPlayWordOnPopup, hasAutoPlayed]);
+  }, [displayWord, autoPlayWordOnPopup]);
 
   // Prompts
   const wordExplainSystemPrompt = (userPrompts?.wordExplainSystem || defaultPrompts.wordExplainSystem).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
