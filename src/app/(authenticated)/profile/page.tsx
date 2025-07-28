@@ -83,9 +83,9 @@ export default function ProfilePage() {
     }
   };
 
-  // Fetch languages.json on mount
+  // Fetch target-languages.json on mount
   useEffect(() => {
-    fetch('/languages.json')
+    fetch('/target-languages.json')
       .then(res => res.json())
       .then(setLanguagesData)
       .catch(() => setLanguagesData([]));

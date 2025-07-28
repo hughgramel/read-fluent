@@ -123,6 +123,9 @@ export default function library() {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generateSuccess, setGenerateSuccess] = useState<string | null>(null);
   
+  // Add state for target languages
+  const [targetLanguages, setTargetLanguages] = useState<{ code: string; name: string }[]>([]);
+  
   // Add state for words per page setting
   const [wordsPerPage, setWordsPerPage] = useState(250);
   
@@ -157,6 +160,14 @@ export default function library() {
   }, [isAutoScrolling, scrollSpeed, currentSection, currentBook]);
 
   useEffect(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, [currentSection]);
+
+  // Load target languages
+  useEffect(() => {
+    fetch('/target-languages.json')
+      .then(res => res.json())
+      .then(setTargetLanguages)
+      .catch(() => setTargetLanguages([]));
+  }, []);
 
   // Load books metadata from Firestore/Storage (not full content)
   useEffect(() => {
@@ -1935,12 +1946,9 @@ export default function library() {
                       className="w-full theme-border rounded px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text border-2"
                       style={{ borderColor: 'var(--border-color)' }}
                     >
-                      <option value="es">Spanish</option>
-                      <option value="fr">French</option>
-                      <option value="de">German</option>
-                      <option value="it">Italian</option>
-                      <option value="pt">Portuguese</option>
-                      <option value="en">English</option>
+                      {targetLanguages.map((lang) => (
+                        <option key={lang.code} value={lang.code}>{lang.name}</option>
+                      ))}
                     </select>
                   </div>
 
