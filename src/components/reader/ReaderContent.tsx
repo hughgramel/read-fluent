@@ -47,6 +47,9 @@ interface ReaderContentProps {
     dictionary?: string;
     wordPopupDefaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
     autoMarkAsLearningOnPopupOpen?: boolean;
+    autoPlayWordOnPopup?: boolean;
+    ttsVoice?: string | null;
+    ttsSpeed?: number;
   };
   setCurrentlyHighlightedSentence: (sentenceIndex: number | null) => void;
 }
@@ -978,6 +981,9 @@ export function ReaderContent({
           targetLanguage={readerSettings.targetLanguage || 'es'}
           dictionaryCollection={readerSettings.dictionary || 'none'}
           defaultTab={readerSettings.wordPopupDefaultTab || 'word-explain'}
+          autoPlayWordOnPopup={readerSettings.autoPlayWordOnPopup ?? true}
+          ttsVoice={readerSettings.ttsVoice}
+          ttsSpeed={readerSettings.ttsSpeed}
         />
       )}
     </div>

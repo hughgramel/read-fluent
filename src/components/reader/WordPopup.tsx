@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye, CheckCircle, XCircle, HelpCircle, Bot, ListOrdered, Plus, CreditCard } from 'lucide-react';
+import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye, CheckCircle, XCircle, HelpCircle, Bot, ListOrdered, Plus, CreditCard, Volume2 } from 'lucide-react';
 import { Bookmark as BookmarkIcon, Bookmark as BookmarkFilledIcon } from 'lucide-react';
 import { WordType } from './ReaderTypes';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
@@ -12,6 +12,7 @@ import { UserService } from '@/services/userService';
 import { fillPromptVariables } from '@/utils/promptUtils';
 import { GeminiUtils } from '@/utils/geminiUtils';
 import { WordCardService } from '@/services/wordCardService';
+import { WordPlaybackUtils } from '@/utils/wordPlaybackUtils';
 
 
 export type DatabaseTermEntry = {
@@ -53,6 +54,12 @@ interface WordPopupProps {
   dictionaryCollection: string;
   /** Default tab to show when popup opens */
   defaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
+  /** Whether to auto-play the word when popup opens */
+  autoPlayWordOnPopup?: boolean;
+  /** TTS voice name */
+  ttsVoice?: string | null;
+  /** TTS speed */
+  ttsSpeed?: number;
 }
 
 // Utility to render Yomitan/Wiktionary structured-content JSON
@@ -245,7 +252,7 @@ const languageTransformImports: Record<string, () => Promise<any>> = {
   // Add more as needed
 };
 
-export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage, dictionaryCollection, defaultTab = 'word-explain' }: WordPopupProps) {
+export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage, dictionaryCollection, defaultTab = 'word-explain', autoPlayWordOnPopup = true, ttsVoice = null, ttsSpeed = 1.0 }: WordPopupProps) {
   const [showPlaceholder, setShowPlaceholder] = useState(false);
   const [placeholderText, setPlaceholderText] = useState('');
   const [activeTab, setActiveTab] = useState<'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'>(defaultTab);
@@ -269,6 +276,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [isCardCreated, setIsCardCreated] = useState(false);
   const [cardCreateAnim, setCardCreateAnim] = useState(false);
+  const [isPlayingWord, setIsPlayingWord] = useState(false);
+  const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
   // For debugging: store last Gemini prompt for each tab
   const [lastWordExplainPrompt, setLastWordExplainPrompt] = useState<string | null>(null);
   const [lastExplainPrompt, setLastExplainPrompt] = useState<string | null>(null);
@@ -519,6 +528,38 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       });
     }
   }
+
+  // Word playback function
+  const playWord = async () => {
+    if (isPlayingWord) return;
+    
+    setIsPlayingWord(true);
+    try {
+      await WordPlaybackUtils.playWord({
+        word: displayWord,
+        voiceName: ttsVoice,
+        speakingRate: ttsSpeed,
+        targetLanguage: targetLanguage
+      });
+    } catch (error) {
+      console.error('Failed to play word:', error);
+    } finally {
+      setIsPlayingWord(false);
+    }
+  };
+
+  // Reset auto-play state when word changes
+  useEffect(() => {
+    setHasAutoPlayed(false);
+  }, [word]);
+
+  // Auto-play word when popup opens (only once)
+  useEffect(() => {
+    if (autoPlayWordOnPopup && displayWord && !hasAutoPlayed) {
+      setHasAutoPlayed(true);
+      playWord();
+    }
+  }, [displayWord, autoPlayWordOnPopup, hasAutoPlayed]);
 
   // Prompts
   const wordExplainSystemPrompt = (userPrompts?.wordExplainSystem || defaultPrompts.wordExplainSystem).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
@@ -899,7 +940,33 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       >
       {/* Word and close button row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexShrink: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: isMobile ? 22 : 18 }}>{displayWord}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: isMobile ? 22 : 18 }}>{displayWord}</div>
+          {/* Sound button */}
+          <button
+            onClick={playWord}
+            style={{
+              background: isPlayingWord ? '#3b82f6' : '#f3f4f6',
+              border: 'none',
+              cursor: isPlayingWord ? 'default' : 'pointer',
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.2s, transform 0.15s',
+              color: isPlayingWord ? '#fff' : '#666',
+              transform: isPlayingWord ? 'scale(1.1)' : 'scale(1)',
+              opacity: isPlayingWord ? 0.8 : 1,
+              boxShadow: isPlayingWord ? '0 0 0 2px #3b82f633' : '0 1px 4px rgba(0,0,0,0.08)',
+            }}
+            title="Play word pronunciation"
+            disabled={isPlayingWord}
+          >
+            <Volume2 size={16} color={isPlayingWord ? "#fff" : "#666"} />
+          </button>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {/* Card creation button */}
         <button

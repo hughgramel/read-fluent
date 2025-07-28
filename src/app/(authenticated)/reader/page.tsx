@@ -714,14 +714,17 @@ export default function ReaderPage() {
                 {/* Page content */}
                 <ReaderContent
                   flatSentences={currentPageSentences}
-                  readerSettings={{
-                    ...readerSettings,
-                    disableClipboardButton: !!readerSettings.disableClipboardButton,
-                    nativeLanguage: readerSettings.nativeLanguage,
-                    enableMarkdown: !!readerSettings.enableMarkdown,
-                    dictionary: readerSettings.dictionary || 'none',
-                    autoMarkAsLearningOnPopupOpen: !!readerSettings.autoMarkAsLearningOnPopupOpen
-                  }}
+                                readerSettings={{
+                ...readerSettings,
+                disableClipboardButton: !!readerSettings.disableClipboardButton,
+                nativeLanguage: readerSettings.nativeLanguage,
+                enableMarkdown: !!readerSettings.enableMarkdown,
+                dictionary: readerSettings.dictionary || 'none',
+                autoMarkAsLearningOnPopupOpen: !!readerSettings.autoMarkAsLearningOnPopupOpen,
+                autoPlayWordOnPopup: !!readerSettings.autoPlayWordOnPopup,
+                ttsVoice: readerSettings.ttsVoice,
+                ttsSpeed: readerSettings.ttsSpeed
+              }}
                   readerFont={effectiveSettings.readerFont}
                   readerFontSize={effectiveSettings.readerFontSize}
                   readerWidth={effectiveSettings.readerWidth}
@@ -1323,6 +1326,17 @@ export default function ReaderPage() {
                 style={{ accentColor: 'var(--primary-color)' }}
               />
               <label htmlFor="enable-markdown" className="font-bold theme-text select-none cursor-pointer">Render page content as markdown</label>
+            </div>
+            <div className="mb-6 flex items-center">
+              <input
+                id="auto-play-word-on-popup"
+                type="checkbox"
+                checked={pendingSettings?.autoPlayWordOnPopup ?? readerSettings.autoPlayWordOnPopup ?? true}
+                onChange={e => handlePendingSettingChange({ autoPlayWordOnPopup: e.target.checked })}
+                className="mr-3 h-5 w-5 border-2 theme-border rounded"
+                style={{ accentColor: 'var(--primary-color)' }}
+              />
+              <label htmlFor="auto-play-word-on-popup" className="font-bold theme-text select-none cursor-pointer">Auto-play word pronunciation when popup opens</label>
             </div>
 
             {/* Save/Cancel Buttons - Only show on settings tab */}

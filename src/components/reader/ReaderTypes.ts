@@ -67,6 +67,7 @@ export interface ReaderSettings {
   enableSwipeNavigation?: boolean; // Enable swipe left/right for prev/next page
   autoMarkPageComplete?: boolean; // Automatically mark page complete when going to next page
   wordPopupDefaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'; // Default tab for word popup
+  autoPlayWordOnPopup?: boolean; // Auto-play word pronunciation when popup opens
 }
 
 export interface TTSVoice {

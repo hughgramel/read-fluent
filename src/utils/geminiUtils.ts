@@ -10,11 +10,11 @@ export interface GeminiCallOptions {
 
 export class GeminiUtils {
   private static readonly DEFAULT_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
     'gemini-2.0-flash',
     'gemini-2.0-flash-lite', 
     'gemini-1.5-flash',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
     'gemini-2.5-pro'
   ];
 
@@ -40,7 +40,7 @@ export class GeminiUtils {
       const modelName = models[attempt];
       
       try {
-        console.log(`[GeminiUtils] Attempting call with model: ${modelName} (attempt ${attempt + 1})`);
+        console.log(`[GeminiUtils] Attempting call with model: ${modelName} (attempt ${attempt + 1}/${models.length})`);
         
         const ai = new GoogleGenerativeAI(apiKey);
         const model = ai.getGenerativeModel({ model: modelName });
@@ -70,14 +70,17 @@ export class GeminiUtils {
         lastError = error;
         console.warn(`[GeminiUtils] Failed with model ${modelName}:`, error.message);
         
-        // Check if it's a rate limit error
+        // Check if it's a rate limit error - more comprehensive detection
         const isRateLimit = error.message?.includes('rate') || 
                            error.message?.includes('quota') || 
                            error.message?.includes('429') ||
-                           error.message?.includes('too many requests');
+                           error.message?.includes('too many requests') ||
+                           error.message?.includes('exceeded') ||
+                           error.message?.includes('QuotaFailure') ||
+                           error.message?.includes('free_tier_requests');
         
         if (isRateLimit && attempt < models.length - 1) {
-          console.log(`[GeminiUtils] Rate limited, trying next model...`);
+          console.log(`[GeminiUtils] Rate limited on ${modelName}, trying next model...`);
           // Add a small delay before retrying
           await new Promise(resolve => setTimeout(resolve, 1000));
           continue;
@@ -91,6 +94,7 @@ export class GeminiUtils {
     }
     
     // If we get here, all models failed
+    console.error(`[GeminiUtils] All ${models.length} models failed. Last error:`, lastError?.message);
     throw lastError || new Error('All Gemini models failed');
   }
 
