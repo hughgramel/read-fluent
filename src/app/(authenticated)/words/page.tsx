@@ -8,6 +8,7 @@ import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { UserService } from '@/services/userService';
 import { SentenceService, UserSentence } from '@/services/sentenceService';
 import { Clipboard } from 'lucide-react';
+import { WordCardService, WordCard } from '@/services/wordCardService';
 
 const FILTERS = [
   { label: 'All', value: 'all' },
@@ -32,8 +33,9 @@ export default function WordsPage() {
   const [addMultiText, setAddMultiText] = useState('');
   const [sortColumn, setSortColumn] = useState<'word' | 'type'>('word');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [selectedTab, setSelectedTab] = useState<'words' | 'sentences'>('words');
+  const [selectedTab, setSelectedTab] = useState<'words' | 'sentences' | 'cards'>('words');
   const [sentences, setSentences] = useState<UserSentence[]>([]);
+  const [wordCards, setWordCards] = useState<WordCard[]>([]);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [copyToastMessage, setCopyToastMessage] = useState('');
 
@@ -49,6 +51,8 @@ export default function WordsPage() {
     { code: 'pt', name: 'Portuguese' },
     { code: 'ur', name: 'Urdu' },
     { code: 'ja', name: 'Japanese' },
+    { code: 'vi', name: 'Vietnamese' },
+    { code: 'id', name: 'Indonesian' },
   ];
 
   useEffect(() => {
@@ -73,6 +77,12 @@ export default function WordsPage() {
   useEffect(() => {
     if (selectedTab === 'sentences' && user?.uid) {
       SentenceService.getSentences(user.uid).then(setSentences);
+    }
+  }, [selectedTab, user]);
+
+  useEffect(() => {
+    if (selectedTab === 'cards' && user?.uid) {
+      WordCardService.getWordCards(user.uid).then(setWordCards);
     }
   }, [selectedTab, user]);
 
@@ -184,6 +194,18 @@ export default function WordsPage() {
             onClick={() => setSelectedTab('sentences')}
           >
             Sentences
+          </button>
+          <button
+            className={`px-4 py-2 font-semibold text-base transition-colors border-b-2 ${selectedTab === 'cards' ? 'theme-border theme-primary' : 'border-transparent theme-text-secondary hover:theme-primary'}`}
+            style={{ 
+              background: 'transparent', 
+              marginBottom: -1,
+              borderColor: selectedTab === 'cards' ? 'var(--primary-color)' : 'transparent',
+              color: selectedTab === 'cards' ? 'var(--primary-color)' : 'var(--secondary-text-color)'
+            }}
+            onClick={() => setSelectedTab('cards')}
+          >
+            Cards
           </button>
         </div>
 
@@ -451,6 +473,99 @@ export default function WordsPage() {
         )
       )}
 
+      {selectedTab === 'cards' && (
+        wordCards.length === 0 ? (
+          <div className="text-center py-16 theme-text-secondary">
+            <div className="text-lg mb-2">No word cards found</div>
+            <div className="text-sm">Create word cards by clicking the card button in word popups while reading</div>
+          </div>
+        ) : (
+          <div>
+            <div className="flex justify-start mb-4">
+              <button
+                onClick={() => {
+                  const allText = wordCards.map(card => 
+                    `${card.targetWord}\n${card.sentence}\n${card.sentenceTranslation}\n${card.definition}\n---`
+                  ).join('\n');
+                  navigator.clipboard.writeText(allText);
+                  setCopyToastMessage('All cards copied!');
+                  setShowCopyToast(true);
+                  setTimeout(() => setShowCopyToast(false), 2000);
+                }}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium theme-text-secondary hover:theme-text transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg theme-border border sm:px-4"
+              >
+                <Clipboard className="w-4 h-4" />
+                <span className="hidden sm:inline">Copy All</span>
+                <span className="sm:hidden">Copy</span>
+              </button>
+            </div>
+            <div className="card-themed overflow-hidden overflow-x-auto">
+              <table className="w-full border-collapse min-w-[800px]" style={{ tableLayout: 'fixed' }}>
+                <thead>
+                  <tr className="bg-gray-50 border-b theme-border text-sm sm:text-base font-semibold theme-text-secondary">
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-center w-12 sm:w-16">#</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '15%' }}>Target Word</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '25%' }}>Sentence</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '25%' }}>Translation</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '20%' }}>Definition</th>
+                    <th className="py-2 px-2 sm:px-3 border-r theme-border text-left" style={{ width: '10%' }}>Date</th>
+                    <th className="py-2 px-2 sm:px-3 text-center" style={{ width: '5%' }}></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y theme-border">
+                  {wordCards.map((card, index) => (
+                    <tr
+                      key={card.id}
+                      className="text-sm sm:text-base hover:bg-gray-50 transition-colors select-text"
+                      style={{ userSelect: 'text' }}
+                    >
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border text-center theme-text-secondary font-mono whitespace-nowrap">
+                        {index + 1}
+                      </td>
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border theme-text font-semibold text-base text-center">
+                        {card.targetWord}
+                      </td>
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border theme-text break-words">
+                        <span>
+                          {boldTargetWord(card.sentence, card.targetWord)}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border theme-text break-words">
+                        {card.sentenceTranslation}
+                      </td>
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border theme-text break-words">
+                        <div className="max-h-20 overflow-y-auto">
+                          {card.definition}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 sm:px-3 border-r theme-border whitespace-nowrap">
+                        <span className="theme-text-secondary text-xs sm:text-sm">
+                          {card.createdAt ? new Date(card.createdAt).toLocaleDateString() : 'Unknown'}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 sm:px-3 text-center whitespace-nowrap">
+                        <button
+                          onClick={async () => {
+                            if (user && card.id) {
+                              await WordCardService.deleteWordCard(user.uid, card.id);
+                              setWordCards(wordCards.filter(c => c.id !== card.id));
+                            }
+                          }}
+                          className="text-gray-400 hover:text-red-500 transition-colors p-1.5 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 theme-border border flex items-center justify-center"
+                          title="Remove card"
+                        >
+                          <FiTrash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      )}
+
       {/* Add Word Modal */}
           {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAdd(false)}>
@@ -567,10 +682,55 @@ export default function WordsPage() {
 
 function boldTargetWord(sentence: string, targetWord: string) {
   if (!targetWord) return sentence;
-  // Use regex to match the word, case-insensitive, word boundaries
-  const regex = new RegExp(`(\\b${targetWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi');
-  const parts = sentence.split(regex);
-  return parts.map((part, i) =>
-    regex.test(part) ? <b key={i} className="font-bold">{part}</b> : part
-  );
+  
+  // Clean the target word by removing punctuation for matching
+  const cleanTargetWord = targetWord.replace(/[.,!?;:]|["\)\]}]/g, '').trim();
+  if (!cleanTargetWord) return sentence;
+  
+  // Create a regex that matches the word with optional punctuation, but without trailing word boundary
+  const escapedWord = cleanTargetWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(\\b${escapedWord}[.,!?;:]?)`, 'gi');
+  
+  // Find all matches first
+  const matches: Array<{text: string, index: number}> = [];
+  let match;
+  const regexCopy = new RegExp(regex.source, regex.flags);
+  
+  while ((match = regexCopy.exec(sentence)) !== null) {
+    matches.push({
+      text: match[0],
+      index: match.index
+    });
+  }
+  
+  // If no matches found, log the issue and return original sentence
+  if (matches.length === 0) {
+    console.log(`no "${targetWord}" in "${sentence}"`);
+    console.log(`cleanTargetWord: "${cleanTargetWord}"`);
+    console.log(`regex: ${regex.source}`);
+    console.log(`sentence includes targetWord:`, sentence.includes(targetWord));
+    console.log(`sentence includes cleanTargetWord:`, sentence.includes(cleanTargetWord));
+    return sentence;
+  }
+  
+  // Build the result by replacing matches with bold versions
+  let result = [];
+  let lastIndex = 0;
+  
+  for (const match of matches) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      result.push(sentence.slice(lastIndex, match.index));
+    }
+    // Add the bold match
+    result.push(<b key={`bold-${match.index}`} className="font-bold">{match.text}</b>);
+    lastIndex = match.index + match.text.length;
+  }
+  
+  // Add remaining text after last match
+  if (lastIndex < sentence.length) {
+    result.push(sentence.slice(lastIndex));
+  }
+  
+  return result;
 } 

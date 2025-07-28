@@ -14,6 +14,7 @@ import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle, clea
 import { ReaderSettings as ReaderSettingsType } from '@/components/reader/ReaderTypes';
 import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle, BookOpen, Bot, ListOrdered, Languages, Eye } from 'lucide-react';
 import { WordService } from '@/services/wordService';
+import { updateBookMetadata } from '@/services/epubService';
 // @ts-ignore
 import SpeechPlayerImport from '../../../components/SpeechPlayer.jsx';
 import React from 'react';
@@ -754,6 +755,47 @@ export default function ReaderPage() {
                   showHeader={showHeader}
                   setCurrentlyHighlightedSentence={setCurrentlyHighlightedSentence}
                 />
+                
+                {/* Mark Complete Button - Only show on the last page of the book */}
+                {book && book.sections && currentSectionIndex === book.sections.length - 1 && currentPageIndex === sectionPages[currentSectionIndex]?.length - 1 && (
+                  <div className="flex justify-center mt-8 mb-4">
+                    <button
+                      onClick={async () => {
+                        if (book && !book.completed && user?.uid) {
+                          try {
+                            // Update the book's completed status in the database
+                            await updateBookMetadata(user.uid, book.id, { completed: true });
+                            
+                            // Update the book object locally
+                            const updatedBook = { ...book, completed: true };
+                            localStorage.setItem(`epub-book-${book.id}`, JSON.stringify(updatedBook));
+                            
+                            // Show a success message
+                            alert('Book marked as completed!');
+                            
+                            // Force a re-render by updating the book state
+                            // This might need to be handled differently depending on how the book state is managed
+                          } catch (error) {
+                            console.error('Failed to mark book as completed:', error);
+                            alert('Failed to mark book as completed. Please try again.');
+                          }
+                        }
+                      }}
+                      disabled={book?.completed}
+                      className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                        book?.completed 
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                          : 'bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color)] hover:opacity-90 active:scale-95'
+                      }`}
+                      style={{
+                        fontFamily: 'var(--font-family)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                      }}
+                    >
+                      {book?.completed ? '✓ Completed' : 'Mark Complete'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

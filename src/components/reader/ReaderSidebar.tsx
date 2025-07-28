@@ -24,6 +24,41 @@ export function ReaderSidebar({
   onToggleSectionWordCount,
   isMobileModal = false,
 }: ReaderSidebarProps) {
+  
+  // Function to find the last read page and go to the next page
+  const goToLastReadPage = () => {
+    let lastReadSection = -1;
+    let lastReadPage = -1;
+    
+    // Find the last read page across all sections
+    for (let sectionIdx = 0; sectionIdx < sectionPages.length; sectionIdx++) {
+      const readPages = readPagesBySection[sectionIdx];
+      if (readPages && readPages.size > 0) {
+        const maxReadPage = Math.max(...Array.from(readPages));
+        if (sectionIdx > lastReadSection || (sectionIdx === lastReadSection && maxReadPage > lastReadPage)) {
+          lastReadSection = sectionIdx;
+          lastReadPage = maxReadPage;
+        }
+      }
+    }
+    
+    // If we found a read page, go to the next page
+    if (lastReadSection >= 0 && lastReadPage >= 0) {
+      const nextPage = lastReadPage + 1;
+      const pagesInSection = sectionPages[lastReadSection]?.length || 0;
+      
+      if (nextPage < pagesInSection) {
+        // Next page is in the same section
+        onGoToPage(lastReadSection, nextPage);
+      } else if (lastReadSection + 1 < sectionPages.length) {
+        // Next page is in the next section
+        onGoToPage(lastReadSection + 1, 0);
+      }
+    } else {
+      // No pages read yet, go to the first page
+      onGoToPage(0, 0);
+    }
+  };
   return (
     <div className="flex flex-col items-start" style={{ minWidth: isMobileModal ? 'auto' : 220, paddingRight: isMobileModal ? 0 : 24 }}>
       {!isMobileModal && (
@@ -69,6 +104,17 @@ export function ReaderSidebar({
           </div>
         );
       })}
+      
+      {/* Go to last page button */}
+      <div className="w-full mt-4 pt-4 border-t border-gray-200">
+        <button
+          onClick={goToLastReadPage}
+          className="w-full text-left px-4 py-2 rounded font-semibold transition-all bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color-hover)]"
+          style={{ fontWeight: 500, fontSize: 14 }}
+        >
+          Go to last page
+        </button>
+      </div>
     </div>
   );
 } 

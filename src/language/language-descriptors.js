@@ -45,7 +45,9 @@ import {frenchTransforms} from './fr/french-transforms.js';
 // import {albanianTransforms} from './sq/albanian-transforms.js';
 import {capitalizeFirstLetter, decapitalize, removeAlphabeticDiacritics} from './text-processors.js';
 // import {tagalogTransforms} from './tl/tagalog-transforms.js';
-// import {normalizeDiacritics} from './vi/viet-text-preprocessors.js';
+import {normalizeDiacritics} from './vi/viet-text-preprocessors.js';
+import {vietnameseTransforms} from './vi/vietnamese-transforms.js';
+import {indonesianTransforms} from './id/indonesian-transforms.js';
 // import {convertFinalLetters, convertYiddishLigatures} from './yi/yiddish-text-postprocessors.js';
 // import {combineYiddishLigatures, removeYiddishDiacritics} from './yi/yiddish-text-preprocessors.js';
 // import {yiddishTransforms} from './yi/yiddish-transforms.js';
@@ -479,16 +481,25 @@ const languageDescriptors = [
     //     exampleText: 'читати',
     //     textPreprocessors: capitalizationPreprocessors,
     // },
-    // {
-    //     iso: 'vi',
-    //     iso639_3: 'vie',
-    //     name: 'Vietnamese',
-    //     exampleText: 'đọc',
-    //     textPreprocessors: {
-    //         ...capitalizationPreprocessors,
-    //         normalizeDiacritics,
-    //     },
-    // },
+    {
+        iso: 'vi',
+        iso639_3: 'vie',
+        name: 'Vietnamese',
+        exampleText: 'đọc',
+        textPreprocessors: {
+            ...capitalizationPreprocessors,
+            normalizeDiacritics,
+        },
+        languageTransforms: vietnameseTransforms,
+    },
+    {
+        iso: 'id',
+        iso639_3: 'ind',
+        name: 'Indonesian',
+        exampleText: 'membaca',
+        textPreprocessors: capitalizationPreprocessors,
+        languageTransforms: indonesianTransforms,
+    },
     // {
     //     iso: 'cy',
     //     iso639_3: 'cym',

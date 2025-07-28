@@ -9,5 +9,7 @@
   { "name": "Italian-English Dictionary", "collection": "kty-it-en", "language": "it", "glossLanguage": "en" },
   { "name": "French-German Dictionary", "collection": "kty-fr-de", "language": "fr", "glossLanguage": "de" },
   { "name": "English-Dutch Dictionary", "collection": "kty-en-nl", "language": "en", "glossLanguage": "nl" },
-  { "name": "French-Dutch Dictionary", "collection": "kty-fr-nl", "language": "fr", "glossLanguage": "nl" }
+  { "name": "French-Dutch Dictionary", "collection": "kty-fr-nl", "language": "fr", "glossLanguage": "nl" },
+  { "name": "Vietnamese-English Dictionary", "collection": "kty-vi-en", "language": "vi", "glossLanguage": "en" },
+  { "name": "Indonesian-English Dictionary", "collection": "kty-id-en", "language": "id", "glossLanguage": "en" }
 ] 

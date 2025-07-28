@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye, CheckCircle, XCircle, HelpCircle, Bot, ListOrdered, Plus } from 'lucide-react';
+import { BookOpen, MessageSquare, Languages, Bookmark, X, Eye, CheckCircle, XCircle, HelpCircle, Bot, ListOrdered, Plus, CreditCard } from 'lucide-react';
 import { Bookmark as BookmarkIcon, Bookmark as BookmarkFilledIcon } from 'lucide-react';
 import { WordType } from './ReaderTypes';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
@@ -11,6 +11,7 @@ import { useRef } from 'react';
 import { UserService } from '@/services/userService';
 import { fillPromptVariables } from '@/utils/promptUtils';
 import { GeminiUtils } from '@/utils/geminiUtils';
+import { WordCardService } from '@/services/wordCardService';
 
 
 export type DatabaseTermEntry = {
@@ -239,6 +240,8 @@ const languageTransformImports: Record<string, () => Promise<any>> = {
   en: () => import('@/language/en/english-transforms').then(m => m.englishTransforms),
   ar: () => import('@/language/ar/arabic-transforms').then(m => m.arabicTransforms),
   eo: () => import('@/language/eo/esperanto-transforms').then(m => m.esperantoTransforms),
+  vi: () => import('@/language/vi/vietnamese-transforms').then(m => m.vietnameseTransforms),
+  id: () => import('@/language/id/indonesian-transforms').then(m => m.indonesianTransforms),
   // Add more as needed
 };
 
@@ -263,6 +266,9 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveAnim, setSaveAnim] = useState(false);
+  const [isCreatingCard, setIsCreatingCard] = useState(false);
+  const [isCardCreated, setIsCardCreated] = useState(false);
+  const [cardCreateAnim, setCardCreateAnim] = useState(false);
   // For debugging: store last Gemini prompt for each tab
   const [lastWordExplainPrompt, setLastWordExplainPrompt] = useState<string | null>(null);
   const [lastExplainPrompt, setLastExplainPrompt] = useState<string | null>(null);
@@ -504,7 +510,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
 
   // Gemini API call utility with fallback models
   async function callGemini(prompt: string | { systemPrompt: string, userPrompt: string }): Promise<string> {
-    return GeminiUtils.callGeminiLegacy(prompt);
+    if (typeof prompt === 'string') {
+      return GeminiUtils.callGemini({ prompt });
+    } else {
+      return GeminiUtils.callGemini({ 
+        systemPrompt: prompt.systemPrompt, 
+        userPrompt: prompt.userPrompt 
+      });
+    }
   }
 
   // Prompts
@@ -533,10 +546,18 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       });
       const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
       setLastWordExplainPrompt(combinedPrompt);
-      callGemini(combinedPrompt)
-        .then(setWordExplainResult)
-        .catch(e => setWordExplainError(e.message))
-        .finally(() => setWordExplainLoading(false));
+      
+      (async () => {
+        try {
+          const result = await callGemini(combinedPrompt);
+          setWordExplainResult(result);
+        } catch (e: any) {
+          // Only set error if all fallback models failed
+          setWordExplainError(e.message);
+        } finally {
+          setWordExplainLoading(false);
+        }
+      })();
     }
   }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
 
@@ -553,10 +574,18 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         sentence,
       });
       setLastExplainPrompt(prompt);
-      callGemini(prompt)
-        .then(setExplainResult)
-        .catch(e => setExplainError(e.message))
-        .finally(() => setExplainLoading(false));
+      
+      (async () => {
+        try {
+          const result = await callGemini(prompt);
+          setExplainResult(result);
+        } catch (e: any) {
+          // Only set error if all fallback models failed
+          setExplainError(e.message);
+        } finally {
+          setExplainLoading(false);
+        }
+      })();
     }
   }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
 
@@ -573,10 +602,18 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         sentence,
       });
       setLastTranslatePrompt(prompt);
-      callGemini(prompt)
-        .then(setTranslateResult)
-        .catch(e => setTranslateError(e.message))
-        .finally(() => setTranslateLoading(false));
+      
+      (async () => {
+        try {
+          const result = await callGemini(prompt);
+          setTranslateResult(result);
+        } catch (e: any) {
+          // Only set error if all fallback models failed
+          setTranslateError(e.message);
+        } finally {
+          setTranslateLoading(false);
+        }
+      })();
     }
   }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
 
@@ -691,6 +728,80 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     }
   };
 
+  // Create word card function
+  const createWordCard = async () => {
+    if (!user?.uid) {
+      console.log('No user, cannot create card');
+      return;
+    }
+
+    setIsCreatingCard(true);
+    try {
+      // Get sentence translation if not already available
+      let sentenceTranslation = translateResult;
+      if (!sentenceTranslation && activeTab !== 'translate') {
+        // Call Gemini to get translation
+        const prompt = fillPromptVariables(sentenceTranslationPrompt, {
+          interfaceLang,
+          targetLang,
+          word,
+          sentence,
+        });
+        sentenceTranslation = await callGemini(prompt);
+      }
+
+      // Get definition - prefer dictionary entry, fallback to word explanation
+      let definition = '';
+      if (lemmaEntry && lemmaEntry.definition) {
+        // Extract definition from dictionary entry
+        const defArr = Array.isArray(lemmaEntry.definition) ? lemmaEntry.definition : [lemmaEntry.definition];
+        if (defArr.length > 0 && defArr[0].glossary && Array.isArray(defArr[0].glossary)) {
+          definition = defArr[0].glossary.map((g: any) => g.definition).join('; ');
+        }
+      }
+      
+      // If no dictionary definition, use word explanation
+      if (!definition && wordExplainResult) {
+        definition = wordExplainResult;
+      } else if (!definition) {
+        // Get word explanation if not already available
+        const systemPrompt = fillPromptVariables(wordExplainSystemPrompt, {
+          interfaceLang,
+          targetLang,
+          word,
+          sentence,
+        });
+        const userPrompt = fillPromptVariables(wordExplainUserPrompt, {
+          interfaceLang,
+          targetLang,
+          word,
+          sentence,
+        });
+        const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+        definition = await callGemini(combinedPrompt);
+      }
+
+      // Create the word card
+      await WordCardService.createWordCard({
+        userId: user.uid,
+        targetWord: displayWord,
+        sentence: sentence,
+        sentenceTranslation: sentenceTranslation || 'Translation not available',
+        definition: definition || 'Definition not available'
+      });
+
+      setIsCardCreated(true);
+      setCardCreateAnim(true);
+      setTimeout(() => setCardCreateAnim(false), 300);
+      console.log('Created word card for:', displayWord);
+    } catch (error) {
+      console.error('Failed to create word card:', error);
+      alert('Failed to create word card. Please try again.');
+    } finally {
+      setIsCreatingCard(false);
+    }
+  };
+
   // Function to render translated text with bold formatting for asterisk-surrounded words
   const renderTranslatedText = (text: string) => {
     if (!text) return null;
@@ -790,6 +901,39 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexShrink: 0 }}>
         <div style={{ fontWeight: 700, fontSize: isMobile ? 22 : 18 }}>{displayWord}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Card creation button */}
+        <button
+          onClick={async () => {
+            await createWordCard();
+          }}
+          style={{
+            background: isCardCreated ? '#8b5cf6' : '#f3f4f6',
+            border: 'none',
+            cursor: isCardCreated ? 'default' : 'pointer',
+            width: 38,
+            height: 38,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.2s, transform 0.15s',
+            color: isCardCreated ? '#fff' : '#666',
+            transform: cardCreateAnim ? 'scale(1.12)' : 'scale(1)',
+            filter: isCardCreated ? 'brightness(1)' : 'none',
+            opacity: isCreatingCard ? 0.7 : 1,
+            boxShadow: isCardCreated ? '0 0 0 2px #8b5cf633' : '0 1px 4px rgba(0,0,0,0.08)',
+            fontSize: 18,
+            marginRight: 8,
+          }}
+          title={isCardCreated ? 'Card created' : 'Create word card'}
+          disabled={isCardCreated || isCreatingCard}
+        >
+          {isCardCreated
+            ? <CheckCircle size={20} color="#fff" fill="#8b5cf6" style={{ display: 'block', transition: 'all 0.2s' }} />
+            : <CreditCard size={20} color="#666" style={{ display: 'block', transition: 'all 0.2s' }} />
+          }
+        </button>
+        {/* Sentence save button */}
         <button
           onClick={async () => {
             await saveSentence();
