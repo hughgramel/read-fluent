@@ -66,7 +66,7 @@ export interface ReaderSettings {
   enableMarkdown?: boolean; // Render page content as markdown
   enableSwipeNavigation?: boolean; // Enable swipe left/right for prev/next page
   autoMarkPageComplete?: boolean; // Automatically mark page complete when going to next page
-  wordPopupDefaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'; // Default tab for word popup
+  wordPopupDefaultTab?: 'definition' | 'ai-definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'; // Default tab for word popup
   autoPlayWordOnPopup?: boolean; // Auto-play word pronunciation when popup opens
 }
 

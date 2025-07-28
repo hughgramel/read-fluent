@@ -45,7 +45,7 @@ interface ReaderContentProps {
     disableClipboardButton: boolean;
     targetLanguage?: string;
     dictionary?: string;
-    wordPopupDefaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
+    wordPopupDefaultTab?: 'definition' | 'ai-definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
     autoMarkAsLearningOnPopupOpen?: boolean;
     autoPlayWordOnPopup?: boolean;
     ttsVoice?: string | null;

@@ -29,6 +29,6 @@
   "autoMarkPageComplete": true,
   "disableClipboardButton": true,
   "enableMarkdown": false,
-  "wordPopupDefaultTab": "word-explain",
+  "wordPopupDefaultTab": "ai-definition",
   "autoPlayWordOnPopup": true
 } 

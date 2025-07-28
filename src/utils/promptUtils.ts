@@ -4,6 +4,8 @@ export function fillPromptVariables(prompt: string, vars: {
   targetLang: string;
   word?: string;
   sentence?: string;
+  beforeSentence?: string;
+  afterSentence?: string;
 }) {
   let result = prompt;
   // Handle [LANGUAGE_EXCEPTION] placeholder
@@ -22,6 +24,8 @@ export function fillPromptVariables(prompt: string, vars: {
     .replace(/\[INTERFACE_LANG\]/g, vars.interfaceLang)
     .replace(/\[TARGET_LANG\]/g, vars.targetLang)
     .replace(/\[WORD\]/g, vars.word || '')
-    .replace(/\[SENTENCE\]/g, vars.sentence || '');
+    .replace(/\[SENTENCE\]/g, vars.sentence || '')
+    .replace(/\[BEFORE_SENTENCE\]/g, vars.beforeSentence || '')
+    .replace(/\[AFTER_SENTENCE\]/g, vars.afterSentence || '');
   return result;
 } 

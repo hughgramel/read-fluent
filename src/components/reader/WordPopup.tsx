@@ -53,7 +53,7 @@ interface WordPopupProps {
   /** Firestore collection name for dictionary, or 'none' for no dictionary */
   dictionaryCollection: string;
   /** Default tab to show when popup opens */
-  defaultTab?: 'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
+  defaultTab?: 'definition' | 'ai-definition' | 'explain' | 'translate' | 'sentence' | 'word-explain';
   /** Whether to auto-play the word when popup opens */
   autoPlayWordOnPopup?: boolean;
   /** TTS voice name */
@@ -217,8 +217,8 @@ function renderNumberedDefinitions(defArr: any[], readerFont?: string) {
 // Placeholder AI icon component
 const AiIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="12" cy="12" r="10" stroke="#6366f1" strokeWidth="2" fill="#e0e7ff" />
-    <text x="12" y="16" textAnchor="middle" fontSize="10" fill="#6366f1" fontWeight="bold">AI</text>
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="transparent" />
+    <text x="12" y="16" textAnchor="middle" fontSize="10" fill="currentColor" fontWeight="bold">AI</text>
   </svg>
 );
 
@@ -255,7 +255,7 @@ const languageTransformImports: Record<string, () => Promise<any>> = {
 export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage, dictionaryCollection, defaultTab = 'word-explain', autoPlayWordOnPopup = true, ttsVoice = null, ttsSpeed = 1.0 }: WordPopupProps) {
   const [showPlaceholder, setShowPlaceholder] = useState(false);
   const [placeholderText, setPlaceholderText] = useState('');
-  const [activeTab, setActiveTab] = useState<'definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'definition' | 'ai-definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'>(defaultTab);
   const [dictEntries, setDictEntries] = useState<any[]>([]);
   const [dictLoading, setDictLoading] = useState(false);
   const [dictError, setDictError] = useState<string | null>(null);
@@ -270,6 +270,9 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   const [wordExplainResult, setWordExplainResult] = useState<string | null>(null);
   const [wordExplainLoading, setWordExplainLoading] = useState(false);
   const [wordExplainError, setWordExplainError] = useState<string | null>(null);
+  const [aiDefinitionResult, setAiDefinitionResult] = useState<string | null>(null);
+  const [aiDefinitionLoading, setAiDefinitionLoading] = useState(false);
+  const [aiDefinitionError, setAiDefinitionError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveAnim, setSaveAnim] = useState(false);
@@ -282,12 +285,23 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
   
   // Use ref to track auto-play state to prevent multiple triggers
   const hasAutoPlayedRef = useRef(false);
+  
+  // Use refs to track if we've already made API calls for each tab
+  const hasCalledWordExplainRef = useRef(false);
+  const hasCalledExplainRef = useRef(false);
+  const hasCalledAiDefinitionRef = useRef(false);
+  const hasCalledTranslateRef = useRef(false);
+  
+  // Additional ref to track the current active tab to prevent duplicate calls
+  const currentActiveTabRef = useRef<string | null>(null);
   const [lastExplainPrompt, setLastExplainPrompt] = useState<string | null>(null);
   const [lastTranslatePrompt, setLastTranslatePrompt] = useState<string | null>(null);
   const [userPrompts, setUserPrompts] = useState<any | null>(null);
   const defaultPrompts = {
     wordExplainSystem: `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language [NATIVE_LANG].\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`,
     wordExplainUser: `[SENTENCE]. Explain usage of word(s): [WORD] (lang: [NATIVE_LANG])`,
+    aiDefinitionSystem: `You are a language API that provides contextual definitions for words based on their usage in a sentence.\n\nProvide a concise, contextual definition of the specified word that fits the given sentence context.\n\nInclude:\n- Primary meaning in this context\n- Part of speech\n- Any relevant grammatical information\n- Brief usage notes if helpful\n\nKeep the response under 150 words.\n\nAll text MUST be in language [NATIVE_LANG].\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT pronunciation guides.\nFocus on the specific meaning in this context.`,
+    aiDefinitionUser: `Context: [BEFORE_SENTENCE] [SENTENCE] [AFTER_SENTENCE]\n\nDefine the word "[WORD]" in the context of this sentence.`,
     sentenceBreakdown: `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language en.\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\nDO NOT OUTPUT other text, ONLY OUTPUT numbered lists.\nDO NOT OUTPUT any text in [NATIVE_LANG]. ONLY output text IN [NATIVE_LANG].`,
     sentenceTranslation: `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [NATIVE_LANG].\n\nIMPORTANT: Surround the word that most closely corresponds to the target word [WORD] with asterisks (*word*).`
   };
@@ -314,11 +328,21 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     const load = async () => {
       const t: MultiLanguageTransformer = new MultiLanguageTransformer();
       if (languageTransformImports[lang]) {
-        const transforms = await languageTransformImports[lang]();
-        const { LanguageTransformer } = await import('@/language/language-transformer');
-        const languageTransformer = new LanguageTransformer();
-        languageTransformer.addDescriptor(transforms);
-        t._languageTransformers.set(lang, languageTransformer);
+        try {
+          const transforms = await languageTransformImports[lang]();
+          const { LanguageTransformer } = await import('@/language/language-transformer');
+          const languageTransformer = new LanguageTransformer();
+          
+          // Check if transforms has the expected format before calling addDescriptor
+          if (transforms && typeof transforms === 'object' && 'conditions' in transforms && 'transforms' in transforms) {
+            languageTransformer.addDescriptor(transforms);
+            t._languageTransformers.set(lang, languageTransformer);
+          } else {
+            console.warn(`Language transforms for ${lang} do not have the expected format, skipping language transformation`);
+          }
+        } catch (error) {
+          console.error(`Failed to load language transforms for ${lang}:`, error);
+        }
       }
       if (isMounted) setTransformer(t);
     };
@@ -357,10 +381,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
 
   // Reset all content when word or sentence changes
   useEffect(() => {
+    console.log('[WordPopup DEBUG] Reset effect triggered - word or sentence changed:', { word, sentence });
     // Clear all cached results when word or sentence changes
     setWordExplainResult(null);
     setWordExplainError(null);
     setWordExplainLoading(false);
+    setAiDefinitionResult(null);
+    setAiDefinitionError(null);
+    setAiDefinitionLoading(false);
     setExplainResult(null);
     setExplainError(null);
     setExplainLoading(false);
@@ -369,12 +397,65 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     setTranslateLoading(false);
     setShowPlaceholder(false);
     setPlaceholderText('');
+    
+    // Reset the refs so we can make new calls for the new word
+    hasCalledWordExplainRef.current = false;
+    hasCalledExplainRef.current = false;
+    hasCalledAiDefinitionRef.current = false;
+    hasCalledTranslateRef.current = false;
+    currentActiveTabRef.current = null;
   }, [word, sentence]);
 
   // Set default tab when component mounts or defaultTab changes
   useEffect(() => {
+    console.log('[WordPopup DEBUG] Default tab effect triggered:', { defaultTab });
     setActiveTab(defaultTab);
   }, [defaultTab]);
+
+  // Handle tab changes and update current active tab ref
+  useEffect(() => {
+    console.log('[WordPopup DEBUG] Active tab changed to:', activeTab);
+    
+    // Prevent duplicate calls for the same tab
+    if (currentActiveTabRef.current === activeTab) {
+      console.log('[WordPopup DEBUG] Tab already active, skipping duplicate call');
+      return;
+    }
+    
+    currentActiveTabRef.current = activeTab;
+  }, [activeTab]);
+
+  // Add a useEffect to trigger API calls when userPrompts is loaded and activeTab changes
+  useEffect(() => {
+    if (!userPrompts) return; // Wait for userPrompts to be loaded
+    
+    switch (activeTab) {
+      case 'word-explain':
+        if (!hasCalledWordExplainRef.current) {
+          handleWordExplainCall();
+        }
+        break;
+      case 'explain':
+        if (!hasCalledExplainRef.current) {
+          handleExplainCall();
+        }
+        break;
+      case 'ai-definition':
+        if (!hasCalledAiDefinitionRef.current) {
+          handleAiDefinitionCall();
+        }
+        break;
+      case 'translate':
+        if (!hasCalledTranslateRef.current) {
+          handleTranslateCall();
+        }
+        break;
+      default:
+        // For 'definition' and 'sentence' tabs, no API calls needed
+        break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, userPrompts]);
 
   const handlePopupClick = (e: React.MouseEvent) => {
     // Prevent clicks on the popup from bubbling up to the container
@@ -567,102 +648,202 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     }
   }, [displayWord, autoPlayWordOnPopup]);
 
-  // Prompts
-  const wordExplainSystemPrompt = (userPrompts?.wordExplainSystem || defaultPrompts.wordExplainSystem).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
-  const wordExplainUserPrompt = (userPrompts?.wordExplainUser || defaultPrompts.wordExplainUser).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
-  const sentenceBreakdownPrompt = (userPrompts?.sentenceBreakdown || defaultPrompts.sentenceBreakdown).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
-  const sentenceTranslationPrompt = (userPrompts?.sentenceTranslation || defaultPrompts.sentenceTranslation).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]');
+  // Prompts are now handled directly in each function using userPrompts
 
-  // Handle Word Explanation tab
-  useEffect(() => {
-    if (activeTab === 'word-explain') {
-      setWordExplainResult(null);
-      setWordExplainError(null);
-      setWordExplainLoading(true);
-      const systemPrompt = fillPromptVariables(wordExplainSystemPrompt, {
-        interfaceLang,
-        targetLang,
-        word,
-        sentence,
-      });
-      const userPrompt = fillPromptVariables(wordExplainUserPrompt, {
-        interfaceLang,
-        targetLang,
-        word,
-        sentence,
-      });
-      const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
-      setLastWordExplainPrompt(combinedPrompt);
-      
-      (async () => {
-        try {
-          const result = await callGemini(combinedPrompt);
-          setWordExplainResult(result);
-        } catch (e: any) {
-          // Only set error if all fallback models failed
-          setWordExplainError(e.message);
-        } finally {
-          setWordExplainLoading(false);
-        }
-      })();
+  // Function to handle Word Explanation API call
+  const handleWordExplainCall = async () => {
+    if (hasCalledWordExplainRef.current) {
+      console.log('[WordPopup DEBUG] Word Explanation already called, skipping');
+      return;
     }
-  }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
+    if (!userPrompts) {
+      console.log('[WordPopup DEBUG] userPrompts not loaded, skipping Word Explanation call');
+      return;
+    }
+    console.log('[WordPopup DEBUG] Starting Word Explanation API call');
+    hasCalledWordExplainRef.current = true;
+    setWordExplainResult(null);
+    setWordExplainError(null);
+    setWordExplainLoading(true);
+    
+    const systemPrompt = fillPromptVariables(
+      (userPrompts?.wordExplainSystem || defaultPrompts.wordExplainSystem).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+      {
+        interfaceLang,
+        targetLang,
+        word,
+        sentence,
+      }
+    );
+    const userPrompt = fillPromptVariables(
+      (userPrompts?.wordExplainUser || defaultPrompts.wordExplainUser).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+      {
+        interfaceLang,
+        targetLang,
+        word,
+        sentence,
+      }
+    );
+    const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+    setLastWordExplainPrompt(combinedPrompt);
+    
+    try {
+      console.log('[WordPopup DEBUG] Calling Gemini for Word Explanation');
+      const result = await callGemini(combinedPrompt);
+      console.log('[WordPopup DEBUG] Word Explanation API call successful');
+      console.log('[WordPopup DEBUG] Word Explanation result:', result);
+      setWordExplainResult(result);
+    } catch (e: any) {
+      console.log('[WordPopup DEBUG] Word Explanation API call failed:', e.message);
+      setWordExplainError(e.message);
+    } finally {
+      setWordExplainLoading(false);
+    }
+  };
 
-  // Handle Explain tab
-  useEffect(() => {
-    if (activeTab === 'explain') {
-      setExplainResult(null);
-      setExplainError(null);
-      setExplainLoading(true);
-      const prompt = fillPromptVariables(sentenceBreakdownPrompt, {
+  // Function to handle Explain API call
+  const handleExplainCall = async () => {
+    if (hasCalledExplainRef.current) {
+      console.log('[WordPopup DEBUG] Explain already called, skipping');
+      return;
+    }
+    if (!userPrompts) {
+      console.log('[WordPopup DEBUG] userPrompts not loaded, skipping Explain call');
+      return;
+    }
+    
+    console.log('[WordPopup DEBUG] Starting Explain API call');
+    hasCalledExplainRef.current = true;
+    setExplainResult(null);
+    setExplainError(null);
+    setExplainLoading(true);
+    
+    const prompt = fillPromptVariables(
+      (userPrompts?.sentenceBreakdown || defaultPrompts.sentenceBreakdown).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+      {
         interfaceLang,
         targetLang,
         word,
         sentence,
-      });
-      setLastExplainPrompt(prompt);
-      
-      (async () => {
-        try {
-          const result = await callGemini(prompt);
-          setExplainResult(result);
-        } catch (e: any) {
-          // Only set error if all fallback models failed
-          setExplainError(e.message);
-        } finally {
-          setExplainLoading(false);
-        }
-      })();
+      }
+    );
+    setLastExplainPrompt(prompt);
+    
+    try {
+      console.log('[WordPopup DEBUG] Calling Gemini for Explain');
+      const result = await callGemini(prompt);
+      console.log('[WordPopup DEBUG] Explain API call successful');
+      console.log('[WordPopup DEBUG] Explain result:', result);
+      setExplainResult(result);
+    } catch (e: any) {
+      console.log('[WordPopup DEBUG] Explain API call failed:', e.message);
+      setExplainError(e.message);
+    } finally {
+      setExplainLoading(false);
     }
-  }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
+  };
 
-  // Handle Translate tab
-  useEffect(() => {
-    if (activeTab === 'translate') {
-      setTranslateResult(null);
-      setTranslateError(null);
-      setTranslateLoading(true);
-      const prompt = fillPromptVariables(sentenceTranslationPrompt, {
+  // Function to handle AI Definition API call
+  const handleAiDefinitionCall = async () => {
+    if (hasCalledAiDefinitionRef.current) {
+      console.log('[WordPopup DEBUG] AI Definition already called, skipping');
+      return;
+    }
+    if (!userPrompts) {
+      console.log('[WordPopup DEBUG] userPrompts not loaded, skipping AI Definition call');
+      return;
+    }
+    
+    console.log('[WordPopup DEBUG] Starting AI Definition API call');
+    hasCalledAiDefinitionRef.current = true;
+    setAiDefinitionResult(null);
+    setAiDefinitionError(null);
+    setAiDefinitionLoading(true);
+    
+    // Get context sentences (this would need to be passed from the parent component)
+    // For now, we'll use empty strings and the current sentence
+    const beforeSentence = ''; // TODO: Get from parent component
+    const afterSentence = ''; // TODO: Get from parent component
+    
+    const systemPrompt = fillPromptVariables(
+      (userPrompts?.aiDefinitionSystem || defaultPrompts.aiDefinitionSystem).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+      {
         interfaceLang,
         targetLang,
         word,
         sentence,
-      });
-      setLastTranslatePrompt(prompt);
-      
-      (async () => {
-        try {
-          const result = await callGemini(prompt);
-          setTranslateResult(result);
-        } catch (e: any) {
-          // Only set error if all fallback models failed
-          setTranslateError(e.message);
-        } finally {
-          setTranslateLoading(false);
-        }
-      })();
+        beforeSentence,
+        afterSentence,
+      }
+    );
+    const userPrompt = fillPromptVariables(
+      (userPrompts?.aiDefinitionUser || defaultPrompts.aiDefinitionUser).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+      {
+        interfaceLang,
+        targetLang,
+        word,
+        sentence,
+        beforeSentence,
+        afterSentence,
+      }
+    );
+    const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+    
+    try {
+      console.log('[WordPopup DEBUG] Calling Gemini for AI Definition');
+      const result = await callGemini(combinedPrompt);
+      console.log('[WordPopup DEBUG] AI Definition API call successful');
+      console.log('[WordPopup DEBUG] AI Definition result:', result);
+      setAiDefinitionResult(result);
+    } catch (e: any) {
+      console.log('[WordPopup DEBUG] AI Definition API call failed:', e.message);
+      setAiDefinitionError(e.message);
+    } finally {
+      setAiDefinitionLoading(false);
     }
-  }, [activeTab, word, sentence, nativeLanguage, targetLanguage]);
+  };
+
+  // Function to handle Translate API call
+  const handleTranslateCall = async () => {
+    if (hasCalledTranslateRef.current) {
+      console.log('[WordPopup DEBUG] Translate already called, skipping');
+      return;
+    }
+    if (!userPrompts) {
+      console.log('[WordPopup DEBUG] userPrompts not loaded, skipping Translate call');
+      return;
+    }
+    
+    console.log('[WordPopup DEBUG] Starting Translate API call');
+    hasCalledTranslateRef.current = true;
+    setTranslateResult(null);
+    setTranslateError(null);
+    setTranslateLoading(true);
+    
+    const prompt = fillPromptVariables(
+      (userPrompts?.sentenceTranslation || defaultPrompts.sentenceTranslation).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+      {
+        interfaceLang,
+        targetLang,
+        word,
+        sentence,
+      }
+    );
+    setLastTranslatePrompt(prompt);
+    
+    try {
+      console.log('[WordPopup DEBUG] Calling Gemini for Translate');
+      const result = await callGemini(prompt);
+      console.log('[WordPopup DEBUG] Translate API call successful');
+      console.log('[WordPopup DEBUG] Translate result:', result);
+      setTranslateResult(result);
+    } catch (e: any) {
+      console.log('[WordPopup DEBUG] Translate API call failed:', e.message);
+      setTranslateError(e.message);
+    } finally {
+      setTranslateLoading(false);
+    }
+  };
 
   const getStatusConfig = (status: WordType) => {
     switch (status) {
@@ -703,8 +884,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
 
   // In handleButtonClick, always reset loading, error, and result state for the selected tab
   const handleButtonClick = (action: string) => {
+    console.log('[WordPopup DEBUG] handleButtonClick called with action:', action);
     setShowPlaceholder(true);
     setActiveTab(action as any);
+    
+    // Reset the current active tab ref to allow the new tab to be processed
+    currentActiveTabRef.current = null;
+    
+    // Reset the ref for the tab being clicked so it can make a new call
     switch (action) {
       case 'definition':
         setPlaceholderText('');
@@ -715,23 +902,33 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         // Trigger dictionary lookup when definition button is clicked
         fetchYomitanEntries();
         break;
+      case 'ai-definition':
+        setPlaceholderText('');
+        setAiDefinitionLoading(false);
+        setAiDefinitionError(null);
+        setAiDefinitionResult(null);
+        hasCalledAiDefinitionRef.current = false;
+        break;
       case 'explain':
         setPlaceholderText('');
         setExplainLoading(false);
         setExplainError(null);
         setExplainResult(null);
+        hasCalledExplainRef.current = false;
         break;
       case 'translate':
         setPlaceholderText('');
         setTranslateLoading(false);
         setTranslateError(null);
         setTranslateResult(null);
+        hasCalledTranslateRef.current = false;
         break;
       case 'word-explain':
         setPlaceholderText('');
         setWordExplainLoading(false);
         setWordExplainError(null);
         setWordExplainResult(null);
+        hasCalledWordExplainRef.current = false;
         break;
       case 'sentence':
         setShowPlaceholder(false);
@@ -788,12 +985,15 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       let sentenceTranslation = translateResult;
       if (!sentenceTranslation && activeTab !== 'translate') {
         // Call Gemini to get translation
-        const prompt = fillPromptVariables(sentenceTranslationPrompt, {
-          interfaceLang,
-          targetLang,
-          word,
-          sentence,
-        });
+        const prompt = fillPromptVariables(
+          (userPrompts?.sentenceTranslation || defaultPrompts.sentenceTranslation).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+          {
+            interfaceLang,
+            targetLang,
+            word,
+            sentence,
+          }
+        );
         sentenceTranslation = await callGemini(prompt);
       }
 
@@ -812,18 +1012,24 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         definition = wordExplainResult;
       } else if (!definition) {
         // Get word explanation if not already available
-        const systemPrompt = fillPromptVariables(wordExplainSystemPrompt, {
-          interfaceLang,
-          targetLang,
-          word,
-          sentence,
-        });
-        const userPrompt = fillPromptVariables(wordExplainUserPrompt, {
-          interfaceLang,
-          targetLang,
-          word,
-          sentence,
-        });
+        const systemPrompt = fillPromptVariables(
+          (userPrompts?.wordExplainSystem || defaultPrompts.wordExplainSystem).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+          {
+            interfaceLang,
+            targetLang,
+            word,
+            sentence,
+          }
+        );
+        const userPrompt = fillPromptVariables(
+          (userPrompts?.wordExplainUser || defaultPrompts.wordExplainUser).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
+          {
+            interfaceLang,
+            targetLang,
+            word,
+            sentence,
+          }
+        );
         const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
         definition = await callGemini(combinedPrompt);
       }
@@ -1081,6 +1287,26 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         >
           <BookOpen size={isMobile ? 16 : 14} />
         </button>
+        {/* AI Definition tab */}
+        <button
+          onClick={() => handleButtonClick('ai-definition')}
+          style={{
+            background: activeTab === 'ai-definition' ? '#e0e7ff' : '#f8f9fa',
+            border: '1px solid #dee2e6',
+            borderRadius: '50%',
+            padding: isMobile ? '8px' : '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#495057',
+            width: isMobile ? '36px' : '32px',
+            height: isMobile ? '36px' : '32px',
+          }}
+          title="AI contextual definition"
+        >
+          <AiIcon size={isMobile ? 16 : 14} />
+        </button>
         {/* Word Explanation (AI) */}
         <button
           onClick={() => handleButtonClick('word-explain')}
@@ -1280,6 +1506,44 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+        {activeTab === 'ai-definition' && (
+          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
+            {aiDefinitionLoading && !aiDefinitionResult && !aiDefinitionError && <div>Loading AI definition...</div>}
+            {aiDefinitionError && <div className="text-red-500">{aiDefinitionError}</div>}
+            {aiDefinitionResult && (
+              <div>
+                {aiDefinitionResult.split('\n').map((line, index) => {
+                  // Check if this line starts with I. or II. and contains asterisks
+                  if ((line.startsWith('I.') || line.startsWith('II.')) && line.includes('*')) {
+                    // Split by asterisks to find the bold part
+                    const parts = line.split(/(\*[^*]+\*)/g);
+                    return (
+                      <div key={index} style={{ marginBottom: 8 }}>
+                        {parts.map((part, partIndex) => {
+                          if (part.startsWith('*') && part.endsWith('*')) {
+                            // This is the bold part - remove asterisks and make bold
+                            const boldText = part.slice(1, -1);
+                            return (
+                              <span key={partIndex} style={{ fontWeight: 'bold', color: '#2563eb' }}>
+                                {boldText}
+                              </span>
+                            );
+                          } else {
+                            // Regular text
+                            return <span key={partIndex}>{part}</span>;
+                          }
+                        })}
+                      </div>
+                    );
+                  } else {
+                    // Regular line, render normally
+                    return <div key={index} style={{ marginBottom: 4 }}>{line}</div>;
+                  }
+                })}
               </div>
             )}
           </div>

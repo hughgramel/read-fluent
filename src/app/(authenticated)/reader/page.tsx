@@ -13,6 +13,14 @@ import { EpubHtmlStyles } from '@/components/EpubHtmlStyles';
 import { getReaderContainerClass, getReaderContainerStyle, getSectionTitle, cleanWord, isNumeric } from '@/components/reader/ReaderUtils';
 import { ReaderSettings as ReaderSettingsType } from '@/components/reader/ReaderTypes';
 import { ArrowLeft, List, Settings, Maximize2, XCircle, CheckCircle, BookOpen, Bot, ListOrdered, Languages, Eye } from 'lucide-react';
+
+// Placeholder AI icon component
+const AiIcon = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="10" stroke="#6366f1" strokeWidth="2" fill="#e0e7ff" />
+    <text x="12" y="16" textAnchor="middle" fontSize="10" fill="#6366f1" fontWeight="bold">AI</text>
+  </svg>
+);
 import { WordService } from '@/services/wordService';
 import { updateBookMetadata } from '@/services/epubService';
 // @ts-ignore
@@ -965,6 +973,18 @@ export default function ReaderPage() {
                 </button>
                 
                 <button
+                  onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'ai-definition' })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                    (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'ai-definition'
+                      ? 'border-[var(--primary-color)] bg-[var(--primary-color)] text-white'
+                      : 'theme-border theme-bg hover:border-[var(--primary-color)]'
+                  }`}
+                >
+                  <AiIcon size={20} />
+                  <span className="text-xs mt-1">AI Definition</span>
+                </button>
+                
+                <button
                   onClick={() => handlePendingSettingChange({ wordPopupDefaultTab: 'word-explain' })}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
                     (pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab) === 'word-explain'
@@ -1015,11 +1035,12 @@ export default function ReaderPage() {
               
               {/* Dropdown for mobile/alternative selection */}
               <select
-                value={pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab || 'word-explain'}
+                value={pendingSettings?.wordPopupDefaultTab || readerSettings.wordPopupDefaultTab || 'ai-definition'}
                 onChange={e => handlePendingSettingChange({ wordPopupDefaultTab: e.target.value as any })}
                 className="w-full border border-[var(--border-color)] rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] theme-bg theme-text"
               >
                 <option value="definition">Definition</option>
+                <option value="ai-definition">AI Definition</option>
                 <option value="word-explain">AI Word Explanation</option>
                 <option value="explain">AI Sentence Breakdown</option>
                 <option value="translate">Translation</option>

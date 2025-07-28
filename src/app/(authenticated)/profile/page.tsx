@@ -48,6 +48,8 @@ export default function ProfilePage() {
   const defaultPrompts = {
     wordExplainSystem: `You are a language API that explains the specific nuance of specified word(s) in a sentence.\n\nRespond concisely in no more than 100 words.\n\nSpecified word(s) MUST be in its original language.\n\nAll other explanation text MUST be in language [INTERFACE_LANG].\n\nIn your response:\nDO NOT OUTPUT the language name or the word 'nuance';\nDO NOT OUTPUT the context sentence ;\nDO NOT OUTPUT romaji/pinyin/furigana or any notes on pronunciation;\nConclude with the specific nuance within the context sentence.`,
     wordExplainUser: `[SENTENCE]. Explain usage of word(s): [WORD] (lang: [TARGET_LANG])`,
+                aiDefinitionSystem: `You are a language API that provides contextual definitions for words based on their usage in a sentence.\n\nProvide a concise, contextual definition of the specified word that fits the given sentence context.\n\nFormat your response as:\nI. *[1-2 most relevant words in [INTERFACE_LANG]]* - [detailed definition]\nII. *[1-2 most relevant words in [INTERFACE_LANG]]* - [detailed definition] (if applicable)\n\nInclude:\n- Primary meaning in this context\n- Part of speech\n- Any relevant grammatical information\n- Brief usage notes if helpful\n\nKeep each definition under 100 words.\n\nAll text MUST be in language [INTERFACE_LANG].\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT pronunciation guides.\nFocus on the specific meaning in this context.\n\nIMPORTANT: Surround the 1-2 word summary with asterisks (*) for bold formatting.`,
+            aiDefinitionUser: `Context: [BEFORE_SENTENCE] [SENTENCE] [AFTER_SENTENCE]\n\nDefine the word "[WORD]" in the context of this sentence.`,
     sentenceBreakdown: `You are a language API that does sentence breakdown-explanations.\n\nSentence: [SENTENCE]\n\nBreak down the supplied sentence into meaningful, contiguous chunks.\nEach chunk should be SMALL, meaningful groupings of words or characters.\nOutput in groups of NUMBERED LISTS, in this format:\n#1 chunk #2 reworded meaning #3 explanation (particles, tenses, etc.).\n'Chunk' MUST be in its original language.\n'Meaning' and 'explanation' MUST be in language [INTERFACE_LANG].\n'Meaning' MUST be markedly different from 'Chunk' text (reworded, definition, synonyms, etc.).\nThe 'explanation' field should be no longer than 100 words.\nALWAYS count like so: #1 ... #2 ... #3 ... DO NOT count higher.\nDO NOT OUTPUT dot-points, dashes, or titles like 'Chunk:' etc.\nDO NOT OUTPUT readings, brackets, or romaji/pinyin/furigana/pronunciations of any kind.\nDO NOT OUTPUT the original sentence.\nDO NOT OUTPUT quotation marks in the 'chunk' or 'meaning' fields.\n[LANGUAGE_EXCEPTION]`,
     sentenceTranslation: `You are a language translation API.\n\nSentence: [SENTENCE]\n\nRESPOND ONLY with the translated text.\nMAINTAIN the EXACT punctuation of the original text.\nDO NOT RESPOND with enclosing quotations unless the original text has them.\nSentence MUST BE translated into this SPECIFIC language: [INTERFACE_LANG].\n\nIMPORTANT: Surround the word that most closely corresponds to the target word [WORD] with asterisks (*word*).`
   };
@@ -257,6 +259,8 @@ export default function ProfilePage() {
   const promptKeys = [
     'wordExplainSystem',
     'wordExplainUser',
+    'aiDefinitionSystem',
+    'aiDefinitionUser',
     'sentenceBreakdown',
     'sentenceTranslation',
   ] as const;
@@ -361,6 +365,8 @@ export default function ProfilePage() {
                   <div key={key}>
                     <label className="font-semibold">{key === 'wordExplainSystem' ? 'Word Explanation System Prompt' :
                       key === 'wordExplainUser' ? 'Word Explanation User Prompt' :
+                      key === 'aiDefinitionSystem' ? 'AI Definition System Prompt' :
+                      key === 'aiDefinitionUser' ? 'AI Definition User Prompt' :
                       key === 'sentenceBreakdown' ? 'Sentence Breakdown Prompt' :
                       'Sentence Translation Prompt'}</label>
                     <textarea
@@ -372,6 +378,8 @@ export default function ProfilePage() {
                     <div className="text-xs text-gray-500 mt-1">
                       {key === 'wordExplainSystem' ? 'Used as the system prompt for word explanations.' :
                         key === 'wordExplainUser' ? 'Used as the user prompt for word explanations.' :
+                        key === 'aiDefinitionSystem' ? 'Used as the system prompt for AI contextual definitions.' :
+                        key === 'aiDefinitionUser' ? 'Used as the user prompt for AI contextual definitions. Placeholders: [WORD], [SENTENCE], [BEFORE_SENTENCE], [AFTER_SENTENCE], [INTERFACE_LANG], [TARGET_LANG].' :
                         key === 'sentenceBreakdown' ? (
                           <>
                             Used for sentence breakdown explanations. Placeholders: [WORD], [SENTENCE], [INTERFACE_LANG], [TARGET_LANG], [LANGUAGE_EXCEPTION]. [LANGUAGE_EXCEPTION] automatically adds or removes the restriction about not outputting in the target language if the interface and target language are the same.
