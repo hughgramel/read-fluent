@@ -22,6 +22,7 @@ const SpeechPlayer = forwardRef(({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
+  const [lastPlayedSentenceIndex, setLastPlayedSentenceIndex] = useState(0);
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [filteredVoices, setFilteredVoices] = useState([]);
@@ -198,6 +199,8 @@ const SpeechPlayer = forwardRef(({
   const startWordHighlighting = () => {
     if (highlightIntervalRef.current) clearInterval(highlightIntervalRef.current);
     let lastBoundaryIdx = -1;
+    let lastSentenceIndex = currentSentenceIndex;
+    
     highlightIntervalRef.current = setInterval(() => {
       if (!playerRef.current || !isCurrentlyPlayingRef.current) return;
       const currentTime = playerRef.current.currentTime;
@@ -211,36 +214,63 @@ const SpeechPlayer = forwardRef(({
       lastBoundaryIdx = wordBoundaryIdx;
       const wordBoundary = wordBoundaryListRef.current[wordBoundaryIdx];
       if (wordBoundary && onWordChange && !disableWordHighlighting) {
-        const sentence = sentences[currentSentenceIndex] || '';
-        const words = sentence.match(/\S+/g) || [];
         const normBoundary = normalizeWord(wordBoundary.text);
+        
         // Count which occurrence of this wordBoundary.text we are on
         let boundaryCount = 0;
         for (let i = 0; i <= wordBoundaryIdx; i++) {
           if (normalizeWord(wordBoundaryListRef.current[i].text) === normBoundary) boundaryCount++;
         }
-        // Find the Nth occurrence in the words array
-        let foundIdx = -1;
-        let seen = 0;
-        for (let i = 0; i < words.length; i++) {
-          if (normalizeWord(words[i]) === normBoundary) {
-            seen++;
-            if (seen === boundaryCount) {
-              foundIdx = i;
-              break;
+        
+        // Find which sentence and word we're currently in
+        let currentSentenceIdx = currentSentenceIndex;
+        let wordCount = 0;
+        let foundWordIdx = -1;
+        let foundSentenceIdx = -1;
+        
+        // Search through all sentences from currentSentenceIndex onwards
+        for (let sentenceIdx = currentSentenceIndex; sentenceIdx < sentences.length; sentenceIdx++) {
+          const sentence = sentences[sentenceIdx];
+          const words = sentence.match(/\S+/g) || [];
+          
+          for (let wordIdx = 0; wordIdx < words.length; wordIdx++) {
+            if (normalizeWord(words[wordIdx]) === normBoundary) {
+              wordCount++;
+              if (wordCount === boundaryCount) {
+                foundWordIdx = wordIdx;
+                foundSentenceIdx = sentenceIdx;
+                break;
+              }
             }
           }
+          if (foundWordIdx !== -1) break;
         }
-        if (foundIdx >= 0) onWordChange(foundIdx);
+        
+        // Update sentence highlighting if we've moved to a new sentence
+        if (foundSentenceIdx !== -1 && foundSentenceIdx !== lastSentenceIndex) {
+          lastSentenceIndex = foundSentenceIdx;
+          if (onSentenceChange) onSentenceChange(foundSentenceIdx);
+          // Only update currentSentenceIndex if it's actually different to prevent unnecessary re-renders
+          if (foundSentenceIdx !== currentSentenceIndex) {
+            setCurrentSentenceIndex(foundSentenceIdx);
+          }
+        }
+        
+        // Update word highlighting
+        if (foundWordIdx >= 0) {
+          onWordChange(foundWordIdx);
+        }
       }
     }, 75);
   };
   const stopWordHighlighting = () => {
     if (highlightIntervalRef.current) { clearInterval(highlightIntervalRef.current); highlightIntervalRef.current = null; }
     if (onWordChange) onWordChange(null);
+    // Reset sentence highlighting to current sentence when stopping
+    if (onSentenceChange) onSentenceChange(currentSentenceIndex);
   };
 
-  // Play current sentence and auto-advance if enabled
+  // Play continuous audio from current sentence to end of page
   const playCurrentSentence = useCallback((autoAdvance = false) => {
     if (!sentences || sentences.length === 0 || currentSentenceIndex >= sentences.length) return;
     if (!speechConfigRef.current || !window.SpeechSDK) return;
@@ -252,7 +282,8 @@ const SpeechPlayer = forwardRef(({
     }
     autoAdvanceRef.current = autoAdvance;
     const SpeechSDK = window.SpeechSDK;
-    const sentence = sentences[currentSentenceIndex];
+    // Build continuous text from current sentence to end of page
+    const continuousText = sentences.slice(currentSentenceIndex).join(' ');
     if (onSentenceChange) onSentenceChange(currentSentenceIndex);
     wordBoundaryListRef.current = [];
     const player = new SpeechSDK.SpeakerAudioDestination();
@@ -295,12 +326,12 @@ const SpeechPlayer = forwardRef(({
     synthesizer.wordBoundary = (s, e) => { wordBoundaryListRef.current.push(e); };
     synthesizerRef.current = synthesizer;
     
-    // Generate SSML with or without voice specification
+    // Generate SSML for continuous text
     let ssml;
     if (voiceName) {
-      ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="es-MX"><voice name="${voiceName}"><prosody rate="${speakingRate}">${sentence}</prosody></voice></speak>`;
+      ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="es-MX"><voice name="${voiceName}"><prosody rate="${speakingRate}">${continuousText}</prosody></voice></speak>`;
     } else {
-      ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="es-MX"><prosody rate="${speakingRate}">${sentence}</prosody></speak>`;
+      ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="es-MX"><prosody rate="${speakingRate}">${continuousText}</prosody></speak>`;
     }
     
     const complete_cb = (result) => { try { synthesizer.close(); } catch (e) {} synthesizerRef.current = null; };
@@ -331,11 +362,32 @@ const SpeechPlayer = forwardRef(({
       setCurrentSentenceIndex(0);
       if (typeof onSentenceChange === 'function') onSentenceChange(0);
     }
+    
+    // If resuming from pause, start from the last played sentence
+    if (isPaused) {
+      idx = lastPlayedSentenceIndex;
+      setCurrentSentenceIndex(lastPlayedSentenceIndex);
+      if (typeof onSentenceChange === 'function') onSentenceChange(lastPlayedSentenceIndex);
+    } else {
+      // Starting fresh playback, reset the last played sentence index
+      setLastPlayedSentenceIndex(idx);
+    }
+    
     playCurrentSentence(true);
   };
   // Pause only
   const handlePause = () => {
-    if (playerRef.current && isPlaying) { playerRef.current.pause(); setIsPaused(true); setIsPlaying(false); isCurrentlyPlayingRef.current = false; stopWordHighlighting(); }
+    if (playerRef.current && isPlaying) { 
+      playerRef.current.pause(); 
+      setIsPaused(true); 
+      setIsPlaying(false); 
+      isCurrentlyPlayingRef.current = false; 
+      stopWordHighlighting(); 
+      
+      // Store the current position for resume
+      // We'll resume from the current sentence index
+      setLastPlayedSentenceIndex(currentSentenceIndex);
+    }
   };
   // Stop (optionally reset index if you want a true reset elsewhere)
   const handleStop = () => {

@@ -141,6 +141,7 @@ export default function ReaderPage() {
     isPageRead,
     
     // Actions
+    setBook,
     setShowHeader,
     setShowSectionSidebar,
     setShowSectionWordCount,
@@ -766,28 +767,66 @@ export default function ReaderPage() {
                       onClick={async () => {
                         if (book && !book.completed && user?.uid) {
                           try {
-                            // Update the book's completed status in the database
+                            // 1. Batch complete all unknown words on the current page
+                            const currentPages = sectionPages[currentSectionIndex] || [];
+                            const currentPageSentences = currentPages[currentPageIndex] || [];
+                            const currentPageWords = currentPageSentences.flatMap(sentence => 
+                              sentence.split(/\s+/).filter(word => word.length > 0)
+                            );
+                            
+                            // Get all unknown words on the current page, excluding numbers
+                            const unknownWords = currentPageWords.filter(word => {
+                              const cleanedWord = cleanWord(word);
+                              
+                              // Skip empty words (which include numbers that were cleaned to empty)
+                              if (!cleanedWord || cleanedWord.length === 0) {
+                                return false;
+                              }
+                              
+                              const status = getWordStatus(cleanedWord);
+                              return !status || status === 'unknown';
+                            });
+                            
+                            // Batch update all unknown words to known status
+                            if (unknownWords.length > 0) {
+                              const cleanedUnknownWords = unknownWords.map(word => cleanWord(word)).filter(word => word.length > 0);
+                              console.log('Words to batch update on book completion:', cleanedUnknownWords);
+                              
+                              if (cleanedUnknownWords.length > 0) {
+                                await WordService.batchUpdateWords(user.uid, cleanedUnknownWords, 'known');
+                                
+                                // Update local state for immediate visual feedback
+                                cleanedUnknownWords.forEach(word => {
+                                  updateWordStatus(word, 'known');
+                                });
+                                
+                                console.log(`Batch updated ${unknownWords.length} unknown words to known status on book completion`);
+                              }
+                            }
+                            
+                            // 2. Mark the current page as complete
+                            await handleMarkPageComplete();
+                            
+                            // 3. Update the book's completed status in the database
                             await updateBookMetadata(user.uid, book.id, { completed: true });
                             
-                            // Update the book object locally
+                            // 4. Update the book object locally
                             const updatedBook = { ...book, completed: true };
                             localStorage.setItem(`epub-book-${book.id}`, JSON.stringify(updatedBook));
                             
-                            // Show a success message
-                            alert('Book marked as completed!');
+                            // 5. Force a re-render by updating the book state
+                            setBook(updatedBook);
                             
-                            // Force a re-render by updating the book state
-                            // This might need to be handled differently depending on how the book state is managed
                           } catch (error) {
                             console.error('Failed to mark book as completed:', error);
-                            alert('Failed to mark book as completed. Please try again.');
+                            // Don't show alert - just log the error
                           }
                         }
                       }}
                       disabled={book?.completed}
                       className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
                         book?.completed 
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                          ? 'bg-green-500 text-white cursor-not-allowed' 
                           : 'bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color)] hover:opacity-90 active:scale-95'
                       }`}
                       style={{
@@ -795,7 +834,7 @@ export default function ReaderPage() {
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                       }}
                     >
-                      {book?.completed ? '✓ Completed' : 'Mark Complete'}
+                      {book?.completed ? '✓ Completed!' : 'Mark Complete'}
                     </button>
                   </div>
                 )}
