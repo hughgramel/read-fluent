@@ -427,8 +427,8 @@ export function ReaderContent({
           marginRight: 8,
           cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'pointer'),
           color: showCurrentSentence
-            ? '#232946'
-            : (invisibleText ? 'rgba(0,0,0,0.01)' : '#232946'),
+            ? 'var(--text-color)'
+            : (invisibleText ? 'rgba(0,0,0,0.01)' : 'var(--text-color)'),
           background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
           borderRadius: isSentenceHovered ? '4px' : undefined,
           transition: 'background 0.15s',
@@ -462,7 +462,7 @@ export function ReaderContent({
               <React.Fragment key={wIdx}>
                 <button
                   onClick={onCopyText}
-                  className="inline-flex items-center justify-center w-7 h-7 min-w-0 min-h-0 p-0 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 shadow border border-gray-300 mr-1 align-middle"
+                  className="inline-flex items-center justify-center w-7 h-7 min-w-0 min-h-0 p-0 rounded-full theme-bg-secondary hover:bg-gray-300 theme-text-secondary shadow theme-border border mr-1 align-middle"
                   title="Copy page text"
                   style={{ verticalAlign: 'middle' }}
                 >
@@ -471,11 +471,11 @@ export function ReaderContent({
                                       <span
                         style={{
                           marginRight: isPunctuation ? 0 : 4,
-                          color: isActiveWord ? '#232946' : (showCurrentSentence
-                            ? '#232946'
+                          color: isActiveWord ? 'var(--text-color)' : (showCurrentSentence
+                            ? 'var(--text-color)'
                             : (invisibleText
                                 ? (showCurrentWordWhenInvisible
-                                    ? '#232946'
+                                    ? 'var(--text-color)'
                                     : 'rgba(0,0,0,0.001)')
                                 : undefined)),
                           background: isActiveWord ? '#ffe066' : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? getWordHighlight(wordStatus, isHovered) : undefined),
@@ -548,11 +548,11 @@ export function ReaderContent({
               key={wIdx}
               style={{
                 marginRight: isPunctuation ? 0 : 4,
-                color: isActiveWord ? '#232946' : (showCurrentSentence
-                  ? '#232946'
+                color: isActiveWord ? 'var(--text-color)' : (showCurrentSentence
+                  ? 'var(--text-color)'
                   : (invisibleText
                       ? (showCurrentWordWhenInvisible
-                          ? '#232946'
+                          ? 'var(--text-color)'
                           : 'rgba(0,0,0,0.001)')
                       : undefined)),
                 background: isActiveWord ? '#ffe066' : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? getWordHighlight(wordStatus, isHovered) : undefined),
@@ -649,7 +649,7 @@ export function ReaderContent({
           fontSize: readerFontSize,
           maxWidth: readerWidth,
           width: '100%',
-          color: invisibleText ? 'rgba(0,0,0,0.01)' : '#232946',
+          color: invisibleText ? 'rgba(0,0,0,0.01)' : 'var(--text-color)',
           lineHeight: lineSpacing,
         }}
       >
@@ -669,7 +669,7 @@ export function ReaderContent({
         fontSize: readerFontSize, 
         maxWidth: readerWidth, 
         width: '100%', 
-        color: invisibleText ? 'rgba(0,0,0,0.01)' : '#232946', 
+        color: invisibleText ? 'rgba(0,0,0,0.01)' : 'var(--text-color)', 
         lineHeight: lineSpacing 
       }}
       onClick={handleContainerClick}
@@ -690,8 +690,8 @@ export function ReaderContent({
               marginRight: 8,
               cursor: isSentenceSelectMode ? 'pointer' : (highlightSentenceOnHover ? 'pointer' : 'pointer'),
               color: showCurrentSentence
-                ? '#232946'
-                : (invisibleText ? 'rgba(0,0,0,0.01)' : '#232946'),
+                ? 'var(--text-color)'
+                : (invisibleText ? 'rgba(0,0,0,0.01)' : 'var(--text-color)'),
               background: isSentenceHovered ? 'rgba(56, 189, 248, 0.18)' : undefined,
               borderRadius: isSentenceHovered ? '4px' : undefined,
               transition: 'background 0.15s',
@@ -810,11 +810,11 @@ export function ReaderContent({
                     key={wIdx}
                     style={{
                       marginRight: isPunctuation ? 0 : 4,
-                      color: isActiveWord ? '#232946' : (showCurrentSentence
-                        ? '#232946'
+                      color: isActiveWord ? 'var(--text-color)' : (showCurrentSentence
+                        ? 'var(--text-color)'
                         : (invisibleText
                             ? (showCurrentWordWhenInvisible
-                                ? '#232946'
+                                ? 'var(--text-color)'
                                 : 'rgba(0,0,0,0.001)')
                             : undefined)),
                       background: isActiveWord ? '#ffe066' : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? getWordHighlight(wordStatus, isHovered) : undefined),
@@ -876,11 +876,11 @@ export function ReaderContent({
                   key={wIdx}
                   style={{
                     marginRight: isPunctuation ? 0 : 4,
-                    color: isActiveWord ? '#232946' : (showCurrentSentence
-                      ? '#232946'
+                    color: isActiveWord ? 'var(--text-color)' : (showCurrentSentence
+                      ? 'var(--text-color)'
                       : (invisibleText
                           ? (showCurrentWordWhenInvisible
-                              ? '#232946'
+                              ? 'var(--text-color)'
                               : 'rgba(0,0,0,0.001)')
                           : undefined)),
                     background: isActiveWord ? '#ffe066' : (highlightInsteadOfUnderline && !isPunctuation && enableHighlightWords ? getWordHighlight(wordStatus, isHovered) : undefined),
@@ -980,7 +980,7 @@ export function ReaderContent({
           nativeLanguage={readerSettings.nativeLanguage || 'en'}
           targetLanguage={readerSettings.targetLanguage || 'es'}
           dictionaryCollection={readerSettings.dictionary || 'none'}
-          defaultTab={readerSettings.wordPopupDefaultTab || 'word-explain'}
+          defaultTab={readerSettings.wordPopupDefaultTab || 'ai-definition'}
           autoPlayWordOnPopup={readerSettings.autoPlayWordOnPopup ?? true}
           ttsVoice={readerSettings.ttsVoice}
           ttsSpeed={readerSettings.ttsSpeed}

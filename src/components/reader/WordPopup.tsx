@@ -252,7 +252,7 @@ const languageTransformImports: Record<string, () => Promise<any>> = {
   // Add more as needed
 };
 
-export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage, dictionaryCollection, defaultTab = 'word-explain', autoPlayWordOnPopup = true, ttsVoice = null, ttsSpeed = 1.0 }: WordPopupProps) {
+export function WordPopup({ word, sentence, x, y, position, align, onClose, wordStatus = 'unknown', onWordStatusChange, readerFont, nativeLanguage, targetLanguage, dictionaryCollection, defaultTab = 'ai-definition', autoPlayWordOnPopup = true, ttsVoice = null, ttsSpeed = 1.0 }: WordPopupProps) {
   const [showPlaceholder, setShowPlaceholder] = useState(false);
   const [placeholderText, setPlaceholderText] = useState('');
   const [activeTab, setActiveTab] = useState<'definition' | 'ai-definition' | 'explain' | 'translate' | 'sentence' | 'word-explain'>(defaultTab);
@@ -329,14 +329,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       const t: MultiLanguageTransformer = new MultiLanguageTransformer();
       if (languageTransformImports[lang]) {
         try {
-          const transforms = await languageTransformImports[lang]();
-          const { LanguageTransformer } = await import('@/language/language-transformer');
-          const languageTransformer = new LanguageTransformer();
+        const transforms = await languageTransformImports[lang]();
+        const { LanguageTransformer } = await import('@/language/language-transformer');
+        const languageTransformer = new LanguageTransformer();
           
           // Check if transforms has the expected format before calling addDescriptor
           if (transforms && typeof transforms === 'object' && 'conditions' in transforms && 'transforms' in transforms) {
-            languageTransformer.addDescriptor(transforms);
-            t._languageTransformers.set(lang, languageTransformer);
+        languageTransformer.addDescriptor(transforms);
+        t._languageTransformers.set(lang, languageTransformer);
           } else {
             console.warn(`Language transforms for ${lang} do not have the expected format, skipping language transformation`);
           }
@@ -662,9 +662,9 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     }
     console.log('[WordPopup DEBUG] Starting Word Explanation API call');
     hasCalledWordExplainRef.current = true;
-    setWordExplainResult(null);
-    setWordExplainError(null);
-    setWordExplainLoading(true);
+      setWordExplainResult(null);
+      setWordExplainError(null);
+      setWordExplainLoading(true);
     
     const systemPrompt = fillPromptVariables(
       (userPrompts?.wordExplainSystem || defaultPrompts.wordExplainSystem).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
@@ -684,8 +684,8 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         sentence,
       }
     );
-    const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
-    setLastWordExplainPrompt(combinedPrompt);
+      const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      setLastWordExplainPrompt(combinedPrompt);
     
     try {
       console.log('[WordPopup DEBUG] Calling Gemini for Word Explanation');
@@ -714,9 +714,9 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     
     console.log('[WordPopup DEBUG] Starting Explain API call');
     hasCalledExplainRef.current = true;
-    setExplainResult(null);
-    setExplainError(null);
-    setExplainLoading(true);
+      setExplainResult(null);
+      setExplainError(null);
+      setExplainLoading(true);
     
     const prompt = fillPromptVariables(
       (userPrompts?.sentenceBreakdown || defaultPrompts.sentenceBreakdown).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
@@ -727,7 +727,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         sentence,
       }
     );
-    setLastExplainPrompt(prompt);
+      setLastExplainPrompt(prompt);
     
     try {
       console.log('[WordPopup DEBUG] Calling Gemini for Explain');
@@ -816,9 +816,9 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
     
     console.log('[WordPopup DEBUG] Starting Translate API call');
     hasCalledTranslateRef.current = true;
-    setTranslateResult(null);
-    setTranslateError(null);
-    setTranslateLoading(true);
+      setTranslateResult(null);
+      setTranslateError(null);
+      setTranslateLoading(true);
     
     const prompt = fillPromptVariables(
       (userPrompts?.sentenceTranslation || defaultPrompts.sentenceTranslation).replace(/\[NATIVE_LANG\]/g, '[INTERFACE_LANG]'),
@@ -829,7 +829,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         sentence,
       }
     );
-    setLastTranslatePrompt(prompt);
+      setLastTranslatePrompt(prompt);
     
     try {
       console.log('[WordPopup DEBUG] Calling Gemini for Translate');
@@ -1153,7 +1153,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
       {/* Word and close button row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: isMobile ? 22 : 18 }}>{displayWord}</div>
+        <div style={{ fontWeight: 700, fontSize: isMobile ? 22 : 18 }}>{displayWord}</div>
           {/* Sound button */}
           <button
             onClick={playWord}
@@ -1402,7 +1402,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
         {activeTab === 'definition' && (
           <div>
             {dictionaryCollection === 'none' ? (
-              <div className="text-gray-500 italic">No dictionary selected.</div>
+                              <div className="theme-text-secondary italic">No dictionary selected.</div>
             ) : dictLoading ? (
               <div>Loading dictionary...</div>
             ) : dictError ? (

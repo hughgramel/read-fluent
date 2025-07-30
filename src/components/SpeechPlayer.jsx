@@ -239,10 +239,10 @@ const SpeechPlayer = forwardRef(({
               if (wordCount === boundaryCount) {
                 foundWordIdx = wordIdx;
                 foundSentenceIdx = sentenceIdx;
-                break;
-              }
+              break;
             }
           }
+        }
           if (foundWordIdx !== -1) break;
         }
         

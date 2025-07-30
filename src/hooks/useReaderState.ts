@@ -189,20 +189,67 @@ export function useReaderState(user: any) {
     });
     
     setSectionPages(newSectionPages);
+  }, [book]);
+
+  // Navigate to the page after the last read page when both book and reading progress are loaded
+  useEffect(() => {
+    if (!book || !sectionPages.length) return;
     
-    // Restore progress
     let sectionIdx = 0, pageIdx = 0;
-    const key = `reader-last-pos-${book.id}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
+    
+    // If a specific page is requested via URL parameter, use that
+    if (pageParam) {
       try {
-        const obj = JSON.parse(saved);
-        if (typeof obj.sectionIndex === 'number' && typeof obj.pageIndex === 'number') {
-          sectionIdx = Math.max(0, Math.min(obj.sectionIndex, newSectionPages.length - 1));
-          pageIdx = Math.max(0, Math.min(obj.pageIndex, (newSectionPages[sectionIdx]?.length || 1) - 1));
+        const [sectionParam, pageParamValue] = pageParam.split('-').map(Number);
+        if (!isNaN(sectionParam) && !isNaN(pageParamValue)) {
+          sectionIdx = Math.max(0, Math.min(sectionParam, sectionPages.length - 1));
+          pageIdx = Math.max(0, Math.min(pageParamValue, (sectionPages[sectionIdx]?.length || 1) - 1));
         }
-      } catch {}
+      } catch (error) {
+        console.warn('Invalid page parameter:', pageParam);
+      }
+    } else {
+      // Find the page after the last read page (same logic as sidebar)
+      let lastReadSection = -1;
+      let lastReadPage = -1;
+      
+      // Find the last read page across all sections
+      for (let sectionIdx = 0; sectionIdx < sectionPages.length; sectionIdx++) {
+        const readPages = readPagesBySection[sectionIdx];
+        if (readPages && readPages.size > 0) {
+          const maxReadPage = Math.max(...Array.from(readPages));
+          if (sectionIdx > lastReadSection || (sectionIdx === lastReadSection && maxReadPage > lastReadPage)) {
+            lastReadSection = sectionIdx;
+            lastReadPage = maxReadPage;
+          }
+        }
+      }
+      
+      // If we found a read page, go to the next page
+      if (lastReadSection >= 0 && lastReadPage >= 0) {
+        const nextPage = lastReadPage + 1;
+        const pagesInSection = sectionPages[lastReadSection]?.length || 0;
+        
+        if (nextPage < pagesInSection) {
+          // Next page is in the same section
+          sectionIdx = lastReadSection;
+          pageIdx = nextPage;
+        } else if (lastReadSection + 1 < sectionPages.length) {
+          // Next page is in the next section
+          sectionIdx = lastReadSection + 1;
+          pageIdx = 0;
+        } else {
+          // We're at the end, stay on the last page
+          sectionIdx = lastReadSection;
+          pageIdx = lastReadPage;
+        }
+      } else {
+        // No pages read yet, go to the first page
+        sectionIdx = 0;
+        pageIdx = 0;
+      }
     }
+    
     setCurrentSectionIndex(sectionIdx);
     setCurrentPageIndex(pageIdx);
     if (isSpeechPlayerActive) {
@@ -212,7 +259,7 @@ export function useReaderState(user: any) {
       setActiveSentenceIndex(null);
       setActiveWordIndex(null);
     }
-  }, [book, isSpeechPlayerActive]);
+  }, [book, sectionPages, readPagesBySection, isSpeechPlayerActive, pageParam]);
 
   // Save progress on change
   useEffect(() => {

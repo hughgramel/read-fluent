@@ -70,25 +70,25 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
 
   return (
     <>
-      <div
-        className={`${archived ? 'card-themed-secondary' : 'card-themed-primary'} flex flex-col w-full aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group`}
-        style={{
-          fontFamily: 'var(--font-family)',
-          minHeight: 'unset',
-          padding: 0,
-          opacity: archived ? 0.7 : 1,
-          maxWidth: typeof window !== 'undefined' && window.innerWidth <= 640 ? 210 : 250,
-          minWidth: typeof window !== 'undefined' && window.innerWidth <= 640 ? 150 : 180,
-          height: typeof window !== 'undefined' && window.innerWidth <= 640 ? 280 : undefined,
-          boxSizing: 'border-box',
-        }}
-        onClick={archived ? undefined : () => openBook(book as Book)}
-        tabIndex={0}
-        role="button"
-        aria-label={`Read ${book.title}`}
-      >
+    <div
+      className={`${archived ? 'card-themed-secondary' : 'card-themed-primary'} flex flex-col w-full aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group`}
+      style={{
+        fontFamily: 'var(--font-family)',
+        minHeight: 'unset',
+        padding: 0,
+        opacity: archived ? 0.7 : 1,
+        maxWidth: typeof window !== 'undefined' && window.innerWidth <= 640 ? 210 : 250,
+        minWidth: typeof window !== 'undefined' && window.innerWidth <= 640 ? 150 : 180,
+        height: typeof window !== 'undefined' && window.innerWidth <= 640 ? 280 : undefined,
+        boxSizing: 'border-box',
+      }}
+      onClick={archived ? undefined : () => openBook(book as Book)}
+      tabIndex={0}
+      role="button"
+      aria-label={`Read ${book.title}`}
+    >
         <div className="flex justify-end p-2">
-          {!archived && (
+        {!archived && (
             <button
               onClick={handleSettingsClick}
               className="text-gray-300 hover:text-gray-600 text-lg p-1 rounded transition-colors active:scale-90 focus:scale-90"
@@ -109,50 +109,50 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
             >
               <FiTrash2 className="w-5 h-5" />
             </button>
-          )}
+        )}
+      </div>
+      <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
+        <h3 className="font-bold theme-text leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700, fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 17 : 20 }}>{book.title}</h3>
+        {/* Reading Progress Bar */}
+        <div className="w-full mb-1">
+          <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
+            <div className="absolute left-0 top-0 h-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: 'var(--primary-color)' }} />
+          </div>
+          <div className="flex justify-between text-xs mt-1 theme-text-secondary">
+            {/* On mobile, remove author and 'words', just show n / m */}
+            {typeof window !== 'undefined' && window.innerWidth <= 640 ? (
+              <>
+                <span />
+                <span className="text-right" style={{ fontSize: 15 }}>{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()}</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 15 }}>{book.author}</span>
+                <span className="text-right" style={{ fontSize: 15 }}>{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()} words</span>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
-          <h3 className="font-bold theme-text leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700, fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 17 : 20 }}>{book.title}</h3>
-          {/* Reading Progress Bar */}
-          <div className="w-full mb-1">
-            <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
-              <div className="absolute left-0 top-0 h-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: 'var(--primary-color)' }} />
-            </div>
-            <div className="flex justify-between text-xs mt-1 theme-text-secondary">
-              {/* On mobile, remove author and 'words', just show n / m */}
-              {typeof window !== 'undefined' && window.innerWidth <= 640 ? (
-                <>
-                  <span />
-                  <span className="text-right" style={{ fontSize: 15 }}>{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()}</span>
-                </>
-              ) : (
-                <>
-                  <span style={{ fontSize: 15 }}>{book.author}</span>
-                  <span className="text-right" style={{ fontSize: 15 }}>{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()} words</span>
-                </>
-              )}
-            </div>
+        {/* Comprehension Progress Bar */}
+        <div className="w-full mt-1 mb-1">
+          <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
+            <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: report ? `${knownPct}%` : '0%', borderRadius: '999px 0 0 999px' }} />
+            <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: report ? `${100 - Number(unknownPct)}%` : '0%', opacity: 0.3 }} />
+            <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: report ? `${Number(knownPct) + (report.ignored / report.uniqueWords) * 100}%` : '0%', opacity: 0.18 }} />
           </div>
-          {/* Comprehension Progress Bar */}
-          <div className="w-full mt-1 mb-1">
-            <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
-              <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: report ? `${knownPct}%` : '0%', borderRadius: '999px 0 0 999px' }} />
-              <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: report ? `${100 - Number(unknownPct)}%` : '0%', opacity: 0.3 }} />
-              <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: report ? `${Number(knownPct) + (report.ignored / report.uniqueWords) * 100}%` : '0%', opacity: 0.18 }} />
-            </div>
-            <div className="flex justify-between text-xs mt-1 theme-text-secondary">
-              {report ? (
-                <>
-                  <span style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>{knownPct}% Known</span>
-                  <span style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>{unknownPct}% Unknown</span>
-                </>
-              ) : (
-                <span className="italic text-gray-400" style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>No report</span>
-              )}
-            </div>
+          <div className="flex justify-between text-xs mt-1 theme-text-secondary">
+            {report ? (
+              <>
+                <span style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>{knownPct}% Known</span>
+                <span style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>{unknownPct}% Unknown</span>
+              </>
+            ) : (
+              <span className="italic text-gray-400" style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>No report</span>
+            )}
           </div>
+        </div>
           {/* Empty space to maintain card size */}
-          <div className="flex gap-2 mt-2">
+        <div className="flex gap-2 mt-2">
             <div className="flex-1" style={{ height: typeof window !== 'undefined' && window.innerWidth <= 640 ? 40 : 44 }}></div>
             <div className="flex-1" style={{ height: typeof window !== 'undefined' && window.innerWidth <= 640 ? 40 : 44 }}></div>
           </div>
@@ -168,7 +168,7 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
         >
           <div 
             className="relative rounded-lg shadow-xl max-w-sm w-full mx-4"
-            style={{
+            style={{ 
               backgroundColor: 'var(--background)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-color)',
@@ -232,12 +232,12 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
                   borderColor: 'var(--border-color)',
                   color: 'var(--text-color)'
                 }}
-              >
+          >
                 <FiArchive className="w-5 h-5" style={{ color: 'var(--primary-color)' }} />
                 <span>Archive Book</span>
-              </button>
+          </button>
 
-              <button
+          <button
                 onClick={handleDeleteClick}
                 className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-200"
                 style={{ 
@@ -263,7 +263,7 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
           <div 
             className="relative rounded-lg shadow-xl max-w-sm w-full mx-4"
             style={{
-              backgroundColor: 'var(--background)',
+                  backgroundColor: 'var(--background)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-color)',
               fontFamily: 'var(--font-family)'
@@ -284,7 +284,7 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
                     color: 'var(--text-color)',
                     backgroundColor: 'var(--background)'
                   }}
-                >
+          >
                   Cancel
                 </button>
                 <button
@@ -296,12 +296,12 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
                   }}
                 >
                   Archive
-                </button>
+          </button>
               </div>
             </div>
           </div>
         </div>
-      )}
+        )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -349,8 +349,8 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+      </div>
+    </div>
       )}
     </>
   );

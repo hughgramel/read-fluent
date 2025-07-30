@@ -62,7 +62,7 @@ class ReaderErrorBoundary extends React.Component<{ children: React.ReactNode },
           <div>
             <div className="font-bold mb-2">A rendering error occurred in the reader.</div>
             <div className="mb-2">{this.state.error?.message || String(this.state.error)}</div>
-            <div className="text-sm text-gray-500">Try refreshing the page or disabling browser extensions that modify the DOM.</div>
+                            <div className="text-sm theme-text-secondary">Try refreshing the page or disabling browser extensions that modify the DOM.</div>
           </div>
         </div>
       );
@@ -446,7 +446,7 @@ export default function ReaderPage() {
 
   if (!book) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600 text-xl">
+      <div className="min-h-screen flex items-center justify-center theme-text-secondary text-xl">
         Book not found.
       </div>
     );
@@ -629,8 +629,8 @@ export default function ReaderPage() {
                   {/* Header with close button and word count toggle */}
                   <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold text-gray-900">Sections</h3>
-                      <label className="flex items-center gap-2 text-sm text-gray-600">
+                                          <h3 className="text-lg font-semibold theme-text">Sections</h3>
+                    <label className="flex items-center gap-2 text-sm theme-text-secondary">
                         <input
                           type="checkbox"
                           checked={showSectionWordCount}
@@ -642,7 +642,7 @@ export default function ReaderPage() {
                     </div>
                     <button
                       onClick={() => setShowSectionSidebar(false)}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors bg-transparent border-none rounded-full hover:bg-gray-100"
+                      className="p-2 theme-text-secondary hover:text-red-500 transition-colors bg-transparent border-none rounded-full hover:bg-gray-100"
                       aria-label="Close"
                     >
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -701,7 +701,7 @@ export default function ReaderPage() {
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'flex-start',
-                color: effectiveSettings.invisibleText && !effectiveSettings.disableSentenceHighlighting && !effectiveSettings.disableWordHighlighting ? 'rgba(0,0,0,0.001)' : '#232946',
+                color: effectiveSettings.invisibleText && !effectiveSettings.disableSentenceHighlighting && !effectiveSettings.disableWordHighlighting ? 'rgba(0,0,0,0.001)' : 'var(--text-color)',
                 maxWidth: isMobile ? '95vw' : effectiveSettings.readerWidth,
                 width: isMobile ? '100%' : effectiveSettings.readerWidth,
                 padding: isMobile ? '0.5rem 0.25rem' : '1.5rem',
@@ -723,17 +723,17 @@ export default function ReaderPage() {
                 {/* Page content */}
                 <ReaderContent
                   flatSentences={currentPageSentences}
-                                readerSettings={{
-                ...readerSettings,
-                disableClipboardButton: !!readerSettings.disableClipboardButton,
-                nativeLanguage: readerSettings.nativeLanguage,
-                enableMarkdown: !!readerSettings.enableMarkdown,
-                dictionary: readerSettings.dictionary || 'none',
+                  readerSettings={{
+                    ...readerSettings,
+                    disableClipboardButton: !!readerSettings.disableClipboardButton,
+                    nativeLanguage: readerSettings.nativeLanguage,
+                    enableMarkdown: !!readerSettings.enableMarkdown,
+                    dictionary: readerSettings.dictionary || 'none',
                 autoMarkAsLearningOnPopupOpen: !!readerSettings.autoMarkAsLearningOnPopupOpen,
                 autoPlayWordOnPopup: !!readerSettings.autoPlayWordOnPopup,
                 ttsVoice: readerSettings.ttsVoice,
                 ttsSpeed: readerSettings.ttsSpeed
-              }}
+                  }}
                   readerFont={effectiveSettings.readerFont}
                   readerFontSize={effectiveSettings.readerFontSize}
                   readerWidth={effectiveSettings.readerWidth}
@@ -1473,33 +1473,33 @@ export default function ReaderPage() {
                 <div>
                   <h3 className="text-lg font-bold theme-text mb-4">Reader Navigation</h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Previous page</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">←</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">←</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Next page</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">→</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">→</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Previous page (swipe)</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">← Swipe</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">← Swipe</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Next page (swipe)</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">→ Swipe</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">→ Swipe</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Mark/Unmark page complete</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Enter</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">Enter</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Toggle invisible text</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">I</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">I</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Toggle section sidebar</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">S</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">S</kbd>
                     </div>
                   </div>
                 </div>
@@ -1507,29 +1507,29 @@ export default function ReaderPage() {
                 <div>
                   <h3 className="text-lg font-bold theme-text mb-4">Speech Player</h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Play/Pause</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">P</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">P</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Play/Pause (alternative)</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">W</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">W</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Previous sentence</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">A</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">A</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Next sentence</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">D</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">D</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Repeat current sentence</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">R</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">R</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Hold W for invisible text</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Hold W</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">Hold W</kbd>
                     </div>
                   </div>
                 </div>
@@ -1537,29 +1537,29 @@ export default function ReaderPage() {
                 <div>
                   <h3 className="text-lg font-bold theme-text mb-4">Word Interaction</h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Show word definition</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Click</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">Click</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Show word definition (alternative)</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Shift + Click</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">Shift + Click</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Mark word as known</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">1</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">1</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Mark word as tracking</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">2</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">2</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Mark word as ignored</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">3</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">3</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Mark word as unknown</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">4</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">4</kbd>
                     </div>
                   </div>
                 </div>
@@ -1567,13 +1567,13 @@ export default function ReaderPage() {
                 <div>
                   <h3 className="text-lg font-bold theme-text mb-4">Sentence Selection</h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Toggle sentence select mode</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Click purple button</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">Click purple button</kbd>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div className="flex justify-between items-center py-2 border-b theme-border">
                       <span className="theme-text">Select sentence</span>
-                      <kbd className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-mono">Click sentence</kbd>
+                      <kbd className="px-2 py-1 theme-bg-secondary theme-text rounded text-sm font-mono">Click sentence</kbd>
                     </div>
                   </div>
                 </div>

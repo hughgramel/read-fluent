@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { WordService, WordType, Word } from '@/services/wordService';
-import { FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiDownload } from 'react-icons/fi';
 import { UserService } from '@/services/userService';
 import { SentenceService, UserSentence } from '@/services/sentenceService';
 import { Clipboard } from 'lucide-react';
@@ -38,6 +38,8 @@ export default function WordsPage() {
   const [wordCards, setWordCards] = useState<WordCard[]>([]);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [copyToastMessage, setCopyToastMessage] = useState('');
+  const [showAnkiExport, setShowAnkiExport] = useState(false);
+  const [ankiCardType, setAnkiCardType] = useState<'sentence' | 'word'>('sentence');
 
   const LANGUAGES = [
     { code: 'en', name: 'English' },
@@ -164,6 +166,57 @@ export default function WordsPage() {
     // Refresh words
     const updated = await WordService.getWords(user.uid);
     setWords(updated);
+  };
+
+  const exportToAnki = () => {
+    if (wordCards.length === 0) return;
+
+    // Create CSV content in Anki format with multiple fields
+    let csvContent = '';
+    
+    wordCards.forEach(card => {
+      // Bold the target word in the sentence
+      const sentenceWithBold = card.sentence.replace(
+        new RegExp(`\\b${card.targetWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'),
+        `<b>${card.targetWord}</b>`
+      );
+      
+      if (ankiCardType === 'sentence') {
+        // Sentence cards: sentence on front, separate fields on back
+        const front = sentenceWithBold.replace(/"/g, '""'); // Escape quotes
+        const back = `<div class="word-card">
+  <div>1. ${card.targetWord}</div>
+  <div>2. ${card.sentenceTranslation}</div>
+  <div>3. ${card.definition}</div>
+</div>`.replace(/"/g, '""');
+        csvContent += `"${front}","${back}"\n`;
+      } else {
+        // Word cards: word on front, separate fields on back
+        const front = card.targetWord.replace(/"/g, '""');
+        const back = `<div class="word-card">
+  <div>1. ${sentenceWithBold}</div>
+  <div>2. ${card.sentenceTranslation}</div>
+  <div>3. ${card.definition}</div>
+</div>`.replace(/"/g, '""');
+        csvContent += `"${front}","${back}"\n`;
+      }
+    });
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `anki_cards_${ankiCardType}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setShowAnkiExport(false);
+    setCopyToastMessage(`Exported ${wordCards.length} ${ankiCardType} cards to Anki!`);
+    setShowCopyToast(true);
+    setTimeout(() => setShowCopyToast(false), 3000);
   };
 
   return (
@@ -481,7 +534,7 @@ export default function WordsPage() {
           </div>
         ) : (
           <div>
-            <div className="flex justify-start mb-4">
+            <div className="flex justify-start gap-2 mb-4">
               <button
                 onClick={() => {
                   const allText = wordCards.map(card => 
@@ -497,6 +550,14 @@ export default function WordsPage() {
                 <Clipboard className="w-4 h-4" />
                 <span className="hidden sm:inline">Copy All</span>
                 <span className="sm:hidden">Copy</span>
+              </button>
+              <button
+                onClick={() => setShowAnkiExport(true)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium theme-text-secondary hover:theme-text transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg theme-border border sm:px-4"
+              >
+                <FiDownload className="w-4 h-4" />
+                <span className="hidden sm:inline">Export to Anki</span>
+                <span className="sm:hidden">Anki</span>
               </button>
             </div>
             <div className="card-themed overflow-hidden overflow-x-auto">
@@ -566,7 +627,7 @@ export default function WordsPage() {
         )
       )}
 
-      {/* Add Word Modal */}
+                {/* Add Word Modal */}
           {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAdd(false)}>
           <div className="theme-bg rounded-2xl p-8 theme-border border theme-shadow shadow-lg max-w-md w-full relative" onClick={e => e.stopPropagation()}>
@@ -665,6 +726,77 @@ export default function WordsPage() {
                 </button>
                   </form>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Anki Export Modal */}
+          {showAnkiExport && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAnkiExport(false)}>
+              <div className="theme-bg rounded-2xl p-8 theme-border border theme-shadow shadow-lg max-w-md w-full relative" onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={() => setShowAnkiExport(false)}
+                  className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold transition-colors bg-transparent border-none"
+                  style={{ lineHeight: 1 }}
+                  aria-label="Close"
+                >×</button>
+                <h2 className="text-2xl font-bold mb-6 theme-text text-center">Export to Anki</h2>
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold theme-text mb-2">Card Type</label>
+                    <select
+                      className="select-themed w-full"
+                      value={ankiCardType}
+                      onChange={e => setAnkiCardType(e.target.value as 'sentence' | 'word')}
+                    >
+                      <option value="sentence">Sentence Cards (Sentence → Word + Translation + Definition)</option>
+                      <option value="word">Word Cards (Word → Sentence + Translation + Definition)</option>
+                    </select>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4 theme-border border">
+                    <h3 className="font-semibold theme-text mb-2">Preview:</h3>
+                    <div className="text-sm theme-text-secondary">
+                      {ankiCardType === 'sentence' ? (
+                        <>
+                          <div className="mb-2"><strong>Front:</strong> Sentence</div>
+                          <div><strong>Back:</strong> Target Word + Translation + Definition</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="mb-2"><strong>Front:</strong> Target Word</div>
+                          <div><strong>Back:</strong> Sentence + Translation + Definition</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-sm theme-text-secondary text-center">
+                    This will export {wordCards.length} cards as a CSV file that you can import into Anki.
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4 theme-border border">
+                    <h3 className="font-semibold theme-text mb-2">Anki Setup Instructions:</h3>
+                    <div className="text-sm theme-text-secondary space-y-1">
+                      <div>1. Create a new deck in Anki</div>
+                      <div>2. Import the CSV file (File → Import)</div>
+                      <div>3. Set field separator to "comma"</div>
+                      <div>4. Map fields: Front → Field 1, Back → Field 2</div>
+                      <div>5. The back will contain structured HTML with separate sections</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowAnkiExport(false)}
+                      className="flex-1 px-4 py-2 text-sm font-medium theme-text-secondary hover:theme-text transition-colors bg-gray-100 hover:bg-gray-200 rounded-lg theme-border border"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={exportToAnki}
+                      className="flex-1 btn-primary text-sm"
+                    >
+                      Export {wordCards.length} Cards
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
