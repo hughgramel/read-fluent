@@ -645,7 +645,7 @@ export function ReaderContent({
     return (
       <div
         style={{
-          fontFamily: readerFont,
+          fontFamily: readerFont || 'Arial',
           fontSize: readerFontSize,
           maxWidth: readerWidth,
           width: '100%',
@@ -665,7 +665,7 @@ export function ReaderContent({
   return (
     <div 
       style={{ 
-        fontFamily: readerFont, 
+        fontFamily: readerFont || 'Arial', 
         fontSize: readerFontSize, 
         maxWidth: readerWidth, 
         width: '100%', 
@@ -975,7 +975,7 @@ export function ReaderContent({
               updateWordStatus(word, newStatus);
             }
           }}
-          readerFont={readerFont}
+          readerFont={readerFont || 'Arial'}
           // Ensure these are always non-undefined strings
           nativeLanguage={readerSettings.nativeLanguage || 'en'}
           targetLanguage={readerSettings.targetLanguage || 'es'}

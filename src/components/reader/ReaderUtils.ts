@@ -111,7 +111,7 @@ export function getReaderContainerStyle(
 ): React.CSSProperties {
   if (readerContainerStyle === 'full-width') {
     return { 
-      fontFamily: readerFont, 
+      fontFamily: readerFont || 'Arial', 
       fontSize: '1.1rem', 
       width: '100%', 
       maxWidth: '100%', 
@@ -123,7 +123,7 @@ export function getReaderContainerStyle(
     };
   }
   let style: React.CSSProperties = { 
-    fontFamily: readerFont, 
+    fontFamily: readerFont || 'Arial', 
     fontSize: '1.1rem', 
     maxWidth: readerWidth, 
     width: readerWidth, 

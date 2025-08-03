@@ -329,15 +329,13 @@ export function useReaderState(user: any) {
         }
       }
       
-      // Always fetch fresh data from the server in the background
+      // Always fetch fresh data from the server
       WordService.getWords(user.uid).then(words => {
         const wordMap = new Map<string, WordType>();
         words.forEach(word => {
           wordMap.set(cleanWord(word.word), word.type);
         });
         setUserWords(wordMap);
-      }).catch(error => {
-        console.error('Failed to fetch user words:', error);
       });
     }
   }, [user]);

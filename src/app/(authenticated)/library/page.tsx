@@ -269,12 +269,7 @@ export default function library() {
     return () => { if (scrollInterval) clearInterval(scrollInterval); };
   }, [isAutoScrolling, scrollSpeed, currentSection, currentBook]);
 
-  useEffect(() => { 
-    // Only scroll to top when in reader view, not when navigating to reader page
-    if (contentRef.current && view === 'reader') {
-      contentRef.current.scrollTop = 0;
-    }
-  }, [currentSection, view]);
+  useEffect(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, [currentSection]);
 
   // Load target languages
   useEffect(() => {
@@ -1276,6 +1271,43 @@ export default function library() {
     setNavigatingBookId(book.id);
     
     try {
+      // Ensure user words are loaded before navigation to prevent red flash
+      if (Object.keys(userWords).length === 0 && user?.uid) {
+        const ws = await WordService.getWords(user.uid);
+        const map: { [word: string]: 'known' | 'tracking' | 'ignored' | 'unknown' } = {};
+        ws.forEach(w => { map[cleanWord(w.word)] = w.type; });
+        setUserWords(map);
+      }
+
+      const localKey = `epub-book-${book.id}`;
+      let bookObj = null;
+      const cached = localStorage.getItem(localKey);
+      if (cached) {
+        try {
+          bookObj = JSON.parse(cached);
+        } catch { bookObj = null; }
+      }
+      if (!bookObj && book.downloadURL) {
+        try {
+          const fetched = await getBookJson(book.downloadURL);
+          if (fetched && fetched.sections && Array.isArray(fetched.sections)) {
+            bookObj = fetched;
+            localStorage.setItem(localKey, JSON.stringify(bookObj));
+          } else {
+            setError('Book data from storage is invalid.');
+            return;
+          }
+        } catch (e) {
+          setError('Failed to load book from storage.');
+          console.error('Failed to fetch book JSON:', e);
+          return;
+        }
+      }
+      if (!bookObj) {
+        setError('Book could not be loaded.');
+        return;
+      }
+      
       // Check for saved progress and calculate the correct starting page
       const savedProgress = localStorage.getItem(`reader-last-pos-${book.id}`);
       let startSection = 0;
@@ -1296,16 +1328,9 @@ export default function library() {
         localStorage.setItem('reader-userWords', JSON.stringify(userWords));
       }
       
-      // Navigate to reader with the correct page immediately
-      // Don't wait for async operations that could cause page jumps
-      router.push(`/reader?book=${book.id}&page=${startSection}-${startPage}`, { scroll: false });
-      
-      // Clear navigation state after a short delay to ensure navigation completes
-      setTimeout(() => {
-        setNavigatingBookId(null);
-      }, 100);
-    } catch (error) {
-      console.error('Error opening book:', error);
+      // Navigate to reader with the correct page
+      router.push(`/reader?book=${book.id}&page=${startSection}-${startPage}`);
+    } finally {
       setNavigatingBookId(null);
     }
   };
@@ -2252,7 +2277,6 @@ export default function library() {
                 deleteArchivedBookHandler={deleteArchivedBookHandler}
                 isNavigatingToBook={navigatingBookId === book.id}
                 isLoadingComprehensionReports={isLoadingComprehensionReports}
-                isLoadingSessions={isLoadingSessions}
               />
           )) : (
             <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl" style={{ background: 'var(--card-background)', padding: '1.5rem' }}>

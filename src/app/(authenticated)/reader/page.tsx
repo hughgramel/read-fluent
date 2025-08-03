@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useReaderState } from '@/hooks/useReaderState';
 import { useReaderKeyboard } from '@/hooks/useReaderKeyboard';
@@ -450,12 +451,29 @@ export default function ReaderPage() {
     );
   }
 
+  // Check if we have a bookId but no book yet (loading state)
+  const searchParams = useSearchParams();
+  const bookId = searchParams ? searchParams.get('book') : null;
+  
   if (!book) {
-    return (
-      <div className="min-h-screen flex items-center justify-center theme-text-secondary text-xl">
-        Book not found.
-      </div>
-    );
+    if (bookId) {
+      // Book is loading
+      return (
+        <div className="min-h-screen flex items-center justify-center theme-text-secondary">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary-color)]"></div>
+            <div className="text-xl">Loading book...</div>
+          </div>
+        </div>
+      );
+    } else {
+      // No bookId provided
+      return (
+        <div className="min-h-screen flex items-center justify-center theme-text-secondary text-xl">
+          Book not found.
+        </div>
+      );
+    }
   }
 
   const effectiveSettings = (showSettings && pendingSettings) ? pendingSettings : readerSettings;
@@ -701,7 +719,7 @@ export default function ReaderPage() {
           >
             <div className="flex flex-col items-center justify-start w-full" style={{ minHeight: isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 260px)', height: '100%' }}>
               <div className={getReaderContainerClass(effectiveSettings.readerContainerStyle)} style={{
-                ...getReaderContainerStyle(effectiveSettings.readerContainerStyle, effectiveSettings.readerFont, effectiveSettings.readerWidth, isMobile),
+                ...getReaderContainerStyle(effectiveSettings.readerContainerStyle, effectiveSettings.readerFont || 'Arial', effectiveSettings.readerWidth, isMobile),
                 margin: '0 auto',
                 height: '100%',
                 display: 'flex',
@@ -740,7 +758,7 @@ export default function ReaderPage() {
                 ttsVoice: readerSettings.ttsVoice,
                 ttsSpeed: readerSettings.ttsSpeed
                   }}
-                  readerFont={effectiveSettings.readerFont}
+                  readerFont={effectiveSettings.readerFont || 'Arial'}
                   readerFontSize={effectiveSettings.readerFontSize}
                   readerWidth={effectiveSettings.readerWidth}
                   lineSpacing={effectiveSettings.lineSpacing}

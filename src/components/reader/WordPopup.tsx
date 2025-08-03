@@ -1511,7 +1511,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
           </div>
         )}
         {activeTab === 'ai-definition' && (
-          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
+          <div style={{ fontFamily: readerFont || 'Arial', fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
             {aiDefinitionLoading && !aiDefinitionResult && !aiDefinitionError && <div>Loading AI definition...</div>}
             {aiDefinitionError && <div className="text-red-500">{aiDefinitionError}</div>}
             {aiDefinitionResult && (
@@ -1549,14 +1549,14 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
           </div>
         )}
         {activeTab === 'word-explain' && (
-          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
+          <div style={{ fontFamily: readerFont || 'Arial', fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
             {wordExplainLoading && !wordExplainResult && !wordExplainError && <div>Loading word explanation...</div>}
             {wordExplainError && <div className="text-red-500">{wordExplainError}</div>}
             {wordExplainResult && <ReactMarkdown>{wordExplainResult}</ReactMarkdown>}
           </div>
         )}
         {activeTab === 'explain' && (
-          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
+          <div style={{ fontFamily: readerFont || 'Arial', fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
             {explainLoading ? (
               <div>Loading explanation...</div>
             ) : explainError ? (
@@ -1578,7 +1578,7 @@ export function WordPopup({ word, sentence, x, y, position, align, onClose, word
           </div>
         )}
         {activeTab === 'translate' && (
-          <div style={{ fontFamily: readerFont, fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
+          <div style={{ fontFamily: readerFont || 'Arial', fontSize: isMobile ? 13 : 14, color: '#444', lineHeight: 1.4 }}>
             {translateLoading && !translateResult && !translateError && <div>Loading translation...</div>}
             {translateError && <div className="text-red-500">{translateError}</div>}
             {translateResult && (
