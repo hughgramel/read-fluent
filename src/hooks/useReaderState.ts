@@ -21,7 +21,7 @@ export function useReaderState(user: any) {
   const [book, setBook] = useState<Book | null>(null);
   const [error, setError] = useState<string>('');
 
-  // Reading progress state
+  // Reading progress state - initialize with calculated values instead of 0
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [sectionPages, setSectionPages] = useState<string[][][]>([]);
@@ -46,9 +46,19 @@ export function useReaderState(user: any) {
   const [countryCodes, setCountryCodes] = useState<Record<string, string>>({});
   const [isFetchingVoices, setIsFetchingVoices] = useState(false);
 
-  // Settings state
-  const [readerSettings, setReaderSettings] = useState<ReaderSettings>({
-    ...defaultReaderSettings,
+  // Settings state - load immediately from localStorage to prevent style flashing
+  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => {
+    // Try to load settings from localStorage immediately
+    try {
+      const cached = localStorage.getItem('reader-settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return { ...defaultReaderSettings, ...parsed };
+      }
+    } catch (e) {
+      console.warn('Failed to load cached reader settings:', e);
+    }
+    return { ...defaultReaderSettings };
   });
 
   // Word tracking state
@@ -99,7 +109,7 @@ export function useReaderState(user: any) {
     }
   }, [showCopyConfirm]);
 
-  // Load book from Firebase Storage
+  // Load book from Firebase Storage and calculate starting position immediately
   useEffect(() => {
     if (!user?.uid || !bookId) return;
     
@@ -136,6 +146,11 @@ export function useReaderState(user: any) {
         if (bookObj && bookObj.sections && Array.isArray(bookObj.sections)) {
           const book = { ...bookObj, ...meta, id: meta.bookId };
           setBook(book);
+          
+          // Calculate starting position immediately
+          const startingPosition = calculateStartingPosition(book, pageParam);
+          setCurrentSectionIndex(startingPosition.sectionIdx);
+          setCurrentPageIndex(startingPosition.pageIdx);
         } else {
           setError('Book could not be loaded.');
           setBook(null);
@@ -146,6 +161,39 @@ export function useReaderState(user: any) {
       }
     });
   }, [user, bookId, pageParam]);
+
+  // Helper function to calculate starting position
+  const calculateStartingPosition = (book: Book, pageParam: string | null) => {
+    let sectionIdx = 0, pageIdx = 0;
+    
+    // If a specific page is requested via URL parameter, use that
+    if (pageParam) {
+      try {
+        const [sectionParam, pageParamValue] = pageParam.split('-').map(Number);
+        if (!isNaN(sectionParam) && !isNaN(pageParamValue)) {
+          sectionIdx = Math.max(0, Math.min(sectionParam, book.sections.length - 1));
+          // We'll calculate the correct pageIdx after sectionPages is built
+          pageIdx = Math.max(0, pageParamValue);
+        }
+      } catch (error) {
+        console.warn('Invalid page parameter:', pageParam);
+      }
+    } else {
+      // Try to load saved progress from localStorage immediately
+      const savedProgress = localStorage.getItem(`reader-last-pos-${book.id}`);
+      if (savedProgress) {
+        try {
+          const { sectionIndex, pageIndex } = JSON.parse(savedProgress);
+          sectionIdx = Math.max(0, Math.min(sectionIndex, book.sections.length - 1));
+          pageIdx = Math.max(0, pageIndex);
+        } catch (e) {
+          console.warn('Failed to parse saved progress:', e);
+        }
+      }
+    }
+    
+    return { sectionIdx, pageIdx };
+  };
 
   // Build sectionPages on book or wordsPerPage change
   useEffect(() => {
@@ -191,75 +239,16 @@ export function useReaderState(user: any) {
     setSectionPages(newSectionPages);
   }, [book]);
 
-  // Navigate to the page after the last read page when both book and reading progress are loaded
+  // Update current page index when sectionPages is built to ensure it's within bounds
   useEffect(() => {
-    if (!book || !sectionPages.length) return;
+    if (!sectionPages.length) return;
     
-    let sectionIdx = 0, pageIdx = 0;
-    
-    // If a specific page is requested via URL parameter, use that
-    if (pageParam) {
-      try {
-        const [sectionParam, pageParamValue] = pageParam.split('-').map(Number);
-        if (!isNaN(sectionParam) && !isNaN(pageParamValue)) {
-          sectionIdx = Math.max(0, Math.min(sectionParam, sectionPages.length - 1));
-          pageIdx = Math.max(0, Math.min(pageParamValue, (sectionPages[sectionIdx]?.length || 1) - 1));
-        }
-      } catch (error) {
-        console.warn('Invalid page parameter:', pageParam);
-      }
-    } else {
-      // Find the page after the last read page (same logic as sidebar)
-      let lastReadSection = -1;
-      let lastReadPage = -1;
-      
-      // Find the last read page across all sections
-      for (let sectionIdx = 0; sectionIdx < sectionPages.length; sectionIdx++) {
-        const readPages = readPagesBySection[sectionIdx];
-        if (readPages && readPages.size > 0) {
-          const maxReadPage = Math.max(...Array.from(readPages));
-          if (sectionIdx > lastReadSection || (sectionIdx === lastReadSection && maxReadPage > lastReadPage)) {
-            lastReadSection = sectionIdx;
-            lastReadPage = maxReadPage;
-          }
-        }
-      }
-      
-      // If we found a read page, go to the next page
-      if (lastReadSection >= 0 && lastReadPage >= 0) {
-        const nextPage = lastReadPage + 1;
-        const pagesInSection = sectionPages[lastReadSection]?.length || 0;
-        
-        if (nextPage < pagesInSection) {
-          // Next page is in the same section
-          sectionIdx = lastReadSection;
-          pageIdx = nextPage;
-        } else if (lastReadSection + 1 < sectionPages.length) {
-          // Next page is in the next section
-          sectionIdx = lastReadSection + 1;
-          pageIdx = 0;
-        } else {
-          // We're at the end, stay on the last page
-          sectionIdx = lastReadSection;
-          pageIdx = lastReadPage;
-        }
-      } else {
-        // No pages read yet, go to the first page
-        sectionIdx = 0;
-        pageIdx = 0;
-      }
+    // Ensure current page index is within bounds for the current section
+    const maxPageIndex = (sectionPages[currentSectionIndex]?.length || 1) - 1;
+    if (currentPageIndex > maxPageIndex) {
+      setCurrentPageIndex(maxPageIndex);
     }
-    
-    setCurrentSectionIndex(sectionIdx);
-    setCurrentPageIndex(pageIdx);
-    if (isSpeechPlayerActive) {
-      setActiveSentenceIndex(0);
-      setActiveWordIndex(0);
-    } else {
-      setActiveSentenceIndex(null);
-      setActiveWordIndex(null);
-    }
-  }, [book, sectionPages, readPagesBySection, isSpeechPlayerActive, pageParam]);
+  }, [sectionPages, currentSectionIndex, currentPageIndex]);
 
   // Save progress on change
   useEffect(() => {
@@ -270,13 +259,13 @@ export function useReaderState(user: any) {
     }
   }, [book?.id, currentSectionIndex, currentPageIndex, sectionPages]);
 
-  // Load preferences on mount
+  // Load preferences on mount and save to localStorage immediately
   useEffect(() => {
     if (user?.uid) {
       UserService.getUserPreferences(user.uid).then(prefs => {
         if (prefs) {
-          setReaderSettings(prev => ({
-            ...prev,
+          const newSettings = {
+            ...readerSettings,
             readerFont: prefs.readerFont || 'serif',
             readerWidth: prefs.readerWidth || 700,
             readerFontSize: prefs.readerFontSize || 24,
@@ -308,8 +297,13 @@ export function useReaderState(user: any) {
             disableClipboardButton: !!prefs.disableClipboardButton,
             enableMarkdown: !!prefs.enableMarkdown,
             wordPopupDefaultTab: prefs.wordPopupDefaultTab || 'word-explain',
-          }));
+          };
+          
+          setReaderSettings(newSettings);
           setIsSpeechPlayerActive(!!prefs.showAudioBarOnStart);
+          
+          // Save to localStorage immediately for future loads
+          localStorage.setItem('reader-settings', JSON.stringify(newSettings));
         }
       });
     }
@@ -335,13 +329,15 @@ export function useReaderState(user: any) {
         }
       }
       
-      // Always fetch fresh data from the server
+      // Always fetch fresh data from the server in the background
       WordService.getWords(user.uid).then(words => {
         const wordMap = new Map<string, WordType>();
         words.forEach(word => {
           wordMap.set(cleanWord(word.word), word.type);
         });
         setUserWords(wordMap);
+      }).catch(error => {
+        console.error('Failed to fetch user words:', error);
       });
     }
   }, [user]);

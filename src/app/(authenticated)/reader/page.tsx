@@ -288,15 +288,20 @@ export default function ReaderPage() {
 
   // Theme is handled by ThemeContext, no need to manually set data-theme
 
-  // Inject book CSS into the DOM, scoped to .epub-html
+  // Inject book CSS into the DOM immediately when book loads
   useEffect(() => {
     if (book?.css) {
-      let styleTag = document.getElementById('epub-book-css') as HTMLStyleElement | null;
-      if (!styleTag) {
-        styleTag = document.createElement('style');
-        styleTag.id = 'epub-book-css';
-        document.head.appendChild(styleTag);
+      // Remove any existing style tag first
+      const existingStyleTag = document.getElementById('epub-book-css');
+      if (existingStyleTag) {
+        existingStyleTag.remove();
       }
+      
+      // Create new style tag
+      const styleTag = document.createElement('style');
+      styleTag.id = 'epub-book-css';
+      document.head.appendChild(styleTag);
+      
       // Prefix all CSS selectors with .epub-html to scope styles
       const scopedCss = book.css.replace(/(^|\})\s*([^@\s][^{]+)\s*\{/g, (match, brace, selector) => {
         // Don't prefix @keyframes or @font-face
@@ -307,6 +312,7 @@ export default function ReaderPage() {
       });
       styleTag.textContent = scopedCss;
     }
+    
     return () => {
       const styleTag = document.getElementById('epub-book-css');
       if (styleTag) styleTag.remove();

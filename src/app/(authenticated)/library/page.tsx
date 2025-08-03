@@ -141,7 +141,7 @@ export default function library() {
   const [isLoadingComprehensionReports, setIsLoadingComprehensionReports] = useState(false);
   const [isLoadingDailyGoal, setIsLoadingDailyGoal] = useState(false);
   const [isLoadingTargetLanguages, setIsLoadingTargetLanguages] = useState(false);
-  const [isNavigatingToBook, setIsNavigatingToBook] = useState(false);
+  const [navigatingBookId, setNavigatingBookId] = useState<string | null>(null);
 
   // Memoized helper functions
   const getBookStatus = useCallback((book: Book): 'active' | 'notStarted' | 'completed' => {
@@ -269,7 +269,12 @@ export default function library() {
     return () => { if (scrollInterval) clearInterval(scrollInterval); };
   }, [isAutoScrolling, scrollSpeed, currentSection, currentBook]);
 
-  useEffect(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, [currentSection]);
+  useEffect(() => { 
+    // Only scroll to top when in reader view, not when navigating to reader page
+    if (contentRef.current && view === 'reader') {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [currentSection, view]);
 
   // Load target languages
   useEffect(() => {
@@ -1267,55 +1272,22 @@ export default function library() {
 
   // On 'Read', fetch book JSON if not in localStorage, then navigate
   const openBook = async (book: Book) => {
-    // Set loading state
-    setIsNavigatingToBook(true);
+    // Set loading state for this specific book
+    setNavigatingBookId(book.id);
     
     try {
-      // Ensure user words are loaded before navigation to prevent red flash
-      if (Object.keys(userWords).length === 0 && user?.uid) {
-        const ws = await WordService.getWords(user.uid);
-        const map: { [word: string]: 'known' | 'tracking' | 'ignored' | 'unknown' } = {};
-        ws.forEach(w => { map[cleanWord(w.word)] = w.type; });
-        setUserWords(map);
-      }
-
-      const localKey = `epub-book-${book.id}`;
-      let bookObj = null;
-      const cached = localStorage.getItem(localKey);
-      if (cached) {
-        try {
-          bookObj = JSON.parse(cached);
-        } catch { bookObj = null; }
-      }
-      if (!bookObj && book.downloadURL) {
-        try {
-          const fetched = await getBookJson(book.downloadURL);
-          if (fetched && fetched.sections && Array.isArray(fetched.sections)) {
-            bookObj = fetched;
-            localStorage.setItem(localKey, JSON.stringify(bookObj));
-          } else {
-            setError('Book data from storage is invalid.');
-            return;
-          }
-        } catch (e) {
-          setError('Failed to load book from storage.');
-          console.error('Failed to fetch book JSON:', e);
-          return;
-        }
-      }
-      if (!bookObj) {
-        setError('Book could not be loaded.');
-        return;
-      }
-      
-      // Check for saved progress
-      const savedProgress = localStorage.getItem('epub-reader-progress');
+      // Check for saved progress and calculate the correct starting page
+      const savedProgress = localStorage.getItem(`reader-last-pos-${book.id}`);
       let startSection = 0;
+      let startPage = 0;
+      
       if (savedProgress) {
-        const allProgress: ReadingProgress[] = JSON.parse(savedProgress);
-        const bookProgress = allProgress.find((p: ReadingProgress) => p.bookId === book.id);
-        if (bookProgress) {
-          startSection = bookProgress.currentSection;
+        try {
+          const { sectionIndex, pageIndex } = JSON.parse(savedProgress);
+          startSection = sectionIndex || 0;
+          startPage = pageIndex || 0;
+        } catch (e) {
+          console.warn('Failed to parse saved progress:', e);
         }
       }
       
@@ -1324,10 +1296,17 @@ export default function library() {
         localStorage.setItem('reader-userWords', JSON.stringify(userWords));
       }
       
-      // Navigate to reader
-      router.push(`/reader?book=${book.id}&section=${startSection}`);
-    } finally {
-      setIsNavigatingToBook(false);
+      // Navigate to reader with the correct page immediately
+      // Don't wait for async operations that could cause page jumps
+      router.push(`/reader?book=${book.id}&page=${startSection}-${startPage}`, { scroll: false });
+      
+      // Clear navigation state after a short delay to ensure navigation completes
+      setTimeout(() => {
+        setNavigatingBookId(null);
+      }, 100);
+    } catch (error) {
+      console.error('Error opening book:', error);
+      setNavigatingBookId(null);
     }
   };
 
@@ -2172,7 +2151,8 @@ export default function library() {
       'Archived': 'Archived',
     };
     
-    // Show skeleton loaders if books are still loading
+    // Show skeleton loaders if books are still loading AND this section has no books
+    // This prevents showing skeletons for sections that already have books loaded
     const showSkeletons = isLoadingBooks && books.length === 0;
     
     return (
@@ -2207,7 +2187,7 @@ export default function library() {
               </div>
             ))
           ) : books.length > 0 ? books.map((book, idx) => (
-            <div key={book.id} className="snap-center flex-shrink-0" style={{ width: '60vw', maxWidth: 200, minWidth: 140, marginRight: idx === books.length - 1 ? 0 : 12, marginLeft: idx === 0 ? 0 : 0 }}>
+              <div key={book.id} className="snap-center flex-shrink-0" style={{ width: '60vw', maxWidth: 200, minWidth: 140, marginRight: idx === books.length - 1 ? 0 : 12, marginLeft: idx === 0 ? 0 : 0 }}>
               <BookCard 
                 book={book} 
                 archived={archived} 
@@ -2221,17 +2201,17 @@ export default function library() {
                 archiveBookHandler={archiveBookHandler} 
                 deleteBookHandler={deleteBookHandler} 
                 deleteArchivedBookHandler={deleteArchivedBookHandler}
-                isNavigatingToBook={isNavigatingToBook}
+                isNavigatingToBook={navigatingBookId === book.id}
                 isLoadingComprehensionReports={isLoadingComprehensionReports}
                 isLoadingSessions={isLoadingSessions}
               />
-            </div>
-          )) : (
-            <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl" style={{ background: 'var(--card-background)', padding: '1.5rem', minWidth: '90vw', maxWidth: '20rem' }}>
-              <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
-            </div>
-          )}
-        </div>
+              </div>
+            )) : (
+              <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl" style={{ background: 'var(--card-background)', padding: '1.5rem', minWidth: '90vw', maxWidth: '20rem' }}>
+                <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
+              </div>
+            )}
+          </div>
         
         {/* Desktop layout */}
         <div className="hidden sm:flex flex-wrap gap-x-4 gap-y-6 min-h-[180px]">
@@ -2270,8 +2250,9 @@ export default function library() {
                 archiveBookHandler={archiveBookHandler} 
                 deleteBookHandler={deleteBookHandler} 
                 deleteArchivedBookHandler={deleteArchivedBookHandler}
-                isNavigatingToBook={isNavigatingToBook}
+                isNavigatingToBook={navigatingBookId === book.id}
                 isLoadingComprehensionReports={isLoadingComprehensionReports}
+                isLoadingSessions={isLoadingSessions}
               />
           )) : (
             <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl" style={{ background: 'var(--card-background)', padding: '1.5rem' }}>
