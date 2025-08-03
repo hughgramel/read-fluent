@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FiTrash2, FiBarChart2, FiCheckCircle, FiArchive, FiMoreVertical, FiX } from 'react-icons/fi';
 import { Book, ArchivedBookCard } from './page';
 
-export default function BookCard({ book, archived = false, openBook = () => {}, bookWordsRead = {}, comprehensionReports = {}, setComprehensionModalBook = () => {}, fetchComprehensionReport = () => {}, setDataModalBook = () => {}, toggleCompleted = () => {}, archiveBookHandler = () => {}, deleteBookHandler = () => {}, deleteArchivedBookHandler = () => {} }: {
+export default function BookCard({ book, archived = false, openBook = () => {}, bookWordsRead = {}, comprehensionReports = {}, setComprehensionModalBook = () => {}, fetchComprehensionReport = () => {}, setDataModalBook = () => {}, toggleCompleted = () => {}, archiveBookHandler = () => {}, deleteBookHandler = () => {}, deleteArchivedBookHandler = () => {}, isNavigatingToBook = false, isLoadingComprehensionReports = false, isLoadingSessions = false }: {
   book: Book | ArchivedBookCard;
   archived?: boolean;
   openBook?: (book: Book) => void;
@@ -15,16 +15,32 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
   archiveBookHandler?: (book: Book) => void;
   deleteBookHandler?: (bookId: string, storagePath?: string) => void;
   deleteArchivedBookHandler?: (archivedId: string) => void;
+  isNavigatingToBook?: boolean;
+  isLoadingComprehensionReports?: boolean;
+  isLoadingSessions?: boolean;
 }) {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const report = comprehensionReports[book.id];
-  const knownPct = report ? ((report.known / report.uniqueWords) * 100).toFixed(1) : null;
-  const unknownPct = report ? ((report.unknown / report.uniqueWords) * 100).toFixed(1) : null;
-  const completed = (book as Book).completed;
-  const wordsRead = archived ? (book as ArchivedBookCard).wordsRead : bookWordsRead[String(book.id)] || 0;
-  const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
+  
+  // Memoized calculations
+  const { report, knownPct, unknownPct, completed, wordsRead, progressPct } = useMemo(() => {
+    const report = comprehensionReports[book.id];
+    const knownPct = report ? ((report.known / report.uniqueWords) * 100).toFixed(1) : null;
+    const unknownPct = report ? ((report.unknown / report.uniqueWords) * 100).toFixed(1) : null;
+    const completed = (book as Book).completed;
+    const wordsRead = archived ? (book as ArchivedBookCard).wordsRead : bookWordsRead[String(book.id)] || 0;
+    const progressPct = book.totalWords > 0 ? Math.min(100, (wordsRead / book.totalWords) * 100) : 0;
+    
+    return {
+      report,
+      knownPct,
+      unknownPct,
+      completed,
+      wordsRead,
+      progressPct
+    };
+  }, [comprehensionReports, book.id, book.totalWords, archived, bookWordsRead, book]);
 
   const handleSettingsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,22 +87,28 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
   return (
     <>
     <div
-      className={`${archived ? 'card-themed-secondary' : 'card-themed-primary'} flex flex-col w-full aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group`}
+      className={`${archived ? 'card-themed-secondary' : 'card-themed-primary'} flex flex-col w-full aspect-[3/4] cursor-pointer transition-all duration-200 hover:shadow-lg group relative`}
       style={{
         fontFamily: 'var(--font-family)',
         minHeight: 'unset',
         padding: 0,
-        opacity: archived ? 0.7 : 1,
-        maxWidth: typeof window !== 'undefined' && window.innerWidth <= 640 ? 210 : 250,
-        minWidth: typeof window !== 'undefined' && window.innerWidth <= 640 ? 150 : 180,
-        height: typeof window !== 'undefined' && window.innerWidth <= 640 ? 280 : undefined,
+        opacity: archived ? 0.7 : isNavigatingToBook ? 0.5 : 1,
+        maxWidth: '250px',
+        minWidth: '180px',
         boxSizing: 'border-box',
+        pointerEvents: isNavigatingToBook ? 'none' : 'auto',
       }}
-      onClick={archived ? undefined : () => openBook(book as Book)}
+      onClick={archived || isNavigatingToBook ? undefined : () => openBook(book as Book)}
       tabIndex={0}
       role="button"
       aria-label={`Read ${book.title}`}
     >
+      {/* Loading overlay when navigating */}
+      {isNavigatingToBook && (
+        <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg z-10">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: 'var(--primary-color)' }}></div>
+        </div>
+      )}
         <div className="flex justify-end p-2">
         {!archived && (
             <button
@@ -112,49 +134,56 @@ export default function BookCard({ book, archived = false, openBook = () => {}, 
         )}
       </div>
       <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
-        <h3 className="font-bold theme-text leading-tight mb-0.5 line-clamp-2 text-left" style={{ letterSpacing: '-0.01em', fontWeight: 700, fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 17 : 20 }}>{book.title}</h3>
+        <h3 className="font-bold theme-text leading-tight mb-0.5 line-clamp-2 text-left text-lg sm:text-xl" style={{ letterSpacing: '-0.01em', fontWeight: 700 }}>{book.title}</h3>
         {/* Reading Progress Bar */}
         <div className="w-full mb-1">
           <div className="relative h-2.5 rounded-full bg-gray-200 overflow-hidden">
-            <div className="absolute left-0 top-0 h-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: 'var(--primary-color)' }} />
+            {isLoadingSessions ? (
+              <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse"></div>
+            ) : (
+              <div className="absolute left-0 top-0 h-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: 'var(--primary-color)' }} />
+            )}
           </div>
           <div className="flex justify-between text-xs mt-1 theme-text-secondary">
-            {/* On mobile, remove author and 'words', just show n / m */}
-            {typeof window !== 'undefined' && window.innerWidth <= 640 ? (
-              <>
-                <span />
-                <span className="text-right" style={{ fontSize: 15 }}>{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()}</span>
-              </>
+            {/* Mobile: just show n / m, Desktop: show author and words */}
+            <span className="hidden sm:inline" style={{ fontSize: 15 }}>{book.author}</span>
+            {isLoadingSessions ? (
+              <span className="text-right animate-pulse" style={{ fontSize: 15 }}>Loading...</span>
             ) : (
-              <>
-                <span style={{ fontSize: 15 }}>{book.author}</span>
-                <span className="text-right" style={{ fontSize: 15 }}>{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()} words</span>
-              </>
+              <span className="text-right" style={{ fontSize: 15 }}>{(wordsRead ?? 0).toLocaleString()} / {(book.totalWords ?? 0).toLocaleString()}<span className="hidden sm:inline"> words</span></span>
             )}
           </div>
         </div>
         {/* Comprehension Progress Bar */}
         <div className="w-full mt-1 mb-1">
           <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
-            <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: report ? `${knownPct}%` : '0%', borderRadius: '999px 0 0 999px' }} />
-            <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: report ? `${100 - Number(unknownPct)}%` : '0%', opacity: 0.3 }} />
-            <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: report ? `${Number(knownPct) + (report.ignored / report.uniqueWords) * 100}%` : '0%', opacity: 0.18 }} />
+            {isLoadingComprehensionReports && !report ? (
+              <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse"></div>
+            ) : (
+              <>
+                <div className="absolute left-0 top-0 h-full bg-[#28a745]" style={{ width: report ? `${knownPct}%` : '0%', borderRadius: '999px 0 0 999px' }} />
+                <div className="absolute left-0 top-0 h-full bg-[#a0aec0]" style={{ width: report ? `${100 - Number(unknownPct)}%` : '0%', opacity: 0.3 }} />
+                <div className="absolute left-0 top-0 h-full bg-[#2563eb]" style={{ width: report ? `${Number(knownPct) + (report.ignored / report.uniqueWords) * 100}%` : '0%', opacity: 0.18 }} />
+              </>
+            )}
           </div>
           <div className="flex justify-between text-xs mt-1 theme-text-secondary">
-            {report ? (
+            {isLoadingComprehensionReports && !report ? (
+              <span className="text-sm sm:text-base animate-pulse">Loading...</span>
+            ) : report ? (
               <>
-                <span style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>{knownPct}% Known</span>
-                <span style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>{unknownPct}% Unknown</span>
+                <span className="text-sm sm:text-base">{knownPct}% Known</span>
+                <span className="text-sm sm:text-base">{unknownPct}% Unknown</span>
               </>
             ) : (
-              <span className="italic text-gray-400" style={{ fontSize: typeof window !== 'undefined' && window.innerWidth <= 640 ? 13 : 15 }}>No report</span>
+              <span className="italic text-gray-400 text-sm sm:text-base">No report</span>
             )}
           </div>
         </div>
           {/* Empty space to maintain card size */}
         <div className="flex gap-2 mt-2">
-            <div className="flex-1" style={{ height: typeof window !== 'undefined' && window.innerWidth <= 640 ? 40 : 44 }}></div>
-            <div className="flex-1" style={{ height: typeof window !== 'undefined' && window.innerWidth <= 640 ? 40 : 44 }}></div>
+            <div className="flex-1 h-10 sm:h-11"></div>
+            <div className="flex-1 h-10 sm:h-11"></div>
           </div>
         </div>
       </div>

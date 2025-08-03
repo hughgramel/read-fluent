@@ -318,6 +318,24 @@ export function useReaderState(user: any) {
   // Load user words for highlighting
   useEffect(() => {
     if (user?.uid) {
+      // Check localStorage first for immediate loading
+      const cachedUserWords = localStorage.getItem('reader-userWords');
+      if (cachedUserWords) {
+        try {
+          const parsed = JSON.parse(cachedUserWords);
+          const wordMap = new Map<string, WordType>();
+          Object.entries(parsed).forEach(([word, type]) => {
+            wordMap.set(word, type as WordType);
+          });
+          setUserWords(wordMap);
+          // Clear the cached data after using it
+          localStorage.removeItem('reader-userWords');
+        } catch (e) {
+          console.error('Failed to parse cached userWords:', e);
+        }
+      }
+      
+      // Always fetch fresh data from the server
       WordService.getWords(user.uid).then(words => {
         const wordMap = new Map<string, WordType>();
         words.forEach(word => {

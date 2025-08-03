@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { uploadBookJson, saveBookMetadata, getBooks, getBookJson, deleteBook, updateBookMetadata, archiveBook, getArchivedBooks, deleteArchivedBook, ArchivedBookMetadata } from '@/services/epubService';
@@ -133,6 +133,116 @@ export default function library() {
   const [showProcessingPopup, setShowProcessingPopup] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<'processing' | 'complete'>('processing');
 
+  // Loading states
+  const [isLoadingBooks, setIsLoadingBooks] = useState(false);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [isLoadingUserWords, setIsLoadingUserWords] = useState(false);
+  const [isLoadingArchivedBooks, setIsLoadingArchivedBooks] = useState(false);
+  const [isLoadingComprehensionReports, setIsLoadingComprehensionReports] = useState(false);
+  const [isLoadingDailyGoal, setIsLoadingDailyGoal] = useState(false);
+  const [isLoadingTargetLanguages, setIsLoadingTargetLanguages] = useState(false);
+  const [isNavigatingToBook, setIsNavigatingToBook] = useState(false);
+
+  // Memoized helper functions
+  const getBookStatus = useCallback((book: Book): 'active' | 'notStarted' | 'completed' => {
+    if (book.completed) return 'completed';
+    const savedProgress = localStorage.getItem('epub-reader-progress');
+    if (savedProgress) {
+      const allProgress: ReadingProgress[] = JSON.parse(savedProgress);
+      const bookProgress = allProgress.find((p) => p.bookId === book.id);
+      if (bookProgress) {
+        return 'active';
+      }
+    }
+    return 'notStarted';
+  }, []);
+
+  const isSameLocalDay = useCallback((dateA: Date, dateB: Date) => {
+    return (
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate()
+    );
+  }, []);
+
+  // Memoized book groupings
+  const { activeBooks, notStarted, completed, toReadBooks, currentlyReadingBooks } = useMemo(() => {
+    const active = books.filter((b) => b.wordsRead && b.wordsRead > 0 && !b.completed);
+    const notStartedBooks = books.filter((b) => b.wordsRead === 0);
+    const completedBooks = books.filter((b) => getBookStatus(b) === 'completed');
+    const toRead = books.filter(book => !book.wordsRead || book.wordsRead === 0);
+    const currentlyReading = books.filter(book => book.wordsRead && book.wordsRead > 0 && !book.completed);
+    
+    return {
+      activeBooks: active,
+      notStarted: notStartedBooks,
+      completed: completedBooks,
+      toReadBooks: toRead,
+      currentlyReadingBooks: currentlyReading
+    };
+  }, [books, getBookStatus]);
+
+  // Memoized today's sessions calculation
+  const { sessionsToday, wordsReadToday } = useMemo(() => {
+    const today = new Date();
+    const todaySessions = sessions
+      ? sessions.filter((s) => {
+          if (!s.timestamp) return false;
+          let sessionDate: Date;
+          if (typeof s.timestamp === 'string') {
+            sessionDate = new Date(s.timestamp);
+          } else if (s.timestamp instanceof Date) {
+            sessionDate = s.timestamp;
+          } else if (typeof s.timestamp === 'object' && s.timestamp !== null && typeof (s.timestamp as any).toDate === 'function') {
+            sessionDate = (s.timestamp as any).toDate();
+          } else {
+            return false;
+          }
+          return isSameLocalDay(sessionDate, today);
+        })
+      : [];
+    
+    const wordsToday = todaySessions.reduce((sum, s) => sum + (s.wordCount || 0), 0);
+    
+    return {
+      sessionsToday: todaySessions,
+      wordsReadToday: wordsToday
+    };
+  }, [sessions, isSameLocalDay]);
+
+  // Memoized fetch comprehension report function
+  const fetchComprehensionReport = useCallback(async (bookId: string) => {
+    if (!user?.uid) return;
+    const reportRef = doc(collection(db, 'users', user.uid, 'comprehensionReports'), bookId);
+    const reportSnap = await getDoc(reportRef);
+    if (reportSnap.exists()) {
+      setComprehensionReports(prev => ({ ...prev, [bookId]: reportSnap.data() }));
+    }
+  }, [user?.uid]);
+
+  // Memoized fetch all comprehension reports
+  const fetchAllComprehensionReports = useCallback(async () => {
+    if (!user?.uid || books.length === 0) return;
+    setIsLoadingComprehensionReports(true);
+    try {
+      const promises = books.map(book => fetchComprehensionReport(book.id));
+      await Promise.all(promises);
+    } finally {
+      setIsLoadingComprehensionReports(false);
+    }
+  }, [user?.uid, books.length, fetchComprehensionReport]);
+
+  // Check if all data is loaded
+  const isDataLoaded = useMemo(() => {
+    return !isLoadingBooks && !isLoadingSessions && !isLoadingUserWords && 
+           !isLoadingArchivedBooks && !isLoadingComprehensionReports && 
+           !isLoadingDailyGoal && !isLoadingTargetLanguages;
+  }, [
+    isLoadingBooks, isLoadingSessions, isLoadingUserWords, 
+    isLoadingArchivedBooks, isLoadingComprehensionReports, 
+    isLoadingDailyGoal, isLoadingTargetLanguages
+  ]);
+
   // Auto-scroll effect
   useEffect(() => {
     let scrollInterval: NodeJS.Timeout;
@@ -163,16 +273,18 @@ export default function library() {
 
   // Load target languages
   useEffect(() => {
+    setIsLoadingTargetLanguages(true);
     fetch('/target-languages.json')
       .then(res => res.json())
       .then(setTargetLanguages)
-      .catch(() => setTargetLanguages([]));
+      .catch(() => setTargetLanguages([]))
+      .finally(() => setIsLoadingTargetLanguages(false));
   }, []);
 
   // Load books metadata from Firestore/Storage (not full content)
   useEffect(() => {
     if (!user?.uid) return;
-    console.log('Current userId:', user.uid);
+    setIsLoadingBooks(true);
     getBooks(user.uid).then((metadatas) => {
       if (!metadatas || metadatas.length === 0) {
         setBooks([]);
@@ -196,8 +308,8 @@ export default function library() {
         wordsRead: meta.wordsRead || 0, // Always include wordsRead
         wordsPerPage: wordsPerPage, // Use user-selected words per page
       })));
-    });
-  }, [user]);
+    }).finally(() => setIsLoadingBooks(false));
+  }, [user, wordsPerPage]);
 
   // Save books to localStorage whenever books change
   useEffect(() => {
@@ -237,6 +349,7 @@ export default function library() {
   // On mount, fetch reading sessions and compute words read per book
   useEffect(() => {
     if (!user?.uid) return;
+    setIsLoadingSessions(true);
     ReadingSessionService.getUserSessions(user.uid).then(sessions => {
       const wordsRead: { [key: string]: number } = {};
       sessions.forEach(session => {
@@ -244,12 +357,13 @@ export default function library() {
       });
       setBookWordsRead(wordsRead);
       setSessions(sessions);
-    });
+    }).finally(() => setIsLoadingSessions(false));
   }, [user]);
 
   // On mount, load daily goal from Firebase
   useEffect(() => {
     if (!user?.uid) return;
+    setIsLoadingDailyGoal(true);
     UserService.getDailyGoal(user.uid).then(goal => {
       setDailyGoal(goal);
       setGoalInput(String(goal));
@@ -258,12 +372,13 @@ export default function library() {
       // Fallback to default
       setDailyGoal(1500);
       setGoalInput('1500');
-    });
+    }).finally(() => setIsLoadingDailyGoal(false));
   }, [user]);
 
   // Fetch archived books on mount
   useEffect(() => {
     if (!user?.uid) return;
+    setIsLoadingArchivedBooks(true);
     getArchivedBooks(user.uid).then((archs: ArchivedBookMetadata[]) => {
       setArchivedBooks(archs.map(a => ({
         id: a.id || a.bookId,
@@ -275,571 +390,24 @@ export default function library() {
         completed: a.completed,
         wordsRead: a.wordsRead,
       })));
-    });
+    }).finally(() => setIsLoadingArchivedBooks(false));
   }, [user]);
 
   // Load user words on mount
   useEffect(() => {
     if (!user?.uid) return;
+    setIsLoadingUserWords(true);
     WordService.getWords(user.uid).then(ws => {
       const map: { [word: string]: 'known' | 'tracking' | 'ignored' | 'unknown' } = {};
       ws.forEach(w => { map[cleanWord(w.word)] = w.type; });
       setUserWords(map);
-    });
+    }).finally(() => setIsLoadingUserWords(false));
   }, [user]);
-
-  // Fetch comprehension report for a book
-  const fetchComprehensionReport = async (bookId: string) => {
-    if (!user?.uid) return;
-    const reportRef = doc(collection(db, 'users', user.uid, 'comprehensionReports'), bookId);
-    const reportSnap = await getDoc(reportRef);
-    if (reportSnap.exists()) {
-      setComprehensionReports(prev => ({ ...prev, [bookId]: reportSnap.data() }));
-    }
-  };
 
   // Fetch all comprehension reports for all books on mount
   useEffect(() => {
-    if (!user?.uid || books.length === 0) return;
-    books.forEach(book => {
-      fetchComprehensionReport(book.id);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, books.length]);
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.name.endsWith('.epub')) {
-      await extractEpubMetadata(file);
-    } else {
-      setError('Please select a valid EPUB file.');
-    }
-  };
-
-  // Extract EPUB metadata without processing the full file
-  const extractEpubMetadata = async (file: File) => {
-    try {
-      const JSZip = (await import('jszip')).default;
-      const zip = await JSZip.loadAsync(file);
-      const containerFile = zip.file('META-INF/container.xml');
-      if (!containerFile) throw new Error('Invalid EPUB: No container.xml found');
-      const containerText = await containerFile.async('text');
-      const parser = new DOMParser();
-      const containerDoc = parser.parseFromString(containerText, 'text/xml');
-      const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
-      if (!opfPath) throw new Error('Invalid EPUB: No OPF path found');
-      const opfFile = zip.file(opfPath);
-      if (!opfFile) throw new Error('Invalid EPUB: OPF file not found');
-      const opfText = await opfFile.async('text');
-      const opfDoc = parser.parseFromString(opfText, 'text/xml');
-      
-      const title = opfDoc.querySelector('title')?.textContent || 'Unknown Title';
-      const author = opfDoc.querySelector('creator')?.textContent || 'Unknown Author';
-      
-      setEpubFile(file);
-      setEpubMetadata({ title, author });
-      setTextTitle(title);
-      setTextAuthor(author);
-      setTextFile(null); // Clear text file when EPUB is selected
-      setMdFile(null); // Clear MD file when EPUB is selected
-    } catch (error) {
-      console.error('Error extracting EPUB metadata:', error);
-      setError(`Error reading EPUB file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  // Helper to normalize paths like OEBPS/Text/../Images/T_Page_027.jpg => OEBPS/Images/T_Page_027.jpg
-  function normalizePath(path: string): string {
-    const parts: string[] = [];
-    path.split('/').forEach(part => {
-      if (part === '..') {
-        parts.pop();
-      } else if (part !== '.' && part !== '') {
-        parts.push(part);
-      }
-    });
-    return parts.join('/');
-  }
-
-  // Helper to safely get innerText
-  function getInnerText(el: Element | null): string {
-    return (el && 'innerText' in el) ? (el as HTMLElement).innerText : '';
-  }
-
-  // Upload EPUB and store in Storage/Firestore
-  const processEpubFile = async (file: File) => {
-    if (!user?.uid) return;
-    setIsUploading(true);
-    setError('');
-    try {
-      const JSZip = (await import('jszip')).default;
-      const zip = await JSZip.loadAsync(file);
-      const containerFile = zip.file('META-INF/container.xml');
-      if (!containerFile) throw new Error('Invalid EPUB: No container.xml found');
-      const containerText = await containerFile.async('text');
-      const parser = new DOMParser();
-      const containerDoc = parser.parseFromString(containerText, 'text/xml');
-      const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
-      if (!opfPath) throw new Error('Invalid EPUB: No OPF path found');
-      const opfFile = zip.file(opfPath);
-      if (!opfFile) throw new Error('Invalid EPUB: OPF file not found');
-      const opfText = await opfFile.async('text');
-      const opfDoc = parser.parseFromString(opfText, 'text/xml');
-      // Use title and author from form instead of EPUB metadata
-      const title = textTitle.trim() || opfDoc.querySelector('title')?.textContent || 'Unknown Title';
-      const author = textAuthor.trim() || opfDoc.querySelector('creator')?.textContent || 'Unknown Author';
-      const description = opfDoc.querySelector('description')?.textContent || 'No description available';
-      const spine = Array.from(opfDoc.querySelectorAll('spine itemref')).map(item => item.getAttribute('idref')).filter(Boolean);
-      const sections: BookSection[] = [];
-      let totalWords = 0;
-      const bookId = Date.now().toString();
-      for (const itemId of spine) {
-        const manifestItem = opfDoc.querySelector(`manifest item[id="${itemId}"]`);
-        if (!manifestItem) continue;
-        const href = manifestItem.getAttribute('href');
-        if (!href) continue;
-        const fullPath = opfPath.substring(0, opfPath.lastIndexOf('/') + 1) + href;
-        const sectionFile = zip.file(fullPath);
-        if (sectionFile) {
-          const sectionHtml = await sectionFile.async('text');
-          const sectionDoc = parser.parseFromString(sectionHtml, 'text/html');
-          // --- Image handling ---
-          const imgElements = sectionDoc.querySelectorAll('img');
-          for (const img of imgElements) {
-            const src = img.getAttribute('src');
-            if (src && !src.startsWith('data:') && !src.startsWith('http')) {
-              // Resolve relative path
-              let imgPath = src;
-              if (!/^https?:\/\//.test(src)) {
-                // Relative to section file
-                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/') + 1);
-                imgPath = basePath + src;
-              }
-              const normalizedImgPath = normalizePath(imgPath);
-              const imgFile = zip.file(normalizedImgPath);
-              if (imgFile) {
-                const ext = normalizedImgPath.split('.').pop()?.toLowerCase() || 'png';
-                const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
-                const imgData = await imgFile.async('uint8array');
-                const firebasePath = `books/${bookId}/images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-                const url = await uploadFileAndGetUrl(firebasePath, new Blob([imgData], { type: mime }));
-                img.setAttribute('src', url);
-              } else {
-                console.warn('Image not found in EPUB zip:', normalizedImgPath);
-              }
-            }
-          }
-          // --- SVG <image> handling ---
-          const svgImageElements = sectionDoc.querySelectorAll('image');
-          for (const svgImg of svgImageElements) {
-            // Try both xlink:href and href
-            let href = svgImg.getAttribute('xlink:href') || svgImg.getAttribute('href');
-            if (href && !href.startsWith('data:') && !href.startsWith('http')) {
-              let imgPath = href;
-              if (!/^https?:\/\//.test(href)) {
-                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/') + 1);
-                imgPath = basePath + href;
-              }
-              const normalizedImgPath = normalizePath(imgPath);
-              const imgFile = zip.file(normalizedImgPath);
-              if (imgFile) {
-                const ext = normalizedImgPath.split('.').pop()?.toLowerCase() || 'png';
-                const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
-                const imgData = await imgFile.async('uint8array');
-                const firebasePath = `books/${bookId}/images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-                const url = await uploadFileAndGetUrl(firebasePath, new Blob([imgData], { type: mime }));
-                svgImg.setAttribute('xlink:href', url);
-                svgImg.setAttribute('href', url); // for compatibility
-              } else {
-                console.warn('SVG image not found in EPUB zip:', normalizedImgPath);
-              }
-            }
-          }
-          // Section title: concatenate multiple <a> elements (e.g., chapter number and title)
-          let sectionTitle = '';
-          // 1. Concatenate <a> elements in main heading container (e.g., <p class*='capitulo'> or first <p> with <a>)
-          let headingContainer: Element | null = sectionDoc.querySelector('p.capitulo') || sectionDoc.querySelector('p[class*="capitulo"]');
-          if (!headingContainer) {
-            // Fallback: first <p> with at least one <a>
-            headingContainer = Array.from(sectionDoc.querySelectorAll('p')).find(p => p.querySelector('a')) || null;
-          }
-          if (headingContainer) {
-            const aEls = Array.from(headingContainer.querySelectorAll('a'));
-            if (aEls.length > 0) {
-              sectionTitle = aEls.map(a => getInnerText(a).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
-            }
-          }
-          // If still not found, try previous logic
-          if (!sectionTitle) {
-            // <span> with class containing 'numero' and next <a> with <br>
-            const headingSpan = sectionDoc.querySelector('span[class*="numero"]');
-            if (headingSpan && headingSpan.textContent && headingSpan.textContent.trim().length > 0) {
-              sectionTitle = headingSpan.textContent.trim();
-              const nextA = headingSpan.parentElement?.querySelector('a');
-              if (nextA && nextA.innerHTML.includes('<br')) {
-                sectionTitle += ': ' + getInnerText(nextA).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-              }
-            }
-          }
-          if (!sectionTitle) {
-            // <a> with <br> (chapter title)
-            const aWithBr = sectionDoc.querySelector('a[href][innerHTML*="<br"]');
-            if (aWithBr && getInnerText(aWithBr) && getInnerText(aWithBr).trim().length > 0) {
-              sectionTitle = getInnerText(aWithBr).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-            }
-          }
-          // 2. <p> with class containing 'titulo'
-          if (!sectionTitle) {
-            const tituloP = sectionDoc.querySelector('p[class*="titulo"]');
-            if (tituloP && tituloP.textContent && tituloP.textContent.trim().length > 0) {
-              sectionTitle = tituloP.textContent.trim();
-            }
-          }
-          // 3. <h1>
-          if (!sectionTitle) {
-            const firstH1 = sectionDoc.querySelector('h1');
-            if (firstH1 && firstH1.textContent && firstH1.textContent.trim().length > 0) {
-              sectionTitle = firstH1.textContent.trim();
-            }
-          }
-          // 4. <h2>
-          if (!sectionTitle) {
-            const firstH2 = sectionDoc.querySelector('h2');
-            if (firstH2 && firstH2.textContent && firstH2.textContent.trim().length > 0) {
-              sectionTitle = firstH2.textContent.trim();
-            }
-          }
-          // 5. <p>
-          if (!sectionTitle) {
-            sectionTitle = '';
-          }
-          // Content: always include all <p> tags (and optionally <h1>, <h2>, <h3>) in order
-          let blocks: string[] = [];
-          const blockTags = ['h1', 'h2', 'h3', 'p'];
-          blockTags.forEach(tag => {
-            sectionDoc.querySelectorAll(tag).forEach(el => {
-              if (el.textContent && el.textContent.trim().length > 0) {
-                blocks.push(el.textContent.trim());
-              }
-            });
-          });
-          // Add any direct text nodes under <body> (not inside a block)
-          if (sectionDoc.body) {
-            Array.from(sectionDoc.body.childNodes).forEach(node => {
-              if (node.nodeType === Node.TEXT_NODE && node.textContent && node.textContent.trim().length > 0) {
-                blocks.push(node.textContent.trim());
-              }
-            });
-          }
-          const improvedContent = blocks.join('\n\n');
-          function splitSentences(text: string): string[] {
-            // First split by paragraphs (double newlines)
-            const paragraphs = text.split(/\n\n+/g).map(p => p.trim()).filter(Boolean);
-            // Improved regex: avoid splitting after common abbreviations, split on punctuation followed by a capital letter
-            const sentenceRegex = /(?<!\b[A-Z][a-z]\.|Sr\.|Sra\.|Dr\.|Dra\.|etc\.|No\.|N\u00ba)\s*(?<=[.!?])\s*(?=[A-ZÁÉÍÓÚÑ]|\[)/g;
-            // Split each paragraph into sentences, then flatten
-            return paragraphs.flatMap(paragraph => paragraph.split(sentenceRegex).map((s: string) => s.trim()).filter(Boolean));
-          }
-          // Print the first sentence after splitting for verification
-          const sentences = splitSentences(improvedContent);
-          const firstSentence = sentences[0] || '';
-          if (sections.length === 2) {
-            console.log('--- Section 3 RAW CONTENT ---');
-            console.log(improvedContent);
-            console.log('--- Section 3 SPLIT SENTENCES ---');
-            sentences.forEach((s: string, i: number) => console.log(`Sentence ${i + 1}:`, s));
-            if (sentences.length > 0) {
-              console.log('Section 3 FIRST SENTENCE:', sentences[0]);
-            }
-          }
-          const sectionData = {
-            title: sectionTitle.trim(),
-            content: improvedContent,
-            wordCount: improvedContent.split(/\s+/).filter(Boolean).length,
-            id: itemId || `${sections.length + 1}`
-          };
-          // Print section details to console
-          console.log(`=== Section ${sections.length + 1} ===`);
-          console.log('Title:', sectionData.title);
-          console.log('ID:', sectionData.id);
-          console.log('Word Count:', sectionData.wordCount);
-          console.log('Content Preview:', sectionData.content.substring(0, 200) + (sectionData.content.length > 200 ? '...' : ''));
-          console.log('Full Content Length:', sectionData.content.length);
-          console.log('First Sentence:', firstSentence);
-          console.log('========================');
-          sections.push(sectionData);
-          totalWords += sectionData.wordCount;
-        }
-      }
-      // --- Extract all CSS files referenced in the manifest ---
-      const cssFiles = Array.from(opfDoc.querySelectorAll('manifest item')).filter(item => {
-        const mediaType = item.getAttribute('media-type');
-        return mediaType && mediaType.includes('css');
-      });
-      let bookCss = '';
-      for (const cssItem of cssFiles) {
-        const cssHref = cssItem.getAttribute('href');
-        if (cssHref) {
-          const cssPath = opfPath.substring(0, opfPath.lastIndexOf('/') + 1) + cssHref;
-          const cssFile = zip.file(cssPath);
-          if (cssFile) {
-            const cssText = await cssFile.async('text');
-            bookCss += '\n' + cssText;
-          }
-        }
-      }
-      // --- Title extraction: prefer <dc:title> from metadata, fallback to first h1/h2 in first section ---
-      let bookTitle = '';
-      const dcTitle = opfDoc.querySelector('metadata > title, metadata > dc\\:title');
-      if (dcTitle && dcTitle.textContent) {
-        bookTitle = dcTitle.textContent.trim();
-      }
-      // Fallback: try first h1/h2 in first section
-      if (!bookTitle && sections.length > 0) {
-        const firstSection = sections[0].content;
-        const m = firstSection.match(/<h1[^>]*>(.*?)<\/h1>|<h2[^>]*>(.*?)<\/h2>/i);
-        if (m) bookTitle = m[1] || m[2] || '';
-      }
-      if (!bookTitle) bookTitle = title;
-
-      // --- Cover image extraction ---
-      let coverUrl = '';
-      // Try to find manifest item with id='cover' or media-type image/*
-      let coverItem = opfDoc.querySelector('manifest item[id*=cover i][media-type^="image/"]');
-      if (!coverItem) {
-        // Fallback: first image in manifest
-        coverItem = opfDoc.querySelector('manifest item[media-type^="image/"]');
-      }
-      if (coverItem) {
-        const coverHref = coverItem.getAttribute('href');
-        if (coverHref) {
-          const coverPath = opfPath.substring(0, opfPath.lastIndexOf('/') + 1) + coverHref;
-          const coverFile = zip.file(coverPath);
-          if (coverFile) {
-            const ext = coverPath.split('.').pop()?.toLowerCase() || 'png';
-            const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
-            const coverData = await coverFile.async('uint8array');
-            const firebasePath = `books/${bookId}/cover.${ext}`;
-            coverUrl = await uploadFileAndGetUrl(firebasePath, new Blob([coverData], { type: mime }));
-          }
-        }
-      }
-      const newBook: Book = {
-        id: bookId,
-        title: title, // Use the title from form or EPUB metadata
-        author,
-        description,
-        sections,
-        totalWords,
-        fileName: file.name,
-        dateAdded: new Date().toISOString(),
-        css: bookCss,
-        cover: coverUrl,
-        wordsRead: 0,
-        wordsPerPage: wordsPerPage, // Use user-selected words per page
-      };
-      const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as unknown as Record<string, unknown>);
-      const savedMeta = await saveBookMetadata(user.uid, bookId, {
-        title: newBook.title,
-        author: newBook.author,
-        fileName: newBook.fileName,
-        totalWords: newBook.totalWords,
-        storagePath,
-        downloadURL,
-        currentSection: 0, // Start at section 0
-        wordsRead: newBook.wordsRead || 0,
-      });
-      // Add the new book metadata to the shelf immediately
-      setBooks(prevBooks => [
-        ...prevBooks,
-        {
-          id: bookId,
-          title: newBook.title,
-          author: newBook.author,
-          description: '',
-          sections: [],
-          totalWords: newBook.totalWords,
-          fileName: newBook.fileName,
-          dateAdded: newBook.dateAdded,
-          storagePath,
-          downloadURL,
-          completed: false,
-          css: newBook.css,
-          cover: newBook.cover,
-          wordsRead: 0,
-          wordsPerPage: newBook.wordsPerPage,
-        }
-      ]);
-      setIsUploading(false);
-    } catch (error) {
-      console.error('Error processing EPUB:', error);
-      setError(`Error processing EPUB: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setIsUploading(false);
-    }
-  };
-
-  // On 'Read', fetch book JSON if not in localStorage, then navigate
-  const openBook = async (book: Book) => {
-    const localKey = `epub-book-${book.id}`;
-    let bookObj = null;
-    const cached = localStorage.getItem(localKey);
-    if (cached) {
-      try {
-        bookObj = JSON.parse(cached);
-        console.log('Loaded book from localStorage:', localKey, bookObj);
-      } catch { bookObj = null; }
-    }
-    if (!bookObj && book.downloadURL) {
-      try {
-        console.log('Fetching book from storage:', book.downloadURL);
-        const fetched = await getBookJson(book.downloadURL);
-        console.log('Fetched book JSON:', fetched);
-        if (fetched && fetched.sections && Array.isArray(fetched.sections)) {
-          bookObj = fetched;
-          localStorage.setItem(localKey, JSON.stringify(bookObj));
-          console.log('Saved book to localStorage:', localKey);
-        } else {
-          setError('Book data from storage is invalid.');
-          return;
-        }
-      } catch (e) {
-        setError('Failed to load book from storage.');
-        console.error('Failed to fetch book JSON:', e);
-        return;
-      }
-    }
-    if (!bookObj) {
-      setError('Book could not be loaded.');
-      return;
-    }
-    // Check for saved progress
-    const savedProgress = localStorage.getItem('epub-reader-progress');
-    let startSection = 0;
-    if (savedProgress) {
-      const allProgress = JSON.parse(savedProgress);
-      const bookProgress = allProgress.find((p: ReadingProgress) => p.bookId === book.id);
-      if (bookProgress) {
-        startSection = bookProgress.currentSection;
-      }
-    }
-    router.push(`/reader?book=${book.id}&section=${startSection}`);
-  };
-
-  const deleteBookHandler = async (bookId: string, storagePath?: string) => {
-    if (!user?.uid || !storagePath) return;
-    // Remove from localStorage
-    localStorage.removeItem(`epub-book-${bookId}`);
-    // Remove reading progress for this book
-    const savedProgress = localStorage.getItem('epub-reader-progress');
-    if (savedProgress) {
-      let allProgress: ReadingProgress[] = JSON.parse(savedProgress);
-      allProgress = allProgress.filter(p => p.bookId !== bookId);
-      localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
-    }
-    await deleteBook(bookId, storagePath);
-    // Remove only the deleted book from the books array
-    setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
-  };
-
-  const nextSection = (fromAutoScroll = false) => {
-    if (currentBook && currentSection < currentBook.sections.length - 1) {
-      const newSection = currentSection + 1;
-      setCurrentSection(newSection);
-      if (currentBook) {
-        router.push(`/?book=${currentBook.id}&section=${newSection}`);
-      }
-      if (fromAutoScroll && contentRef.current) {
-        setTimeout(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, 0);
-      }
-    }
-  };
-
-  const prevSection = () => {
-    if (currentSection > 0 && currentBook) {
-      const newSection = currentSection - 1;
-      setCurrentSection(newSection);
-      router.push(`/?book=${currentBook.id}&section=${newSection}`);
-    }
-  };
-
-  const backToLibrary = () => {
-    setView('library');
-    setCurrentBook(null);
-    router.push('/');
-  };
-
-  // Toggle Completed handler
-  const toggleCompleted = async (book: Book) => {
-    if (!user?.uid) return;
-    const newCompleted = !book.completed;
-    await updateBookMetadata(user.uid, book.id, { completed: newCompleted, wordsRead: book.wordsRead || 0 });
-    // Update local state
-    setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, completed: newCompleted } : b));
-  };
-
-  // Helper: Determine book status
-  function getBookStatus(book: Book): 'active' | 'notStarted' | 'completed' {
-    if (book.completed) return 'completed';
-    const savedProgress = localStorage.getItem('epub-reader-progress');
-    if (savedProgress) {
-      const allProgress: ReadingProgress[] = JSON.parse(savedProgress);
-      const bookProgress = allProgress.find((p) => p.bookId === book.id);
-      if (bookProgress) {
-        // Any progress, even at last section, is 'active' unless completed flag is set
-        return 'active';
-      }
-    }
-    return 'notStarted';
-  }
-
-  // Group books
-  const activeBooks = books.filter((b) => b.wordsRead && b.wordsRead > 0 && !b.completed);
-  const notStarted = books.filter((b) => b.wordsRead === 0);
-  const completed = books.filter((b) => getBookStatus(b) === 'completed');
-  const toReadBooks = books.filter(book => !book.wordsRead || book.wordsRead === 0);
-  const currentlyReadingBooks = books.filter(book => book.wordsRead && book.wordsRead > 0 && !book.completed);
-  console.log(books);
-  console.log('LIBRARY DEBUG: toReadBooks', toReadBooks);
-  console.log('LIBRARY DEBUG: currentlyReadingBooks', currentlyReadingBooks);
-
-  // Helper: get today's date string (YYYY-MM-DD)
-  function getToday() {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  }
-  // Helper: get words read today (fix: compare only date part of each session's timestamp)
-  const todayStr = getToday();
-  console.log('Today string:', todayStr);
-  // Helper: compare two dates by local year, month, and day
-  function isSameLocalDay(dateA: Date, dateB: Date) {
-    return (
-      dateA.getFullYear() === dateB.getFullYear() &&
-      dateA.getMonth() === dateB.getMonth() &&
-      dateA.getDate() === dateB.getDate()
-    );
-  }
-  const today = new Date();
-  const sessionsToday = sessions
-    ? sessions.filter((s, idx) => {
-        if (!s.timestamp) return false;
-        let sessionDate: Date;
-        if (typeof s.timestamp === 'string') {
-          sessionDate = new Date(s.timestamp);
-        } else if (s.timestamp instanceof Date) {
-          sessionDate = s.timestamp;
-        } else if (typeof s.timestamp === 'object' && s.timestamp !== null && typeof (s.timestamp as any).toDate === 'function') {
-          sessionDate = (s.timestamp as any).toDate();
-        } else {
-          return false;
-        }
-        const isToday = isSameLocalDay(sessionDate, today);
-        console.log(`[Session ${idx}] timestamp:`, s.timestamp, '| parsed:', sessionDate, '| isToday (local):', isToday);
-        return isToday;
-      })
-    : [];
-  const wordsReadToday = sessionsToday.reduce((sum, s) => sum + (s.wordCount || 0), 0);
-  console.log('Filtered sessions for today:', sessionsToday);
-  console.log('wordsReadToday (sum):', wordsReadToday, 'dailyGoal:', dailyGoal);
+    fetchAllComprehensionReports();
+  }, [fetchAllComprehensionReports]);
 
   // Add handler for text book creation
   const handleCreateTextBook = async () => {
@@ -1324,6 +892,495 @@ export default function library() {
   const deleteArchivedBookHandler = async (archivedId: string): Promise<void> => {
     await deleteArchivedBook(archivedId);
     setArchivedBooks(prev => prev.filter(b => b.id !== archivedId));
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.name.endsWith('.epub')) {
+      await extractEpubMetadata(file);
+    } else {
+      setError('Please select a valid EPUB file.');
+    }
+  };
+
+  // Extract EPUB metadata without processing the full file
+  const extractEpubMetadata = async (file: File) => {
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = await JSZip.loadAsync(file);
+      const containerFile = zip.file('META-INF/container.xml');
+      if (!containerFile) throw new Error('Invalid EPUB: No container.xml found');
+      const containerText = await containerFile.async('text');
+      const parser = new DOMParser();
+      const containerDoc = parser.parseFromString(containerText, 'text/xml');
+      const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
+      if (!opfPath) throw new Error('Invalid EPUB: No OPF path found');
+      const opfFile = zip.file(opfPath);
+      if (!opfFile) throw new Error('Invalid EPUB: OPF file not found');
+      const opfText = await opfFile.async('text');
+      const opfDoc = parser.parseFromString(opfText, 'text/xml');
+      
+      const title = opfDoc.querySelector('title')?.textContent || 'Unknown Title';
+      const author = opfDoc.querySelector('creator')?.textContent || 'Unknown Author';
+      
+      setEpubFile(file);
+      setEpubMetadata({ title, author });
+      setTextTitle(title);
+      setTextAuthor(author);
+      setTextFile(null); // Clear text file when EPUB is selected
+      setMdFile(null); // Clear MD file when EPUB is selected
+    } catch (error) {
+      console.error('Error extracting EPUB metadata:', error);
+      setError(`Error reading EPUB file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Helper to normalize paths like OEBPS/Text/../Images/T_Page_027.jpg => OEBPS/Images/T_Page_027.jpg
+  function normalizePath(path: string): string {
+    const parts: string[] = [];
+    path.split('/').forEach(part => {
+      if (part === '..') {
+        parts.pop();
+      } else if (part !== '.' && part !== '') {
+        parts.push(part);
+      }
+    });
+    return parts.join('/');
+  }
+
+  // Helper to safely get innerText
+  function getInnerText(el: Element | null): string {
+    return (el && 'innerText' in el) ? (el as HTMLElement).innerText : '';
+  }
+
+  // Upload EPUB and store in Storage/Firestore
+  const processEpubFile = async (file: File) => {
+    if (!user?.uid) return;
+    setIsUploading(true);
+    setError('');
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = await JSZip.loadAsync(file);
+      const containerFile = zip.file('META-INF/container.xml');
+      if (!containerFile) throw new Error('Invalid EPUB: No container.xml found');
+      const containerText = await containerFile.async('text');
+      const parser = new DOMParser();
+      const containerDoc = parser.parseFromString(containerText, 'text/xml');
+      const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
+      if (!opfPath) throw new Error('Invalid EPUB: No OPF path found');
+      const opfFile = zip.file(opfPath);
+      if (!opfFile) throw new Error('Invalid EPUB: OPF file not found');
+      const opfText = await opfFile.async('text');
+      const opfDoc = parser.parseFromString(opfText, 'text/xml');
+      // Use title and author from form instead of EPUB metadata
+      const title = textTitle.trim() || opfDoc.querySelector('title')?.textContent || 'Unknown Title';
+      const author = textAuthor.trim() || opfDoc.querySelector('creator')?.textContent || 'Unknown Author';
+      const description = opfDoc.querySelector('description')?.textContent || 'No description available';
+      const spine = Array.from(opfDoc.querySelectorAll('spine itemref')).map(item => item.getAttribute('idref')).filter(Boolean);
+      const sections: BookSection[] = [];
+      let totalWords = 0;
+      const bookId = Date.now().toString();
+      for (const itemId of spine) {
+        const manifestItem = opfDoc.querySelector(`manifest item[id="${itemId}"]`);
+        if (!manifestItem) continue;
+        const href = manifestItem.getAttribute('href');
+        if (!href) continue;
+        const fullPath = opfPath.substring(0, opfPath.lastIndexOf('/') + 1) + href;
+        const sectionFile = zip.file(fullPath);
+        if (sectionFile) {
+          const sectionHtml = await sectionFile.async('text');
+          const sectionDoc = parser.parseFromString(sectionHtml, 'text/html');
+          // --- Image handling ---
+          const imgElements = sectionDoc.querySelectorAll('img');
+          for (const img of imgElements) {
+            const src = img.getAttribute('src');
+            if (src && !src.startsWith('data:') && !src.startsWith('http')) {
+              // Resolve relative path
+              let imgPath = src;
+              if (!/^https?:\/\//.test(src)) {
+                // Relative to section file
+                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/') + 1);
+                imgPath = basePath + src;
+              }
+              const normalizedImgPath = normalizePath(imgPath);
+              const imgFile = zip.file(normalizedImgPath);
+              if (imgFile) {
+                const ext = normalizedImgPath.split('.').pop()?.toLowerCase() || 'png';
+                const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
+                const imgData = await imgFile.async('uint8array');
+                const firebasePath = `books/${bookId}/images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                const url = await uploadFileAndGetUrl(firebasePath, new Blob([imgData], { type: mime }));
+                img.setAttribute('src', url);
+              } else {
+                console.warn('Image not found in EPUB zip:', normalizedImgPath);
+              }
+            }
+          }
+          // --- SVG <image> handling ---
+          const svgImageElements = sectionDoc.querySelectorAll('image');
+          for (const svgImg of svgImageElements) {
+            // Try both xlink:href and href
+            let href = svgImg.getAttribute('xlink:href') || svgImg.getAttribute('href');
+            if (href && !href.startsWith('data:') && !href.startsWith('http')) {
+              let imgPath = href;
+              if (!/^https?:\/\//.test(href)) {
+                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/') + 1);
+                imgPath = basePath + href;
+              }
+              const normalizedImgPath = normalizePath(imgPath);
+              const imgFile = zip.file(normalizedImgPath);
+              if (imgFile) {
+                const ext = normalizedImgPath.split('.').pop()?.toLowerCase() || 'png';
+                const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
+                const imgData = await imgFile.async('uint8array');
+                const firebasePath = `books/${bookId}/images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                const url = await uploadFileAndGetUrl(firebasePath, new Blob([imgData], { type: mime }));
+                svgImg.setAttribute('xlink:href', url);
+                svgImg.setAttribute('href', url); // for compatibility
+              } else {
+                console.warn('SVG image not found in EPUB zip:', normalizedImgPath);
+              }
+            }
+          }
+          // Section title: concatenate multiple <a> elements (e.g., chapter number and title)
+          let sectionTitle = '';
+          // 1. Concatenate <a> elements in main heading container (e.g., <p class*='capitulo'> or first <p> with <a>)
+          let headingContainer: Element | null = sectionDoc.querySelector('p.capitulo') || sectionDoc.querySelector('p[class*="capitulo"]');
+          if (!headingContainer) {
+            // Fallback: first <p> with at least one <a>
+            headingContainer = Array.from(sectionDoc.querySelectorAll('p')).find(p => p.querySelector('a')) || null;
+          }
+          if (headingContainer) {
+            const aEls = Array.from(headingContainer.querySelectorAll('a'));
+            if (aEls.length > 0) {
+              sectionTitle = aEls.map(a => getInnerText(a).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+            }
+          }
+          // If still not found, try previous logic
+          if (!sectionTitle) {
+            // <span> with class containing 'numero' and next <a> with <br>
+            const headingSpan = sectionDoc.querySelector('span[class*="numero"]');
+            if (headingSpan && headingSpan.textContent && headingSpan.textContent.trim().length > 0) {
+              sectionTitle = headingSpan.textContent.trim();
+              const nextA = headingSpan.parentElement?.querySelector('a');
+              if (nextA && nextA.innerHTML.includes('<br')) {
+                sectionTitle += ': ' + getInnerText(nextA).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+              }
+            }
+          }
+          if (!sectionTitle) {
+            // <a> with <br> (chapter title)
+            const aWithBr = sectionDoc.querySelector('a[href][innerHTML*="<br"]');
+            if (aWithBr && getInnerText(aWithBr) && getInnerText(aWithBr).trim().length > 0) {
+              sectionTitle = getInnerText(aWithBr).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+          }
+          // 2. <p> with class containing 'titulo'
+          if (!sectionTitle) {
+            const tituloP = sectionDoc.querySelector('p[class*="titulo"]');
+            if (tituloP && tituloP.textContent && tituloP.textContent.trim().length > 0) {
+              sectionTitle = tituloP.textContent.trim();
+            }
+          }
+          // 3. <h1>
+          if (!sectionTitle) {
+            const firstH1 = sectionDoc.querySelector('h1');
+            if (firstH1 && firstH1.textContent && firstH1.textContent.trim().length > 0) {
+              sectionTitle = firstH1.textContent.trim();
+            }
+          }
+          // 4. <h2>
+          if (!sectionTitle) {
+            const firstH2 = sectionDoc.querySelector('h2');
+            if (firstH2 && firstH2.textContent && firstH2.textContent.trim().length > 0) {
+              sectionTitle = firstH2.textContent.trim();
+            }
+          }
+          // 5. <p>
+          if (!sectionTitle) {
+            sectionTitle = '';
+          }
+          // Content: always include all <p> tags (and optionally <h1>, <h2>, <h3>) in order
+          let blocks: string[] = [];
+          const blockTags = ['h1', 'h2', 'h3', 'p'];
+          blockTags.forEach(tag => {
+            sectionDoc.querySelectorAll(tag).forEach(el => {
+              if (el.textContent && el.textContent.trim().length > 0) {
+                blocks.push(el.textContent.trim());
+              }
+            });
+          });
+          // Add any direct text nodes under <body> (not inside a block)
+          if (sectionDoc.body) {
+            Array.from(sectionDoc.body.childNodes).forEach(node => {
+              if (node.nodeType === Node.TEXT_NODE && node.textContent && node.textContent.trim().length > 0) {
+                blocks.push(node.textContent.trim());
+              }
+            });
+          }
+          const improvedContent = blocks.join('\n\n');
+          function splitSentences(text: string): string[] {
+            // First split by paragraphs (double newlines)
+            const paragraphs = text.split(/\n\n+/g).map(p => p.trim()).filter(Boolean);
+            // Improved regex: avoid splitting after common abbreviations, split on punctuation followed by a capital letter
+            const sentenceRegex = /(?<!\b[A-Z][a-z]\.|Sr\.|Sra\.|Dr\.|Dra\.|etc\.|No\.|N\u00ba)\s*(?<=[.!?])\s*(?=[A-ZÁÉÍÓÚÑ]|\[)/g;
+            // Split each paragraph into sentences, then flatten
+            return paragraphs.flatMap(paragraph => paragraph.split(sentenceRegex).map((s: string) => s.trim()).filter(Boolean));
+          }
+          // Print the first sentence after splitting for verification
+          const sentences = splitSentences(improvedContent);
+          const firstSentence = sentences[0] || '';
+          if (sections.length === 2) {
+            console.log('--- Section 3 RAW CONTENT ---');
+            console.log(improvedContent);
+            console.log('--- Section 3 SPLIT SENTENCES ---');
+            sentences.forEach((s: string, i: number) => console.log(`Sentence ${i + 1}:`, s));
+            if (sentences.length > 0) {
+              console.log('Section 3 FIRST SENTENCE:', sentences[0]);
+            }
+          }
+          const sectionData = {
+            title: sectionTitle.trim(),
+            content: improvedContent,
+            wordCount: improvedContent.split(/\s+/).filter(Boolean).length,
+            id: itemId || `${sections.length + 1}`
+          };
+          // Print section details to console
+          console.log(`=== Section ${sections.length + 1} ===`);
+          console.log('Title:', sectionData.title);
+          console.log('ID:', sectionData.id);
+          console.log('Word Count:', sectionData.wordCount);
+          console.log('Content Preview:', sectionData.content.substring(0, 200) + (sectionData.content.length > 200 ? '...' : ''));
+          console.log('Full Content Length:', sectionData.content.length);
+          console.log('First Sentence:', firstSentence);
+          console.log('========================');
+          sections.push(sectionData);
+          totalWords += sectionData.wordCount;
+        }
+      }
+      // --- Extract all CSS files referenced in the manifest ---
+      const cssFiles = Array.from(opfDoc.querySelectorAll('manifest item')).filter(item => {
+        const mediaType = item.getAttribute('media-type');
+        return mediaType && mediaType.includes('css');
+      });
+      let bookCss = '';
+      for (const cssItem of cssFiles) {
+        const cssHref = cssItem.getAttribute('href');
+        if (cssHref) {
+          const cssPath = opfPath.substring(0, opfPath.lastIndexOf('/') + 1) + cssHref;
+          const cssFile = zip.file(cssPath);
+          if (cssFile) {
+            const cssText = await cssFile.async('text');
+            bookCss += '\n' + cssText;
+          }
+        }
+      }
+      // --- Title extraction: prefer <dc:title> from metadata, fallback to first h1/h2 in first section ---
+      let bookTitle = '';
+      const dcTitle = opfDoc.querySelector('metadata > title, metadata > dc\\:title');
+      if (dcTitle && dcTitle.textContent) {
+        bookTitle = dcTitle.textContent.trim();
+      }
+      // Fallback: try first h1/h2 in first section
+      if (!bookTitle && sections.length > 0) {
+        const firstSection = sections[0].content;
+        const m = firstSection.match(/<h1[^>]*>(.*?)<\/h1>|<h2[^>]*>(.*?)<\/h2>/i);
+        if (m) bookTitle = m[1] || m[2] || '';
+      }
+      if (!bookTitle) bookTitle = title;
+
+      // --- Cover image extraction ---
+      let coverUrl = '';
+      // Try to find manifest item with id='cover' or media-type image/*
+      let coverItem = opfDoc.querySelector('manifest item[id*=cover i][media-type^="image/"]');
+      if (!coverItem) {
+        // Fallback: first image in manifest
+        coverItem = opfDoc.querySelector('manifest item[media-type^="image/"]');
+      }
+      if (coverItem) {
+        const coverHref = coverItem.getAttribute('href');
+        if (coverHref) {
+          const coverPath = opfPath.substring(0, opfPath.lastIndexOf('/') + 1) + coverHref;
+          const coverFile = zip.file(coverPath);
+          if (coverFile) {
+            const ext = coverPath.split('.').pop()?.toLowerCase() || 'png';
+            const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : ext === 'gif' ? 'image/gif' : 'image/png';
+            const coverData = await coverFile.async('uint8array');
+            const firebasePath = `books/${bookId}/cover.${ext}`;
+            coverUrl = await uploadFileAndGetUrl(firebasePath, new Blob([coverData], { type: mime }));
+          }
+        }
+      }
+      const newBook: Book = {
+        id: bookId,
+        title: title, // Use the title from form or EPUB metadata
+        author,
+        description,
+        sections,
+        totalWords,
+        fileName: file.name,
+        dateAdded: new Date().toISOString(),
+        css: bookCss,
+        cover: coverUrl,
+        wordsRead: 0,
+        wordsPerPage: wordsPerPage, // Use user-selected words per page
+      };
+      const { storagePath, downloadURL } = await uploadBookJson(user.uid, bookId, newBook as unknown as Record<string, unknown>);
+      const savedMeta = await saveBookMetadata(user.uid, bookId, {
+        title: newBook.title,
+        author: newBook.author,
+        fileName: newBook.fileName,
+        totalWords: newBook.totalWords,
+        storagePath,
+        downloadURL,
+        currentSection: 0, // Start at section 0
+        wordsRead: newBook.wordsRead || 0,
+      });
+      // Add the new book metadata to the shelf immediately
+      setBooks(prevBooks => [
+        ...prevBooks,
+        {
+          id: bookId,
+          title: newBook.title,
+          author: newBook.author,
+          description: '',
+          sections: [],
+          totalWords: newBook.totalWords,
+          fileName: newBook.fileName,
+          dateAdded: newBook.dateAdded,
+          storagePath,
+          downloadURL,
+          completed: false,
+          css: newBook.css,
+          cover: newBook.cover,
+          wordsRead: 0,
+          wordsPerPage: newBook.wordsPerPage,
+        }
+      ]);
+      setIsUploading(false);
+    } catch (error) {
+      console.error('Error processing EPUB:', error);
+      setError(`Error processing EPUB: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsUploading(false);
+    }
+  };
+
+  // On 'Read', fetch book JSON if not in localStorage, then navigate
+  const openBook = async (book: Book) => {
+    // Set loading state
+    setIsNavigatingToBook(true);
+    
+    try {
+      // Ensure user words are loaded before navigation to prevent red flash
+      if (Object.keys(userWords).length === 0 && user?.uid) {
+        const ws = await WordService.getWords(user.uid);
+        const map: { [word: string]: 'known' | 'tracking' | 'ignored' | 'unknown' } = {};
+        ws.forEach(w => { map[cleanWord(w.word)] = w.type; });
+        setUserWords(map);
+      }
+
+      const localKey = `epub-book-${book.id}`;
+      let bookObj = null;
+      const cached = localStorage.getItem(localKey);
+      if (cached) {
+        try {
+          bookObj = JSON.parse(cached);
+        } catch { bookObj = null; }
+      }
+      if (!bookObj && book.downloadURL) {
+        try {
+          const fetched = await getBookJson(book.downloadURL);
+          if (fetched && fetched.sections && Array.isArray(fetched.sections)) {
+            bookObj = fetched;
+            localStorage.setItem(localKey, JSON.stringify(bookObj));
+          } else {
+            setError('Book data from storage is invalid.');
+            return;
+          }
+        } catch (e) {
+          setError('Failed to load book from storage.');
+          console.error('Failed to fetch book JSON:', e);
+          return;
+        }
+      }
+      if (!bookObj) {
+        setError('Book could not be loaded.');
+        return;
+      }
+      
+      // Check for saved progress
+      const savedProgress = localStorage.getItem('epub-reader-progress');
+      let startSection = 0;
+      if (savedProgress) {
+        const allProgress: ReadingProgress[] = JSON.parse(savedProgress);
+        const bookProgress = allProgress.find((p: ReadingProgress) => p.bookId === book.id);
+        if (bookProgress) {
+          startSection = bookProgress.currentSection;
+        }
+      }
+      
+      // Store userWords in localStorage for the reader page to use immediately
+      if (Object.keys(userWords).length > 0) {
+        localStorage.setItem('reader-userWords', JSON.stringify(userWords));
+      }
+      
+      // Navigate to reader
+      router.push(`/reader?book=${book.id}&section=${startSection}`);
+    } finally {
+      setIsNavigatingToBook(false);
+    }
+  };
+
+  const deleteBookHandler = async (bookId: string, storagePath?: string) => {
+    if (!user?.uid || !storagePath) return;
+    // Remove from localStorage
+    localStorage.removeItem(`epub-book-${bookId}`);
+    // Remove reading progress for this book
+    const savedProgress = localStorage.getItem('epub-reader-progress');
+    if (savedProgress) {
+      let allProgress: ReadingProgress[] = JSON.parse(savedProgress);
+      allProgress = allProgress.filter(p => p.bookId !== bookId);
+      localStorage.setItem('epub-reader-progress', JSON.stringify(allProgress));
+    }
+    await deleteBook(bookId, storagePath);
+    // Remove only the deleted book from the books array
+    setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
+  };
+
+  const nextSection = (fromAutoScroll = false) => {
+    if (currentBook && currentSection < currentBook.sections.length - 1) {
+      const newSection = currentSection + 1;
+      setCurrentSection(newSection);
+      if (currentBook) {
+        router.push(`/?book=${currentBook.id}&section=${newSection}`);
+      }
+      if (fromAutoScroll && contentRef.current) {
+        setTimeout(() => { if (contentRef.current) contentRef.current.scrollTop = 0; }, 0);
+      }
+    }
+  };
+
+  const prevSection = () => {
+    if (currentSection > 0 && currentBook) {
+      const newSection = currentSection - 1;
+      setCurrentSection(newSection);
+      router.push(`/?book=${currentBook.id}&section=${newSection}`);
+    }
+  };
+
+  const backToLibrary = () => {
+    setView('library');
+    setCurrentBook(null);
+    router.push('/');
+  };
+
+  // Toggle Completed handler
+  const toggleCompleted = async (book: Book) => {
+    if (!user?.uid) return;
+    const newCompleted = !book.completed;
+    await updateBookMetadata(user.uid, book.id, { completed: newCompleted, wordsRead: book.wordsRead || 0 });
+    // Update local state
+    setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, completed: newCompleted } : b));
   };
 
   // Generate content handler
@@ -2114,37 +2171,114 @@ export default function library() {
       'Completed': 'Finished',
       'Archived': 'Archived',
     };
-    // In SectionRow, render cards in a horizontal scrollable carousel on mobile, grid on desktop
-    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+    
+    // Show skeleton loaders if books are still loading
+    const showSkeletons = isLoadingBooks && books.length === 0;
+    
     return (
       <div className="mb-16">
         <div className="flex items-center gap-4 mb-6 mt-12">
           <h2 className="text-xl font-bold theme-primary tracking-tight" style={{ fontFamily: 'var(--font-family)', letterSpacing: '-0.01em', fontWeight: 700 }}>{shelfMap[title] || title}</h2>
           <div className="flex-1 border-t theme-border" />
         </div>
-        {isMobile ? (
-          <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-2 px-2" style={{ WebkitOverflowScrolling: 'touch', maxWidth: '100vw', width: '100vw' }}>
-            {books.length > 0 ? books.map((book, idx) => (
-              <div key={book.id} className="snap-center flex-shrink-0" style={{ width: '60vw', maxWidth: 200, minWidth: 140, marginRight: idx === books.length - 1 ? 0 : 12, marginLeft: idx === 0 ? 0 : 0 }}>
-                <BookCard book={book} archived={archived} openBook={openBook} bookWordsRead={bookWordsRead} comprehensionReports={comprehensionReports} setComprehensionModalBook={setComprehensionModalBook} fetchComprehensionReport={fetchComprehensionReport} setDataModalBook={setDataModalBook} toggleCompleted={toggleCompleted} archiveBookHandler={archiveBookHandler} deleteBookHandler={deleteBookHandler} deleteArchivedBookHandler={deleteArchivedBookHandler} />
+        
+        {/* Mobile layout */}
+        <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-2 px-2 sm:hidden" style={{ WebkitOverflowScrolling: 'touch', maxWidth: '100vw', width: '100vw' }}>
+          {showSkeletons ? (
+            // Skeleton loaders for mobile
+            Array.from({ length: 3 }).map((_, idx) => (
+              <div key={`skeleton-${idx}`} className="snap-center flex-shrink-0" style={{ width: '60vw', maxWidth: 200, minWidth: 140, marginRight: idx === 2 ? 0 : 12, marginLeft: idx === 0 ? 0 : 0 }}>
+                <div className="card-themed-primary flex flex-col w-full aspect-[3/4] animate-pulse">
+                  <div className="flex justify-end p-2">
+                    <div className="w-6 h-6 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
+                    <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                    <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                    <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                    <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                    <div className="flex gap-2 mt-2">
+                      <div className="flex-1 h-10 bg-gray-200 rounded"></div>
+                      <div className="flex-1 h-10 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )) : (
-              <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl" style={{ background: 'var(--card-background)', padding: '1.5rem', minWidth: '90vw', maxWidth: '20rem' }}>
-                <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
+            ))
+          ) : books.length > 0 ? books.map((book, idx) => (
+            <div key={book.id} className="snap-center flex-shrink-0" style={{ width: '60vw', maxWidth: 200, minWidth: 140, marginRight: idx === books.length - 1 ? 0 : 12, marginLeft: idx === 0 ? 0 : 0 }}>
+              <BookCard 
+                book={book} 
+                archived={archived} 
+                openBook={openBook} 
+                bookWordsRead={bookWordsRead} 
+                comprehensionReports={comprehensionReports} 
+                setComprehensionModalBook={setComprehensionModalBook} 
+                fetchComprehensionReport={fetchComprehensionReport} 
+                setDataModalBook={setDataModalBook} 
+                toggleCompleted={toggleCompleted} 
+                archiveBookHandler={archiveBookHandler} 
+                deleteBookHandler={deleteBookHandler} 
+                deleteArchivedBookHandler={deleteArchivedBookHandler}
+                isNavigatingToBook={isNavigatingToBook}
+                isLoadingComprehensionReports={isLoadingComprehensionReports}
+                isLoadingSessions={isLoadingSessions}
+              />
+            </div>
+          )) : (
+            <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl" style={{ background: 'var(--card-background)', padding: '1.5rem', minWidth: '90vw', maxWidth: '20rem' }}>
+              <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Desktop layout */}
+        <div className="hidden sm:flex flex-wrap gap-x-4 gap-y-6 min-h-[180px]">
+          {showSkeletons ? (
+            // Skeleton loaders for desktop
+            Array.from({ length: 6 }).map((_, idx) => (
+              <div key={`skeleton-${idx}`} className="card-themed-primary flex flex-col w-full aspect-[3/4] animate-pulse" style={{ maxWidth: '250px', minWidth: '180px' }}>
+                <div className="flex justify-end p-2">
+                  <div className="w-6 h-6 bg-gray-200 rounded"></div>
+                </div>
+                <div className="flex-1 flex flex-col justify-between px-6 pb-6 pt-0 gap-2">
+                  <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                  <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                  <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                  <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                  <div className="flex gap-2 mt-2">
+                    <div className="flex-1 h-10 bg-gray-200 rounded"></div>
+                    <div className="flex-1 h-10 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        ) : (
-        <div className="flex flex-wrap gap-x-4 gap-y-6 min-h-[180px]">
-          {books.length > 0 ? books.map((book) => (
-              <BookCard key={book.id} book={book} archived={archived} openBook={openBook} bookWordsRead={bookWordsRead} comprehensionReports={comprehensionReports} setComprehensionModalBook={setComprehensionModalBook} fetchComprehensionReport={fetchComprehensionReport} setDataModalBook={setDataModalBook} toggleCompleted={toggleCompleted} archiveBookHandler={archiveBookHandler} deleteBookHandler={deleteBookHandler} deleteArchivedBookHandler={deleteArchivedBookHandler} />
+            ))
+          ) : books.length > 0 ? books.map((book) => (
+              <BookCard 
+                key={book.id} 
+                book={book} 
+                archived={archived} 
+                openBook={openBook} 
+                bookWordsRead={bookWordsRead} 
+                comprehensionReports={comprehensionReports} 
+                setComprehensionModalBook={setComprehensionModalBook} 
+                fetchComprehensionReport={fetchComprehensionReport} 
+                setDataModalBook={setDataModalBook} 
+                toggleCompleted={toggleCompleted} 
+                archiveBookHandler={archiveBookHandler} 
+                deleteBookHandler={deleteBookHandler} 
+                deleteArchivedBookHandler={deleteArchivedBookHandler}
+                isNavigatingToBook={isNavigatingToBook}
+                isLoadingComprehensionReports={isLoadingComprehensionReports}
+              />
           )) : (
             <div className="col-span-full flex flex-col items-center justify-center italic h-32 border-2 border-dashed theme-border rounded-xl" style={{ background: 'var(--card-background)', padding: '1.5rem' }}>
               <span className="text-base theme-text-secondary">No books in this shelf yet.</span>
             </div>
           )}
         </div>
-        )}
       </div>
     );
   }
